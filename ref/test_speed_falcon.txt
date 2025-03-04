@@ -1,0 +1,20 @@
+n =  512
+falcon_keygen_make:           67999194 cycles
+falcon_sign_dyn:              2841790 cycles
+falcon_sign_dyn_ct:           2983358 cycles
+falcon_expand_privkey:         979968 cycles
+falcon_sign_tree:             1596055 cycles
+falcon_sign_tree_ct:          1742170 cycles
+falcon_verify:                 354335 cycles
+falcon_verify_ct:              503997 cycles
+
+n = 1024
+falcon_keygen_make:           190375360 cycles
+falcon_sign_dyn:              5978379 cycles
+falcon_sign_dyn_ct:           6255511 cycles
+falcon_expand_privkey:        2140619 cycles
+falcon_sign_tree:             3283525 cycles
+falcon_sign_tree_ct:          3559788 cycles
+falcon_verify:                 757650 cycles
+falcon_verify_ct:             1036081 cycles
+

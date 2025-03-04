@@ -1,0 +1,578 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 23.62      4.71     4.71 20480000     0.00     0.00  falcon_inner_sampler
+ 20.16      8.73     4.02   766158     0.00     0.00  falcon_inner_prng_refill
+ 18.26     12.37     3.64 35017454     0.00     0.00  falcon_inner_gaussian0_sampler
+  8.93     14.15     1.78    10000     0.00     0.00  falcon_inner_hash_to_point_ct
+  4.16     14.98     0.83  2611098     0.00     0.00  falcon_inner_poly_mul_fft
+  3.76     15.73     0.75  5100000     0.00     0.00  falcon_inner_poly_merge_fft
+  3.46     16.42     0.69  5102046     0.00     0.00  falcon_inner_poly_split_fft
+  2.81     16.98     0.56    20556     0.00     0.00  falcon_inner_iFFT
+  2.56     17.49     0.51   208265     0.00     0.00  process_block
+  2.16     17.92     0.43    10000     0.00     0.00  ffSampling_fft.constprop.0
+  2.01     18.32     0.40    10000     0.00     0.00  falcon_inner_sign_tree
+  1.86     18.69     0.37  2550002     0.00     0.00  falcon_inner_poly_sub
+  1.66     19.02     0.33  2570551     0.00     0.00  falcon_inner_poly_add
+  1.45     19.31     0.29    11127     0.00     0.00  falcon_inner_FFT
+  1.00     19.51     0.20 13150490     0.00     0.00  falcon_inner_i_shake256_extract
+  0.35     19.58     0.07    20004     0.00     0.00  falcon_inner_poly_mulconst
+  0.35     19.65     0.07    10000     0.00     0.00  falcon_inner_trim_i16_encode
+  0.25     19.70     0.05    10000     0.00     0.00  falcon_inner_is_short_half
+  0.20     19.74     0.04     1040     0.00     0.00  poly_sub_scaled
+  0.10     19.76     0.02       56     0.00     0.00  poly_sub_scaled_ntt
+  0.05     19.77     0.01     1023     0.00     0.00  falcon_inner_poly_LDLmv_fft
+  0.05     19.78     0.01      864     0.00     0.00  zint_co_reduce_mod
+  0.05     19.79     0.01       54     0.00     0.00  make_fg_step
+  0.05     19.80     0.01        8     0.00     0.02  solve_NTRU_intermediate
+  0.05     19.81     0.01        1     0.01     0.02  falcon_inner_expand_privkey
+  0.00     19.81     0.00    20001     0.00     0.00  falcon_inner_i_shake256_inject
+  0.00     19.81     0.00    10001     0.00     0.00  falcon_inner_i_shake256_flip
+  0.00     19.81     0.00    10001     0.00     0.00  falcon_inner_i_shake256_init
+  0.00     19.81     0.00    10000     0.00     0.00  falcon_inner_prng_init
+  0.00     19.81     0.00    10000     0.00     0.00  falcon_sign_tree
+  0.00     19.81     0.00    10000     0.00     0.00  falcon_sign_tree_finish
+  0.00     19.81     0.00     6902     0.00     0.00  modp_R2
+  0.00     19.81     0.00     5381     0.00     0.00  poly_small_mkgauss
+  0.00     19.81     0.00     1721     0.00     0.00  modp_mkgm2
+  0.00     19.81     0.00     1112     0.00     0.00  poly_big_to_fp
+  0.00     19.81     0.00      553     0.00     0.00  falcon_inner_poly_mul_autoadj_fft
+  0.00     19.81     0.00      196     0.00     0.00  zint_rebuild_CRT.constprop.3
+  0.00     19.81     0.00       20     0.00     0.00  falcon_inner_poly_adj_fft
+  0.00     19.81     0.00       11     0.00     0.00  falcon_inner_poly_invnorm2_fft
+  0.00     19.81     0.00       10     0.00     0.00  ffLDL_binary_normalize
+  0.00     19.81     0.00        7     0.00     0.00  mq_NTT
+  0.00     19.81     0.00        4     0.00     0.00  falcon_inner_poly_mulselfadj_fft
+  0.00     19.81     0.00        3     0.00     0.00  falcon_inner_trim_i8_decode
+  0.00     19.81     0.00        3     0.00     0.00  falcon_inner_trim_i8_encode
+  0.00     19.81     0.00        3     0.00     0.00  mq_iNTT
+  0.00     19.81     0.00        2     0.00     0.00  falcon_inner_compute_public
+  0.00     19.81     0.00        2     0.00     0.00  falcon_inner_poly_muladj_fft
+  0.00     19.81     0.00        2     0.00     0.00  falcon_inner_poly_neg
+  0.00     19.81     0.00        2     0.00     0.01  ffLDL_fft_inner
+  0.00     19.81     0.00        1     0.00     0.00  cpucycles_overhead
+  0.00     19.81     0.00        1     0.00     0.02  falcon_expand_privkey
+  0.00     19.81     0.00        1     0.00     0.00  falcon_inner_complete_private
+  0.00     19.81     0.00        1     0.00     0.00  falcon_inner_get_seed
+  0.00     19.81     0.00        1     0.00     0.14  falcon_inner_keygen
+  0.00     19.81     0.00        1     0.00     0.00  falcon_inner_modq_encode
+  0.00     19.81     0.00        1     0.00     0.00  falcon_inner_poly_add_muladj_fft
+  0.00     19.81     0.00        1     0.00     0.00  falcon_inner_poly_div_autoadj_fft
+  0.00     19.81     0.00        1     0.00     0.14  falcon_keygen_make
+  0.00     19.81     0.00        1     0.00     0.00  print_results
+  0.00     19.81     0.00        1     0.00     0.00  shake256_init_prng_from_system
+  0.00     19.81     0.00        1     0.00     0.00  solve_NTRU_binary_depth1
+  0.00     19.81     0.00        1     0.00    19.81  xmalloc
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.05% of 19.81 seconds
+
+index % time    self  children    called     name
+                                   7             xmalloc [1]
+                0.00   19.81       1/1           main [2]
+[1]    100.0    0.00   19.81       1+7       xmalloc [1]
+                0.00   19.66   10000/10000       falcon_sign_tree [3]
+                0.00    0.14       1/1           falcon_keygen_make [21]
+                0.00    0.02       1/1           falcon_expand_privkey [27]
+                0.00    0.00       1/1           shake256_init_prng_from_system [63]
+                0.00    0.00       1/1           print_results [62]
+                                   7             xmalloc [1]
+-----------------------------------------------
+                                                 <spontaneous>
+[2]    100.0    0.00   19.81                 main [2]
+                0.00   19.81       1/1           xmalloc [1]
+-----------------------------------------------
+                0.00   19.66   10000/10000       xmalloc [1]
+[3]     99.2    0.00   19.66   10000         falcon_sign_tree [3]
+                0.00   19.66   10000/10000       falcon_sign_tree_finish [4]
+                0.00    0.00   10000/13150490     falcon_inner_i_shake256_extract [13]
+                0.00    0.00   20000/20001       falcon_inner_i_shake256_inject [37]
+                0.00    0.00   10000/10001       falcon_inner_i_shake256_init [39]
+-----------------------------------------------
+                0.00   19.66   10000/10000       falcon_sign_tree [3]
+[4]     99.2    0.00   19.66   10000         falcon_sign_tree_finish [4]
+                0.40   16.70   10000/10000       falcon_inner_sign_tree [5]
+                1.78    0.71   10000/10000       falcon_inner_hash_to_point_ct [10]
+                0.07    0.00   10000/10000       falcon_inner_trim_i16_encode [24]
+                0.00    0.00   10000/10001       falcon_inner_i_shake256_flip [38]
+-----------------------------------------------
+                0.40   16.70   10000/10000       falcon_sign_tree_finish [4]
+[5]     86.3    0.40   16.70   10000         falcon_inner_sign_tree [5]
+                0.43   15.27   10000/10000       ffSampling_fft.constprop.0 [6]
+                0.54    0.00   20000/20556       falcon_inner_iFFT [15]
+                0.26    0.00   10000/11127       falcon_inner_FFT [19]
+                0.07    0.00   20000/20004       falcon_inner_poly_mulconst [23]
+                0.05    0.00   10000/766158      falcon_inner_prng_refill [9]
+                0.05    0.00   10000/10000       falcon_inner_is_short_half [25]
+                0.02    0.00   60000/2611098     falcon_inner_poly_mul_fft [11]
+                0.00    0.00   20000/2570551     falcon_inner_poly_add [18]
+                0.00    0.00   10000/5100000     falcon_inner_poly_merge_fft [12]
+                0.00    0.00   10000/10000       falcon_inner_prng_init [35]
+-----------------------------------------------
+                             5100000             ffSampling_fft.constprop.0 [6]
+                0.43   15.27   10000/10000       falcon_inner_sign_tree [5]
+[6]     79.2    0.43   15.27   10000+5100000 ffSampling_fft.constprop.0 [6]
+                4.71    7.61 20480000/20480000     falcon_inner_sampler [7]
+                0.81    0.00 2550000/2611098     falcon_inner_poly_mul_fft [11]
+                0.75    0.00 5090000/5100000     falcon_inner_poly_merge_fft [12]
+                0.69    0.00 5100000/5102046     falcon_inner_poly_split_fft [14]
+                0.37    0.00 2550000/2550002     falcon_inner_poly_sub [17]
+                0.33    0.00 2550000/2570551     falcon_inner_poly_add [18]
+                             5100000             ffSampling_fft.constprop.0 [6]
+-----------------------------------------------
+                4.71    7.61 20480000/20480000     ffSampling_fft.constprop.0 [6]
+[7]     62.2    4.71    7.61 20480000         falcon_inner_sampler [7]
+                3.64    3.97 35017454/35017454     falcon_inner_gaussian0_sampler [8]
+-----------------------------------------------
+                3.64    3.97 35017454/35017454     falcon_inner_sampler [7]
+[8]     38.4    3.64    3.97 35017454         falcon_inner_gaussian0_sampler [8]
+                3.97    0.00  756158/766158      falcon_inner_prng_refill [9]
+-----------------------------------------------
+                0.05    0.00   10000/766158      falcon_inner_sign_tree [5]
+                3.97    0.00  756158/766158      falcon_inner_gaussian0_sampler [8]
+[9]     20.3    4.02    0.00  766158         falcon_inner_prng_refill [9]
+-----------------------------------------------
+                1.78    0.71   10000/10000       falcon_sign_tree_finish [4]
+[10]    12.6    1.78    0.71   10000         falcon_inner_hash_to_point_ct [10]
+                0.20    0.51 13110000/13150490     falcon_inner_i_shake256_extract [13]
+-----------------------------------------------
+                0.00    0.00       2/2611098     solve_NTRU_binary_depth1 [36]
+                0.00    0.00    1096/2611098     solve_NTRU_intermediate [22]
+                0.02    0.00   60000/2611098     falcon_inner_sign_tree [5]
+                0.81    0.00 2550000/2611098     ffSampling_fft.constprop.0 [6]
+[11]     4.2    0.83    0.00 2611098         falcon_inner_poly_mul_fft [11]
+-----------------------------------------------
+                0.00    0.00   10000/5100000     falcon_inner_sign_tree [5]
+                0.75    0.00 5090000/5100000     ffSampling_fft.constprop.0 [6]
+[12]     3.8    0.75    0.00 5100000         falcon_inner_poly_merge_fft [12]
+-----------------------------------------------
+                0.00    0.00   10000/13150490     falcon_sign_tree [3]
+                0.00    0.00   10000/13150490     falcon_inner_prng_init [35]
+                0.00    0.00   20490/13150490     poly_small_mkgauss [34]
+                0.20    0.51 13110000/13150490     falcon_inner_hash_to_point_ct [10]
+[13]     3.6    0.20    0.51 13150490         falcon_inner_i_shake256_extract [13]
+                0.51    0.00  208265/208265      process_block [16]
+-----------------------------------------------
+                0.00    0.00       2/5102046     falcon_inner_expand_privkey [28]
+                0.00    0.00    2044/5102046     ffLDL_fft_inner [31]
+                0.69    0.00 5100000/5102046     ffSampling_fft.constprop.0 [6]
+[14]     3.5    0.69    0.00 5102046         falcon_inner_poly_split_fft [14]
+-----------------------------------------------
+                0.00    0.00       3/20556       solve_NTRU_binary_depth1 [36]
+                0.00    0.00       5/20556       falcon_inner_keygen [20]
+                0.01    0.00     548/20556       solve_NTRU_intermediate [22]
+                0.54    0.00   20000/20556       falcon_inner_sign_tree [5]
+[15]     2.8    0.56    0.00   20556         falcon_inner_iFFT [15]
+-----------------------------------------------
+                0.51    0.00  208265/208265      falcon_inner_i_shake256_extract [13]
+[16]     2.6    0.51    0.00  208265         process_block [16]
+-----------------------------------------------
+                0.00    0.00       2/2550002     solve_NTRU_binary_depth1 [36]
+                0.37    0.00 2550000/2550002     ffSampling_fft.constprop.0 [6]
+[17]     1.9    0.37    0.00 2550002         falcon_inner_poly_sub [17]
+-----------------------------------------------
+                0.00    0.00       3/2570551     falcon_inner_expand_privkey [28]
+                0.00    0.00     548/2570551     solve_NTRU_intermediate [22]
+                0.00    0.00   20000/2570551     falcon_inner_sign_tree [5]
+                0.33    0.00 2550000/2570551     ffSampling_fft.constprop.0 [6]
+[18]     1.7    0.33    0.00 2570551         falcon_inner_poly_add [18]
+-----------------------------------------------
+                0.00    0.00       4/11127       falcon_inner_expand_privkey [28]
+                0.00    0.00       5/11127       solve_NTRU_binary_depth1 [36]
+                0.00    0.00       6/11127       falcon_inner_keygen [20]
+                0.03    0.00    1112/11127       solve_NTRU_intermediate [22]
+                0.26    0.00   10000/11127       falcon_inner_sign_tree [5]
+[19]     1.5    0.29    0.00   11127         falcon_inner_FFT [19]
+-----------------------------------------------
+                0.00    0.14       1/1           falcon_keygen_make [21]
+[20]     0.7    0.00    0.14       1         falcon_inner_keygen [20]
+                0.01    0.11       8/8           solve_NTRU_intermediate [22]
+                0.01    0.00     864/864         zint_co_reduce_mod [33]
+                0.00    0.00      10/54          make_fg_step [30]
+                0.00    0.00       1/1           solve_NTRU_binary_depth1 [36]
+                0.00    0.00       6/11127       falcon_inner_FFT [19]
+                0.00    0.00       5/20556       falcon_inner_iFFT [15]
+                0.00    0.00       4/20004       falcon_inner_poly_mulconst [23]
+                0.00    0.00      33/5381        poly_small_mkgauss [34]
+                0.00    0.00     208/6902        modp_R2 [40]
+                0.00    0.00       4/20          falcon_inner_poly_adj_fft [45]
+                0.00    0.00       4/553         falcon_inner_poly_mul_autoadj_fft [43]
+                0.00    0.00       2/11          falcon_inner_poly_invnorm2_fft [46]
+                0.00    0.00       1/2           falcon_inner_compute_public [53]
+                0.00    0.00       1/1           falcon_inner_poly_div_autoadj_fft [61]
+-----------------------------------------------
+                0.00    0.14       1/1           xmalloc [1]
+[21]     0.7    0.00    0.14       1         falcon_keygen_make [21]
+                0.00    0.14       1/1           falcon_inner_keygen [20]
+                0.00    0.00       3/3           falcon_inner_trim_i8_encode [51]
+                0.00    0.00       1/2           falcon_inner_compute_public [53]
+                0.00    0.00       1/1           falcon_inner_modq_encode [59]
+-----------------------------------------------
+                0.01    0.11       8/8           falcon_inner_keygen [20]
+[22]     0.6    0.01    0.11       8         solve_NTRU_intermediate [22]
+                0.04    0.00    1040/1040        poly_sub_scaled [26]
+                0.03    0.00    1112/11127       falcon_inner_FFT [19]
+                0.02    0.00      56/56          poly_sub_scaled_ntt [29]
+                0.01    0.00     548/20556       falcon_inner_iFFT [15]
+                0.01    0.00      44/54          make_fg_step [30]
+                0.00    0.00    3152/5381        poly_small_mkgauss [34]
+                0.00    0.00    1096/2611098     falcon_inner_poly_mul_fft [11]
+                0.00    0.00     548/2570551     falcon_inner_poly_add [18]
+                0.00    0.00    1256/6902        modp_R2 [40]
+                0.00    0.00    1112/1112        poly_big_to_fp [42]
+                0.00    0.00     628/1721        modp_mkgm2 [41]
+                0.00    0.00     548/553         falcon_inner_poly_mul_autoadj_fft [43]
+                0.00    0.00      32/196         zint_rebuild_CRT.constprop.3 [44]
+                0.00    0.00      16/20          falcon_inner_poly_adj_fft [45]
+                0.00    0.00       8/11          falcon_inner_poly_invnorm2_fft [46]
+-----------------------------------------------
+                0.00    0.00       4/20004       falcon_inner_keygen [20]
+                0.07    0.00   20000/20004       falcon_inner_sign_tree [5]
+[23]     0.4    0.07    0.00   20004         falcon_inner_poly_mulconst [23]
+-----------------------------------------------
+                0.07    0.00   10000/10000       falcon_sign_tree_finish [4]
+[24]     0.4    0.07    0.00   10000         falcon_inner_trim_i16_encode [24]
+-----------------------------------------------
+                0.05    0.00   10000/10000       falcon_inner_sign_tree [5]
+[25]     0.3    0.05    0.00   10000         falcon_inner_is_short_half [25]
+-----------------------------------------------
+                0.04    0.00    1040/1040        solve_NTRU_intermediate [22]
+[26]     0.2    0.04    0.00    1040         poly_sub_scaled [26]
+-----------------------------------------------
+                0.00    0.02       1/1           xmalloc [1]
+[27]     0.1    0.00    0.02       1         falcon_expand_privkey [27]
+                0.01    0.01       1/1           falcon_inner_expand_privkey [28]
+                0.00    0.00       3/3           falcon_inner_trim_i8_decode [50]
+                0.00    0.00       1/1           falcon_inner_complete_private [57]
+-----------------------------------------------
+                0.01    0.01       1/1           falcon_expand_privkey [27]
+[28]     0.1    0.01    0.01       1         falcon_inner_expand_privkey [28]
+                0.00    0.01       2/2           ffLDL_fft_inner [31]
+                0.00    0.00       4/11127       falcon_inner_FFT [19]
+                0.00    0.00       1/1023        falcon_inner_poly_LDLmv_fft [32]
+                0.00    0.00       3/2570551     falcon_inner_poly_add [18]
+                0.00    0.00       2/5102046     falcon_inner_poly_split_fft [14]
+                0.00    0.00      10/10          ffLDL_binary_normalize [47]
+                0.00    0.00       4/4           falcon_inner_poly_mulselfadj_fft [49]
+                0.00    0.00       2/2           falcon_inner_poly_neg [55]
+                0.00    0.00       2/2           falcon_inner_poly_muladj_fft [54]
+-----------------------------------------------
+                0.02    0.00      56/56          solve_NTRU_intermediate [22]
+[29]     0.1    0.02    0.00      56         poly_sub_scaled_ntt [29]
+                0.00    0.00     440/5381        poly_small_mkgauss [34]
+                0.00    0.00     220/6902        modp_R2 [40]
+                0.00    0.00     220/1721        modp_mkgm2 [41]
+                0.00    0.00      56/196         zint_rebuild_CRT.constprop.3 [44]
+-----------------------------------------------
+                0.00    0.00      10/54          falcon_inner_keygen [20]
+                0.01    0.00      44/54          solve_NTRU_intermediate [22]
+[30]     0.1    0.01    0.00      54         make_fg_step [30]
+                0.00    0.00    1742/5381        poly_small_mkgauss [34]
+                0.00    0.00     871/6902        modp_R2 [40]
+                0.00    0.00     871/1721        modp_mkgm2 [41]
+                0.00    0.00     108/196         zint_rebuild_CRT.constprop.3 [44]
+-----------------------------------------------
+                                1022             ffLDL_fft_inner [31]
+                0.00    0.01       2/2           falcon_inner_expand_privkey [28]
+[31]     0.1    0.00    0.01       2+1022    ffLDL_fft_inner [31]
+                0.01    0.00    1022/1023        falcon_inner_poly_LDLmv_fft [32]
+                0.00    0.00    2044/5102046     falcon_inner_poly_split_fft [14]
+                                1022             ffLDL_fft_inner [31]
+-----------------------------------------------
+                0.00    0.00       1/1023        falcon_inner_expand_privkey [28]
+                0.01    0.00    1022/1023        ffLDL_fft_inner [31]
+[32]     0.1    0.01    0.00    1023         falcon_inner_poly_LDLmv_fft [32]
+-----------------------------------------------
+                0.01    0.00     864/864         falcon_inner_keygen [20]
+[33]     0.1    0.01    0.00     864         zint_co_reduce_mod [33]
+-----------------------------------------------
+                0.00    0.00      14/5381        solve_NTRU_binary_depth1 [36]
+                0.00    0.00      33/5381        falcon_inner_keygen [20]
+                0.00    0.00     440/5381        poly_sub_scaled_ntt [29]
+                0.00    0.00    1742/5381        make_fg_step [30]
+                0.00    0.00    3152/5381        solve_NTRU_intermediate [22]
+[34]     0.0    0.00    0.00    5381         poly_small_mkgauss [34]
+                0.00    0.00   20490/13150490     falcon_inner_i_shake256_extract [13]
+-----------------------------------------------
+                0.00    0.00   10000/10000       falcon_inner_sign_tree [5]
+[35]     0.0    0.00    0.00   10000         falcon_inner_prng_init [35]
+                0.00    0.00   10000/13150490     falcon_inner_i_shake256_extract [13]
+-----------------------------------------------
+                0.00    0.00       1/1           falcon_inner_keygen [20]
+[36]     0.0    0.00    0.00       1         solve_NTRU_binary_depth1 [36]
+                0.00    0.00       5/11127       falcon_inner_FFT [19]
+                0.00    0.00       3/20556       falcon_inner_iFFT [15]
+                0.00    0.00      14/5381        poly_small_mkgauss [34]
+                0.00    0.00       2/2611098     falcon_inner_poly_mul_fft [11]
+                0.00    0.00       2/2550002     falcon_inner_poly_sub [17]
+                0.00    0.00       4/6902        modp_R2 [40]
+                0.00    0.00       2/1721        modp_mkgm2 [41]
+                0.00    0.00       1/1           falcon_inner_poly_add_muladj_fft [60]
+                0.00    0.00       1/553         falcon_inner_poly_mul_autoadj_fft [43]
+                0.00    0.00       1/11          falcon_inner_poly_invnorm2_fft [46]
+-----------------------------------------------
+                0.00    0.00       1/20001       shake256_init_prng_from_system [63]
+                0.00    0.00   20000/20001       falcon_sign_tree [3]
+[37]     0.0    0.00    0.00   20001         falcon_inner_i_shake256_inject [37]
+-----------------------------------------------
+                0.00    0.00       1/10001       shake256_init_prng_from_system [63]
+                0.00    0.00   10000/10001       falcon_sign_tree_finish [4]
+[38]     0.0    0.00    0.00   10001         falcon_inner_i_shake256_flip [38]
+-----------------------------------------------
+                0.00    0.00       1/10001       shake256_init_prng_from_system [63]
+                0.00    0.00   10000/10001       falcon_sign_tree [3]
+[39]     0.0    0.00    0.00   10001         falcon_inner_i_shake256_init [39]
+-----------------------------------------------
+                0.00    0.00       4/6902        solve_NTRU_binary_depth1 [36]
+                0.00    0.00     208/6902        falcon_inner_keygen [20]
+                0.00    0.00     220/6902        poly_sub_scaled_ntt [29]
+                0.00    0.00     871/6902        make_fg_step [30]
+                0.00    0.00    1256/6902        solve_NTRU_intermediate [22]
+                0.00    0.00    1721/6902        modp_mkgm2 [41]
+                0.00    0.00    2622/6902        zint_rebuild_CRT.constprop.3 [44]
+[40]     0.0    0.00    0.00    6902         modp_R2 [40]
+-----------------------------------------------
+                0.00    0.00       2/1721        solve_NTRU_binary_depth1 [36]
+                0.00    0.00     220/1721        poly_sub_scaled_ntt [29]
+                0.00    0.00     628/1721        solve_NTRU_intermediate [22]
+                0.00    0.00     871/1721        make_fg_step [30]
+[41]     0.0    0.00    0.00    1721         modp_mkgm2 [41]
+                0.00    0.00    1721/6902        modp_R2 [40]
+-----------------------------------------------
+                0.00    0.00    1112/1112        solve_NTRU_intermediate [22]
+[42]     0.0    0.00    0.00    1112         poly_big_to_fp [42]
+-----------------------------------------------
+                0.00    0.00       1/553         solve_NTRU_binary_depth1 [36]
+                0.00    0.00       4/553         falcon_inner_keygen [20]
+                0.00    0.00     548/553         solve_NTRU_intermediate [22]
+[43]     0.0    0.00    0.00     553         falcon_inner_poly_mul_autoadj_fft [43]
+-----------------------------------------------
+                0.00    0.00      32/196         solve_NTRU_intermediate [22]
+                0.00    0.00      56/196         poly_sub_scaled_ntt [29]
+                0.00    0.00     108/196         make_fg_step [30]
+[44]     0.0    0.00    0.00     196         zint_rebuild_CRT.constprop.3 [44]
+                0.00    0.00    2622/6902        modp_R2 [40]
+-----------------------------------------------
+                0.00    0.00       4/20          falcon_inner_keygen [20]
+                0.00    0.00      16/20          solve_NTRU_intermediate [22]
+[45]     0.0    0.00    0.00      20         falcon_inner_poly_adj_fft [45]
+-----------------------------------------------
+                0.00    0.00       1/11          solve_NTRU_binary_depth1 [36]
+                0.00    0.00       2/11          falcon_inner_keygen [20]
+                0.00    0.00       8/11          solve_NTRU_intermediate [22]
+[46]     0.0    0.00    0.00      11         falcon_inner_poly_invnorm2_fft [46]
+-----------------------------------------------
+                                   1             ffLDL_binary_normalize [47]
+                0.00    0.00      10/10          falcon_inner_expand_privkey [28]
+[47]     0.0    0.00    0.00      10+1       ffLDL_binary_normalize [47]
+                                   1             ffLDL_binary_normalize [47]
+-----------------------------------------------
+                0.00    0.00       3/7           falcon_inner_complete_private [57]
+                0.00    0.00       4/7           falcon_inner_compute_public [53]
+[48]     0.0    0.00    0.00       7         mq_NTT [48]
+-----------------------------------------------
+                0.00    0.00       4/4           falcon_inner_expand_privkey [28]
+[49]     0.0    0.00    0.00       4         falcon_inner_poly_mulselfadj_fft [49]
+-----------------------------------------------
+                0.00    0.00       3/3           falcon_expand_privkey [27]
+[50]     0.0    0.00    0.00       3         falcon_inner_trim_i8_decode [50]
+-----------------------------------------------
+                0.00    0.00       3/3           falcon_keygen_make [21]
+[51]     0.0    0.00    0.00       3         falcon_inner_trim_i8_encode [51]
+-----------------------------------------------
+                0.00    0.00       1/3           falcon_inner_complete_private [57]
+                0.00    0.00       2/3           falcon_inner_compute_public [53]
+[52]     0.0    0.00    0.00       3         mq_iNTT [52]
+-----------------------------------------------
+                0.00    0.00       1/2           falcon_keygen_make [21]
+                0.00    0.00       1/2           falcon_inner_keygen [20]
+[53]     0.0    0.00    0.00       2         falcon_inner_compute_public [53]
+                0.00    0.00       4/7           mq_NTT [48]
+                0.00    0.00       2/3           mq_iNTT [52]
+-----------------------------------------------
+                0.00    0.00       2/2           falcon_inner_expand_privkey [28]
+[54]     0.0    0.00    0.00       2         falcon_inner_poly_muladj_fft [54]
+-----------------------------------------------
+                0.00    0.00       2/2           falcon_inner_expand_privkey [28]
+[55]     0.0    0.00    0.00       2         falcon_inner_poly_neg [55]
+-----------------------------------------------
+                0.00    0.00       1/1           print_results [62]
+[56]     0.0    0.00    0.00       1         cpucycles_overhead [56]
+-----------------------------------------------
+                0.00    0.00       1/1           falcon_expand_privkey [27]
+[57]     0.0    0.00    0.00       1         falcon_inner_complete_private [57]
+                0.00    0.00       3/7           mq_NTT [48]
+                0.00    0.00       1/3           mq_iNTT [52]
+-----------------------------------------------
+                0.00    0.00       1/1           shake256_init_prng_from_system [63]
+[58]     0.0    0.00    0.00       1         falcon_inner_get_seed [58]
+-----------------------------------------------
+                0.00    0.00       1/1           falcon_keygen_make [21]
+[59]     0.0    0.00    0.00       1         falcon_inner_modq_encode [59]
+-----------------------------------------------
+                0.00    0.00       1/1           solve_NTRU_binary_depth1 [36]
+[60]     0.0    0.00    0.00       1         falcon_inner_poly_add_muladj_fft [60]
+-----------------------------------------------
+                0.00    0.00       1/1           falcon_inner_keygen [20]
+[61]     0.0    0.00    0.00       1         falcon_inner_poly_div_autoadj_fft [61]
+-----------------------------------------------
+                0.00    0.00       1/1           xmalloc [1]
+[62]     0.0    0.00    0.00       1         print_results [62]
+                0.00    0.00       1/1           cpucycles_overhead [56]
+-----------------------------------------------
+                0.00    0.00       1/1           xmalloc [1]
+[63]     0.0    0.00    0.00       1         shake256_init_prng_from_system [63]
+                0.00    0.00       1/1           falcon_inner_get_seed [58]
+                0.00    0.00       1/20001       falcon_inner_i_shake256_inject [37]
+                0.00    0.00       1/10001       falcon_inner_i_shake256_init [39]
+                0.00    0.00       1/10001       falcon_inner_i_shake256_flip [38]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [56] cpucycles_overhead     [61] falcon_inner_poly_div_autoadj_fft [47] ffLDL_binary_normalize
+  [27] falcon_expand_privkey  [46] falcon_inner_poly_invnorm2_fft [31] ffLDL_fft_inner
+  [19] falcon_inner_FFT       [12] falcon_inner_poly_merge_fft [6] ffSampling_fft.constprop.0
+  [57] falcon_inner_complete_private [43] falcon_inner_poly_mul_autoadj_fft [30] make_fg_step
+  [53] falcon_inner_compute_public [11] falcon_inner_poly_mul_fft [40] modp_R2
+  [28] falcon_inner_expand_privkey [54] falcon_inner_poly_muladj_fft [41] modp_mkgm2
+   [8] falcon_inner_gaussian0_sampler [23] falcon_inner_poly_mulconst [48] mq_NTT
+  [58] falcon_inner_get_seed  [49] falcon_inner_poly_mulselfadj_fft [52] mq_iNTT
+  [10] falcon_inner_hash_to_point_ct [55] falcon_inner_poly_neg [42] poly_big_to_fp
+  [15] falcon_inner_iFFT      [14] falcon_inner_poly_split_fft [34] poly_small_mkgauss
+  [13] falcon_inner_i_shake256_extract [17] falcon_inner_poly_sub [26] poly_sub_scaled
+  [38] falcon_inner_i_shake256_flip [35] falcon_inner_prng_init [29] poly_sub_scaled_ntt
+  [39] falcon_inner_i_shake256_init [9] falcon_inner_prng_refill [62] print_results
+  [37] falcon_inner_i_shake256_inject [7] falcon_inner_sampler [16] process_block
+  [25] falcon_inner_is_short_half [5] falcon_inner_sign_tree [63] shake256_init_prng_from_system
+  [20] falcon_inner_keygen    [24] falcon_inner_trim_i16_encode [36] solve_NTRU_binary_depth1
+  [59] falcon_inner_modq_encode [50] falcon_inner_trim_i8_decode [22] solve_NTRU_intermediate
+  [32] falcon_inner_poly_LDLmv_fft [51] falcon_inner_trim_i8_encode [1] xmalloc
+  [18] falcon_inner_poly_add  [21] falcon_keygen_make     [33] zint_co_reduce_mod
+  [60] falcon_inner_poly_add_muladj_fft [3] falcon_sign_tree [44] zint_rebuild_CRT.constprop.3
+  [45] falcon_inner_poly_adj_fft [4] falcon_sign_tree_finish
