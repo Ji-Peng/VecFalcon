@@ -129,7 +129,7 @@
  */
 #ifndef FALCON_ASM_CORTEXM4
 #    if (defined __ARM_ARCH_7EM__ && __ARM_ARCH_7EM__) && \
-      (defined __ARM_FEATURE_DSP && __ARM_FEATURE_DSP)
+        (defined __ARM_FEATURE_DSP && __ARM_FEATURE_DSP)
 #        define FALCON_ASM_CORTEXM4 1
 #    else
 #        define FALCON_ASM_CORTEXM4 0
@@ -138,9 +138,9 @@
 // yyySUPERCOP-
 
 #if defined __i386__ || defined _M_IX86 || defined __x86_64__ || \
-  defined _M_X64 ||                                              \
-  (defined _ARCH_PWR8 &&                                         \
-   (defined __LITTLE_ENDIAN || defined __LITTLE_ENDIAN__))
+    defined _M_X64 ||                                            \
+    (defined _ARCH_PWR8 &&                                       \
+     (defined __LITTLE_ENDIAN || defined __LITTLE_ENDIAN__))
 
 #    ifndef FALCON_LE
 #        define FALCON_LE 1
@@ -158,9 +158,9 @@
 #        define FALCON_UNALIGNED 0
 #    endif
 
-#elif (defined __LITTLE_ENDIAN__ && __LITTLE_ENDIAN__) ||       \
-  (defined __BYTE_ORDER__ && defined __ORDER_LITTLE_ENDIAN__ && \
-   __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#elif (defined __LITTLE_ENDIAN__ && __LITTLE_ENDIAN__) ||         \
+    (defined __BYTE_ORDER__ && defined __ORDER_LITTLE_ENDIAN__ && \
+     __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 
 #    ifndef FALCON_LE
 #        define FALCON_LE 1
@@ -189,7 +189,7 @@
 #if !defined FALCON_FPEMU && !defined FALCON_FPNATIVE
 
 #    if (defined __ARM_FP && ((__ARM_FP & 0x08) == 0x08)) || \
-      (!defined __ARM_FP && defined __ARM_VFPV2__)
+        (!defined __ARM_FP && defined __ARM_VFPV2__)
 #        define FALCON_FPEMU 0
 #        define FALCON_FPNATIVE 1
 #    elif defined FALCON_ASM_CORTEXM4 && FALCON_ASM_CORTEXM4
@@ -219,7 +219,7 @@
 #endif
 
 #if (FALCON_FPEMU && FALCON_FPNATIVE) || \
-  (!FALCON_FPEMU && !FALCON_FPNATIVE)
+    (!FALCON_FPEMU && !FALCON_FPNATIVE)
 #    error Exactly one of FALCON_FPEMU and FALCON_FPNATIVE must be selected
 #endif
 
@@ -235,7 +235,7 @@
 #ifndef FALCON_RAND_GETENTROPY
 #    if (defined __linux__ && defined __GLIBC__ &&                        \
          (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
-      (defined __FreeBSD__ && __FreeBSD__ >= 12) || defined __OpenBSD__
+        (defined __FreeBSD__ && __FreeBSD__ >= 12) || defined __OpenBSD__
 #        define FALCON_RAND_GETENTROPY 1
 #    else
 #        define FALCON_RAND_GETENTROPY 0
@@ -244,10 +244,10 @@
 
 #ifndef FALCON_RAND_URANDOM
 #    if defined _AIX || defined __ANDROID__ || defined __FreeBSD__ || \
-      defined __NetBSD__ || defined __OpenBSD__ ||                    \
-      defined __DragonFly__ || defined __linux__ ||                   \
-      (defined __sun && (defined __SVR4 || defined __svr4__)) ||      \
-      (defined __APPLE__ && defined __MACH__)
+        defined __NetBSD__ || defined __OpenBSD__ ||                  \
+        defined __DragonFly__ || defined __linux__ ||                 \
+        (defined __sun && (defined __SVR4 || defined __svr4__)) ||    \
+        (defined __APPLE__ && defined __MACH__)
 #        define FALCON_RAND_URANDOM 1
 #    else
 #        define FALCON_RAND_URANDOM 0

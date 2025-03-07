@@ -25,6 +25,7 @@ AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
 BinPackParameters: true
 BraceWrapping:
+  AfterArrayInitializer: true
   AfterCaseLabel:  false
   AfterClass:      false
   AfterControlStatement: Never
@@ -161,7 +162,7 @@ Standard:        Auto
 StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION
-TabWidth:        8
+TabWidth:        4
 UseCRLF:         false
 UseTab:          Never
 ...

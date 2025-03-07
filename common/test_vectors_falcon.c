@@ -2006,17 +2006,17 @@ test_codec_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 				| ((uint32_t)tt[3] << 24);
 			m1[u] = w % 12289u;
 		}
-		len1 = Zf(modq_encode)(NULL, 0, m1, logn);
+		len1 = modq_encode(NULL, 0, m1, logn);
 		if (len1 != (((n * 14) + 7) >> 3)) {
 			fprintf(stderr, "ERR modq encode(0): %zu\n", len1);
 			exit(EXIT_FAILURE);
 		}
-		len1 = Zf(modq_encode)(ee, maxlen, m1, logn);
+		len1 = modq_encode(ee, maxlen, m1, logn);
 		if (len1 != (((n * 14) + 7) >> 3)) {
 			fprintf(stderr, "ERR modq encode: %zu\n", len1);
 			exit(EXIT_FAILURE);
 		}
-		len2 = Zf(modq_decode)(m2, logn, ee, len1);
+		len2 = modq_decode(m2, logn, ee, len1);
 		if (len2 != len1) {
 			fprintf(stderr, "ERR modq decode: %zu\n", len2);
 			exit(EXIT_FAILURE);
@@ -2043,19 +2043,19 @@ test_codec_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 				s1[u] = ((w & mask1) != 0) ? -(int)a : (int)a;
 			}
 
-			len1 = Zf(trim_i16_encode)(NULL, 0, s1, logn, bits);
+			len1 = trim_i16_encode(NULL, 0, s1, logn, bits);
 			if (len1 != (((n * bits) + 7) >> 3)) {
 				fprintf(stderr,
 					"ERR trim_i16 encode(0): %zu\n", len1);
 				exit(EXIT_FAILURE);
 			}
-			len1 = Zf(trim_i16_encode)(ee, maxlen, s1, logn, bits);
+			len1 = trim_i16_encode(ee, maxlen, s1, logn, bits);
 			if (len1 != (((n * bits) + 7) >> 3)) {
 				fprintf(stderr,
 					"ERR trim_i16 encode: %zu\n", len1);
 				exit(EXIT_FAILURE);
 			}
-			len2 = Zf(trim_i16_decode)(s2, logn, bits, ee, len1);
+			len2 = trim_i16_decode(s2, logn, bits, ee, len1);
 			if (len2 != len1) {
 				fprintf(stderr,
 					"ERR trim_i16 decode: %zu\n", len2);
@@ -2065,13 +2065,13 @@ test_codec_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 				"trim_i16 encode/decode");
 
 			memset(s2, 0, n * sizeof *s2);
-			len1 = Zf(comp_encode)(ee, maxlen, s1, logn);
+			len1 = comp_encode(ee, maxlen, s1, logn);
 			if (len1 == 0) {
 				fprintf(stderr,
 					"ERR comp encode: %zu\n", len1);
 				exit(EXIT_FAILURE);
 			}
-			len2 = Zf(comp_decode)(s2, logn, ee, len1);
+			len2 = comp_decode(s2, logn, ee, len1);
 			if (len2 != len1) {
 				fprintf(stderr,
 					"ERR comp decode: %zu\n", len2);
@@ -2100,19 +2100,19 @@ test_codec_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 				b1[u] = ((tt & mask1) != 0) ? -(int)a : (int)a;
 			}
 
-			len1 = Zf(trim_i8_encode)(NULL, 0, b1, logn, bits);
+			len1 = trim_i8_encode(NULL, 0, b1, logn, bits);
 			if (len1 != (((n * bits) + 7) >> 3)) {
 				fprintf(stderr,
 					"ERR trim_i8 encode(0): %zu\n", len1);
 				exit(EXIT_FAILURE);
 			}
-			len1 = Zf(trim_i8_encode)(ee, maxlen, b1, logn, bits);
+			len1 = trim_i8_encode(ee, maxlen, b1, logn, bits);
 			if (len1 != (((n * bits) + 7) >> 3)) {
 				fprintf(stderr,
 					"ERR trim_i8 encode: %zu\n", len1);
 				exit(EXIT_FAILURE);
 			}
-			len2 = Zf(trim_i8_decode)(b2, logn, bits, ee, len1);
+			len2 = trim_i8_decode(b2, logn, bits, ee, len1);
 			if (len2 != len1) {
 				fprintf(stderr,
 					"ERR trim_i8 decode: %zu\n", len2);
@@ -2166,7 +2166,7 @@ test_vrfy_inner(unsigned logn, const int8_t *f, const int8_t *g,
 		fprintf(stderr, "Insufficient buffer size\n");
 		exit(EXIT_FAILURE);
 	}
-	if (!Zf(compute_public)(h2, f, g, logn, (uint8_t *)(h2 + n))) {
+	if (!compute_public(h2, f, g, logn, (uint8_t *)(h2 + n))) {
 		fprintf(stderr, "compute_public failed\n");
 		exit(EXIT_FAILURE);
 	}
@@ -2180,7 +2180,7 @@ test_vrfy_inner(unsigned logn, const int8_t *f, const int8_t *g,
 		fprintf(stderr, "Insufficient buffer size\n");
 		exit(EXIT_FAILURE);
 	}
-	if (!Zf(complete_private)(G2, f, g, F, logn, (uint8_t *)(G2 + n))) {
+	if (!complete_private(G2, f, g, F, logn, (uint8_t *)(G2 + n))) {
 		fprintf(stderr, "complete_private failed\n");
 		exit(EXIT_FAILURE);
 	}
@@ -2204,7 +2204,7 @@ test_vrfy_inner(unsigned logn, const int8_t *f, const int8_t *g,
 		exit(EXIT_FAILURE);
 	}
 	memmove(tmp, tmp + 1, len1);
-	len2 = Zf(modq_encode)(tmp + len1, tlen - len1, h, logn);
+	len2 = modq_encode(tmp + len1, tlen - len1, h, logn);
 	if (len2 != len1) {
 		fprintf(stderr, "wrong encoded public key length: %zu\n", len2);
 		exit(EXIT_FAILURE);
@@ -2252,7 +2252,7 @@ test_vrfy_inner(unsigned logn, const int8_t *f, const int8_t *g,
 			fprintf(stderr, "Insufficient buffer size\n");
 			exit(EXIT_FAILURE);
 		}
-		len2 = Zf(trim_i16_decode)(s2, logn, 16, sig, len1);
+		len2 = trim_i16_decode(s2, logn, 16, sig, len1);
 		if (len2 != len1) {
 			fprintf(stderr, "Invalid sig KAT\n");
 			exit(EXIT_FAILURE);
@@ -2265,18 +2265,18 @@ test_vrfy_inner(unsigned logn, const int8_t *f, const int8_t *g,
 		 */
 		h2 = (uint16_t *)(s2 + n);
 		memcpy(h2, h, n * sizeof *h);
-		Zf(to_ntt_monty)(h2, logn);
+		to_ntt_monty(h2, logn);
 
 		/*
 		 * Hash nonce + message into a point.
 		 */
 		c0 = h2 + n;
-		Zf(hash_to_point_vartime)(&sc, c0, logn);
+		hash_to_point_vartime(&sc, c0, logn);
 
 		/*
 		 * Verify the signature.
 		 */
-		if (!Zf(verify_raw)(c0, s2, h2, logn, (uint8_t *)(c0 + n))) {
+		if (!verify_raw(c0, s2, h2, logn, (uint8_t *)(c0 + n))) {
 			fprintf(stderr, "KAT signature failed\n");
 			exit(EXIT_FAILURE);
 		}
@@ -2477,7 +2477,7 @@ test_RNG(void)
 	inner_shake256_init(&sc);
 	inner_shake256_inject(&sc, (const uint8_t *)"rng", 3);
 	inner_shake256_flip(&sc);
-	Zf(prng_init)(&p, &sc);
+	prng_init(&p, &sc);
 	for (u = 0; u < (sizeof KAT_RNG_1) / sizeof(KAT_RNG_1[0]); u ++) {
 		if (KAT_RNG_1[u] != prng_get_u64(&p)) {
 			fprintf(stderr, "ERR KAT_RNG_1(%zu)\n", u);
@@ -2643,7 +2643,7 @@ test_FP_block(void)
 	inner_shake256_init(&rng);
 	inner_shake256_inject(&rng, (const uint8_t *)"fpemu", 5);
 	inner_shake256_flip(&rng);
-	Zf(prng_init)(&p, &rng);
+	prng_init(&p, &rng);
 	for (ctr = 1; ctr <= 65536L; ctr ++) {
 		fpr a, b;
 		int64_t j;
@@ -2885,7 +2885,7 @@ test_FP_detailed(void)
 	inner_shake256_init(&rng);
 	inner_shake256_inject(&rng, (const uint8_t *)"fpemu", 5);
 	inner_shake256_flip(&rng);
-	Zf(prng_init)(&p, &rng);
+	prng_init(&p, &rng);
 	for (ctr = 1; ctr <= 65536L; ctr ++) {
 		fpr a, b;
 		double ax, bx;
@@ -3035,7 +3035,7 @@ test_poly_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 	xb = logn;
 	inner_shake256_inject(&rng, &xb, 1);
 	inner_shake256_flip(&rng);
-	Zf(prng_init)(&p, &rng);
+	prng_init(&p, &rng);
 	num = 131072UL >> logn;
 	for (ctr = 0; ctr < num; ctr ++) {
 		fpr *f, *g, *h;
@@ -3051,8 +3051,8 @@ test_poly_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 		g1 = g0 + (n >> 1);
 		mk_rand_poly(&p, f, logn);
 		memcpy(g, f, n * sizeof *f);
-		Zf(FFT)(g, logn);
-		Zf(iFFT)(g, logn);
+		FFT(g, logn);
+		iFFT(g, logn);
 		for (u = 0; u < n; u ++) {
 			if (fpr_rint(f[u]) != fpr_rint(g[u])) {
 				fprintf(stderr, "FFT/iFFT error\n");
@@ -3080,10 +3080,10 @@ test_poly_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 				h[k] = fpr_add(h[k], s);
 			}
 		}
-		Zf(FFT)(f, logn);
-		Zf(FFT)(g, logn);
-		Zf(poly_mul_fft)(f, g, logn);
-		Zf(iFFT)(f, logn);
+		FFT(f, logn);
+		FFT(g, logn);
+		poly_mul_fft(f, g, logn);
+		iFFT(f, logn);
 		for (u = 0; u < n; u ++) {
 			if (fpr_rint(f[u]) != fpr_rint(h[u])) {
 				fprintf(stderr, "FFT mul error\n");
@@ -3093,13 +3093,13 @@ test_poly_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 
 		mk_rand_poly(&p, f, logn);
 		memcpy(h, f, n * sizeof *f);
-		Zf(FFT)(f, logn);
-		Zf(poly_split_fft)(f0, f1, f, logn);
+		FFT(f, logn);
+		poly_split_fft(f0, f1, f, logn);
 
 		memcpy(g0, f0, (n >> 1) * sizeof *f0);
 		memcpy(g1, f1, (n >> 1) * sizeof *f1);
-		Zf(iFFT)(g0, logn - 1);
-		Zf(iFFT)(g1, logn - 1);
+		iFFT(g0, logn - 1);
+		iFFT(g1, logn - 1);
 		for (u = 0; u < (n >> 1); u ++) {
 			if (fpr_rint(g0[u]) != fpr_rint(h[(u << 1) + 0])
 				|| fpr_rint(g1[u]) != fpr_rint(h[(u << 1) + 1]))
@@ -3109,8 +3109,8 @@ test_poly_inner(unsigned logn, uint8_t *tmp, size_t tlen)
 			}
 		}
 
-		Zf(poly_merge_fft)(g, f0, f1, logn);
-		Zf(iFFT)(g, logn);
+		poly_merge_fft(g, f0, f1, logn);
+		iFFT(g, logn);
 		for (u = 0; u < n; u ++) {
 			if (fpr_rint(g[u]) != fpr_rint(h[u])) {
 				fprintf(stderr, "split/merge error\n");
@@ -3255,7 +3255,7 @@ check_gaussian0_sampler(const u72 *x, int r)
 	int z;
 
 	prefill_prng(&p, x->v, sizeof x->v);
-	z = Zf(gaussian0_sampler)(&p);
+	z = gaussian0_sampler(&p);
 	if (z != r) {
 		size_t u;
 
@@ -3460,7 +3460,7 @@ test_sampler_rand(sampler_context *sc, fpr mu, fpr isigma)
 		zz[z + MAX_DEV] = 0;
 	}
 	for (ctr = 0; ctr < NUM_SAMPLES; ctr ++) {
-		z = Zf(sampler)(sc, mu, isigma);
+		z = sampler(sc, mu, isigma);
 		z -= c;
 		if (z < -MAX_DEV || z > +MAX_DEV) {
 			fprintf(stderr, "out-of-range sampled value: %d\n", z);
@@ -3582,7 +3582,7 @@ test_sampler(void)
 	inner_shake256_init(&rng);
 	inner_shake256_inject(&rng, (const void *)"test sampler", 12);
 	inner_shake256_flip(&rng);
-	Zf(prng_init)(&sc.p, &rng);
+	prng_init(&sc.p, &rng);
 	sc.sigma_min = fpr_sigma_min[9];
 
 	isigma = fpr_div(fpr_of(10), fpr_of(17));
@@ -3625,7 +3625,7 @@ test_sign_self(const int8_t *f, const int8_t *g,
 	}
 
 	memcpy(h, h_src, n * sizeof *h);
-	Zf(to_ntt_monty)(h, logn);
+	to_ntt_monty(h, logn);
 
 	/* sprintf(buf, "sign %u", logn); */
 	memcpy(buf, "sign 0", 7);
@@ -3645,16 +3645,16 @@ test_sign_self(const int8_t *f, const int8_t *g,
 		inner_shake256_inject(&sc, msg, sizeof msg);
 		inner_shake256_flip(&sc);
 		sc2 = sc;
-		Zf(hash_to_point_vartime)(&sc, hm, logn);
-		Zf(hash_to_point_ct)(&sc2, hm2, logn, tt);
+		hash_to_point_vartime(&sc, hm, logn);
+		hash_to_point_ct(&sc2, hm2, logn, tt);
 		for (u = 0; u < n; u ++) {
 			if (hm2[u] != hm[u]) {
 				fprintf(stderr, "hash_to_point() mismatch\n");
 				exit(EXIT_FAILURE);
 			}
 		}
-		Zf(sign_dyn)(sig, &rng, f, g, F, G, hm, logn, tt);
-		if (!Zf(verify_raw)(hm, sig, h, logn, tt)) {
+		sign_dyn(sig, &rng, f, g, F, G, hm, logn, tt);
+		if (!verify_raw(hm, sig, h, logn, tt)) {
 			fprintf(stderr, "self signature (dyn) not verified\n");
 			exit(EXIT_FAILURE);
 		}
@@ -3667,7 +3667,7 @@ test_sign_self(const int8_t *f, const int8_t *g,
 
 	expanded_key = (fpr *)tt;
 	tt = (uint8_t *)expanded_key + (8 * logn + 40) * n;
-	Zf(expand_privkey)(expanded_key, f, g, F, G, logn, tt);
+	expand_privkey(expanded_key, f, g, F, G, logn, tt);
 
 	for (i = 0; i < 100; i ++) {
 		uint8_t msg[50];  /* nonce + plain */
@@ -3678,10 +3678,10 @@ test_sign_self(const int8_t *f, const int8_t *g,
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, msg, sizeof msg);
 		inner_shake256_flip(&sc);
-		Zf(hash_to_point_vartime)(&sc, hm, logn);
-		Zf(sign_tree)(sig, &rng, expanded_key, hm, logn, tt);
+		hash_to_point_vartime(&sc, hm, logn);
+		sign_tree(sig, &rng, expanded_key, hm, logn, tt);
 
-		if (!Zf(verify_raw)(hm, sig, h, logn, tt)) {
+		if (!verify_raw(hm, sig, h, logn, tt)) {
 			fprintf(stderr, "self signature (dyn) not verified\n");
 			exit(EXIT_FAILURE);
 		}
@@ -3761,28 +3761,28 @@ test_keygen_inner(unsigned logn, uint8_t *tmp)
 		uint8_t msg[50];  /* nonce + message */
 		inner_shake256_context sc;
 
-		Zf(keygen)(&rng, f, g, F, G, h, logn, tt);
+		keygen(&rng, f, g, F, G, h, logn, tt);
 
 		inner_shake256_extract(&rng, msg, sizeof msg);
 
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, msg, sizeof msg);
 		inner_shake256_flip(&sc);
-		Zf(hash_to_point_vartime)(&sc, hm, logn);
+		hash_to_point_vartime(&sc, hm, logn);
 		do {
-			Zf(sign_dyn)(sig, &rng, f, g, F, G, hm, logn, tt);
+			sign_dyn(sig, &rng, f, g, F, G, hm, logn, tt);
 			memcpy(s1, tt, n * sizeof *s1);
-		} while (!Zf(is_invertible)(sig, logn, tt));
-		Zf(to_ntt_monty)(h, logn);
-		if (!Zf(verify_raw)(hm, sig, h, logn, tt)) {
+		} while (!is_invertible(sig, logn, tt));
+		to_ntt_monty(h, logn);
+		if (!verify_raw(hm, sig, h, logn, tt)) {
 			fprintf(stderr, "self signature not verified\n");
 			exit(EXIT_FAILURE);
 		}
-		if (!Zf(verify_recover)(h2, hm, s1, sig, logn, tt)) {
+		if (!verify_recover(h2, hm, s1, sig, logn, tt)) {
 			fprintf(stderr, "self signature recovery failed\n");
 			exit(EXIT_FAILURE);
 		}
-		Zf(to_ntt_monty)(h2, logn);
+		to_ntt_monty(h2, logn);
 		check_eq(h, h2, n * sizeof *h, "recovered public key");
 
 		printf(".");
@@ -4695,29 +4695,29 @@ test_nist_KAT(unsigned logn, const char *srefhash)
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, seed2, 48);
 		inner_shake256_flip(&sc);
-		Zf(keygen)(&sc, f, g, F, G, h, logn, tmp);
+		keygen(&sc, f, g, F, G, h, logn, tmp);
 
 		/*
 		 * Encode private key.
 		 */
 		sk[0] = 0x50 + logn;
 		u = 1;
-		v = Zf(trim_i8_encode)(sk + u, sk_len - u,
-			f, logn, Zf(max_fg_bits)[logn]);
+		v = trim_i8_encode(sk + u, sk_len - u,
+			f, logn, max_fg_bits[logn]);
 		if (v == 0) {
 			fprintf(stderr, "ERR encoding sk(f)\n");
 			exit(EXIT_FAILURE);
 		}
 		u += v;
-		v = Zf(trim_i8_encode)(sk + u, sk_len - u,
-			g, logn, Zf(max_fg_bits)[logn]);
+		v = trim_i8_encode(sk + u, sk_len - u,
+			g, logn, max_fg_bits[logn]);
 		if (v == 0) {
 			fprintf(stderr, "ERR encoding sk(g)\n");
 			exit(EXIT_FAILURE);
 		}
 		u += v;
-		v = Zf(trim_i8_encode)(sk + u, sk_len - u,
-			F, logn, Zf(max_FG_bits)[logn]);
+		v = trim_i8_encode(sk + u, sk_len - u,
+			F, logn, max_FG_bits[logn]);
 		if (v == 0) {
 			fprintf(stderr, "ERR encoding sk(F)\n");
 			exit(EXIT_FAILURE);
@@ -4732,7 +4732,7 @@ test_nist_KAT(unsigned logn, const char *srefhash)
 		 * Encode public key.
 		 */
 		pk[0] = 0x00 + logn;
-		v = Zf(modq_encode)(pk + 1, pk_len - 1, h, logn);
+		v = modq_encode(pk + 1, pk_len - 1, h, logn);
 		u = 1 + v;
 		if (u != pk_len) {
 			fprintf(stderr, "wrong public key length: %zu\n", u);
@@ -4747,31 +4747,31 @@ test_nist_KAT(unsigned logn, const char *srefhash)
 		inner_shake256_inject(&sc, nonce, 40);
 		inner_shake256_inject(&sc, msg, mlen);
 		inner_shake256_flip(&sc);
-		Zf(hash_to_point_vartime)(&sc, hm, logn);
+		hash_to_point_vartime(&sc, hm, logn);
 
 		nist_randombytes(seed2, 48);
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, seed2, 48);
 		inner_shake256_flip(&sc);
 
-		Zf(sign_dyn)(sig, &sc, f, g, F, G, hm, logn, tmp);
+		sign_dyn(sig, &sc, f, g, F, G, hm, logn, tmp);
 
 		/*
 		 * Expand the private key and sign again the message,
 		 * and check that the same signature is obtained.
 		 */
-		Zf(expand_privkey)(esk, f, g, F, G, logn, tmp);
+		expand_privkey(esk, f, g, F, G, logn, tmp);
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, seed2, 48);
 		inner_shake256_flip(&sc);
-		Zf(sign_tree)(sig2, &sc, esk, hm, logn, tmp);
+		sign_tree(sig2, &sc, esk, hm, logn, tmp);
 		check_eq(sig, sig2, n * sizeof *sig, "Sign dyn/tree mismatch");
 
 		/*
 		 * Verify the signature.
 		 */
-		Zf(to_ntt_monty)(h, logn);
-		if (!Zf(verify_raw)(hm, sig, h, logn, tmp)) {
+		to_ntt_monty(h, logn);
+		if (!verify_raw(hm, sig, h, logn, tmp)) {
 			fprintf(stderr, "Invalid signature\n");
 			exit(EXIT_FAILURE);
 		}
@@ -4782,7 +4782,7 @@ test_nist_KAT(unsigned logn, const char *srefhash)
 		memcpy(sm + 2, nonce, 40);
 		memcpy(sm + 42, msg, mlen);
 		sm[42 + mlen] = 0x20 + logn;
-		u = Zf(comp_encode)(sm + 43 + mlen, over_len - 43, sig, logn);
+		u = comp_encode(sm + 43 + mlen, over_len - 43, sig, logn);
 		if (u == 0) {
 			fprintf(stderr, "Could not encode signature\n");
 			exit(EXIT_FAILURE);
@@ -4861,7 +4861,7 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 	printf(" %4zu    ", n);
 	fflush(stdout);
 
-	if (!Zf(get_seed)(seed, sizeof seed)) {
+	if (!get_seed(seed, sizeof seed)) {
 		memset(seed, 0, sizeof seed);
 		seed[0] = logn;
 	}
@@ -4889,7 +4889,7 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 
 		begin = clock();
 		for (c = 0; c < num; c ++) {
-			Zf(keygen)(&rng, f, g, F, G, h, logn, tt);
+			keygen(&rng, f, g, F, G, h, logn, tt);
 		}
 		end = clock();
 		d = (double)(end - begin) / (double)CLOCKS_PER_SEC;
@@ -4914,11 +4914,11 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, msg, sizeof msg);
 		inner_shake256_flip(&sc);
-		Zf(hash_to_point_vartime)(&sc, hm, logn);
+		hash_to_point_vartime(&sc, hm, logn);
 
 		begin = clock();
 		for (c = 0; c < num; c ++) {
-			Zf(sign_dyn)(sig, &rng, f, g, F, G, hm, logn, tt);
+			sign_dyn(sig, &rng, f, g, F, G, hm, logn, tt);
 		}
 		end = clock();
 		d = (double)(end - begin) / (double)CLOCKS_PER_SEC;
@@ -4932,7 +4932,7 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 
 	expanded_key = (fpr *)tt;
 	tt2 = (uint8_t *)expanded_key + (8 * logn + 40) * n;
-	Zf(expand_privkey)(expanded_key, f, g, F, G, logn, tt2);
+	expand_privkey(expanded_key, f, g, F, G, logn, tt2);
 
 	num = 1;
 	for (;;) {
@@ -4947,11 +4947,11 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 		inner_shake256_init(&sc);
 		inner_shake256_inject(&sc, msg, sizeof msg);
 		inner_shake256_flip(&sc);
-		Zf(hash_to_point_vartime)(&sc, hm, logn);
+		hash_to_point_vartime(&sc, hm, logn);
 
 		begin = clock();
 		for (c = 0; c < num; c ++) {
-			Zf(sign_tree)(sig, &rng, expanded_key, hm, logn, tt2);
+			sign_tree(sig, &rng, expanded_key, hm, logn, tt2);
 		}
 		end = clock();
 		d = (double)(end - begin) / (double)CLOCKS_PER_SEC;
@@ -4963,7 +4963,7 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 		num <<= 1;
 	}
 
-	Zf(to_ntt_monty)(h, logn);
+	to_ntt_monty(h, logn);
 
 	num = 1;
 	for (;;) {
@@ -4973,7 +4973,7 @@ test_speed_falcon(unsigned logn, uint8_t *tmp)
 
 		begin = clock();
 		for (c = 0; c < num; c ++) {
-			Zf(verify_raw)(hm, sig, h, logn, tt);
+			verify_raw(hm, sig, h, logn, tt);
 		}
 		end = clock();
 		d = (double)(end - begin) / (double)CLOCKS_PER_SEC;

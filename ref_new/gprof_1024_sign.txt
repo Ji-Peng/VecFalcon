@@ -1,0 +1,400 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 26.42      1.12     1.12  2457600     0.00     0.00  sampler_next_rv64d
+ 17.22      1.85     0.73   378000     0.00     0.00  fndsa_sha3_process_block
+ 16.51      2.55     0.70  1234800     0.00     0.00  mq_div
+ 11.80      3.05     0.50    10800     0.00     0.00  fndsa_fpoly_FFT
+  4.25      3.23     0.18   613200     0.00     0.00  fndsa_fpoly_LDL_fft
+  3.54      3.38     0.15  1226400     0.00     0.00  fndsa_fpoly_split_fft
+  3.54      3.53     0.15  1226400     0.00     0.00  fndsa_fpoly_split_selfadj_fft
+  2.83      3.65     0.12   620400     0.00     0.00  fndsa_fpoly_mul_fft
+  2.60      3.76     0.11     2400     0.00     0.00  fndsa_fpoly_iFFT
+  2.12      3.85     0.09  1226400     0.00     0.00  fndsa_fpoly_merge_fft
+  1.65      3.92     0.07     1200     0.00     0.00  ffsamp_fft_inner
+  0.94      3.96     0.04   615600     0.00     0.00  fndsa_fpoly_add
+  0.94      4.00     0.04   613200     0.00     0.00  fndsa_fpoly_sub
+  0.71      4.03     0.03     3600     0.00     0.00  fndsa_trim_i8_decode
+  0.71      4.06     0.03     1200     0.00     0.00  fndsa_fpoly_gram_fft
+  0.71      4.09     0.03     1200     0.00     0.00  fndsa_mqpoly_mul_ntt
+  0.71      4.12     0.03     1200     0.00     0.00  fndsa_sign_core
+  0.47      4.14     0.02   362400     0.00     0.00  fndsa_shake_extract
+  0.47      4.16     0.02     1200     0.00     0.00  fndsa_fpoly_apply_basis
+  0.47      4.18     0.02     1200     0.00     0.00  fndsa_hash_to_point
+  0.24      4.19     0.01    12000     0.00     0.00  fndsa_shake_inject
+  0.24      4.20     0.01     4800     0.00     0.00  fndsa_fpoly_neg
+  0.24      4.21     0.01     1200     0.00     0.00  fndsa_mqpoly_int_to_small
+  0.00      4.21     0.00     9600     0.00     0.00  fndsa_fpoly_set_small
+  0.00      4.21     0.00     4800     0.00     0.00  fndsa_shake_flip
+  0.00      4.21     0.00     4800     0.00     0.00  fndsa_shake_init
+  0.00      4.21     0.00     3600     0.00     0.00  fndsa_mqpoly_int_to_ntt
+  0.00      4.21     0.00     3600     0.00     0.00  fndsa_mqpoly_small_to_int
+  0.00      4.21     0.00     2400     0.00     0.00  basis_to_FFT
+  0.00      4.21     0.00     2400     0.00     0.00  fndsa_mqpoly_ntt_to_int
+  0.00      4.21     0.00     2400     0.00     0.00  sign_32
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_comp_encode
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_ffsamp_fft
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_mqpoly_div_ntt
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_mqpoly_encode
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_mqpoly_int_to_ext
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_mqpoly_sqnorm_is_acceptable
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_sampler_init
+  0.00      4.21     0.00     1200     0.00     0.00  fndsa_sign_seeded
+  0.00      4.21     0.00     1200     0.00     0.00  sign_step1
+  0.00      4.21     0.00        1     0.00     4.21  gprof_sign_1024
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.24% of 4.21 seconds
+
+index % time    self  children    called     name
+                0.00    4.21    2400/2400        fndsa_sign_seeded [2]
+[1]    100.0    0.00    4.21    2400         sign_32 [1]
+                0.00    4.21    1200/1200        sign_step1 [3]
+-----------------------------------------------
+                0.00    4.21    1200/1200        gprof_sign_1024 [4]
+[2]    100.0    0.00    4.21    1200         fndsa_sign_seeded [2]
+                0.00    4.21    2400/2400        sign_32 [1]
+-----------------------------------------------
+                0.00    4.21    1200/1200        sign_32 [1]
+[3]    100.0    0.00    4.21    1200         sign_step1 [3]
+                0.03    3.40    1200/1200        fndsa_sign_core [6]
+                0.00    0.70    1200/1200        fndsa_mqpoly_div_ntt [12]
+                0.03    0.00    3600/3600        fndsa_trim_i8_decode [26]
+                0.03    0.00    1200/1200        fndsa_mqpoly_mul_ntt [28]
+                0.01    0.00    1200/1200        fndsa_mqpoly_int_to_small [30]
+                0.00    0.00    1200/12000       fndsa_shake_inject [23]
+                0.00    0.00    6000/1234800     mq_div [11]
+                0.00    0.00    1200/362400      fndsa_shake_extract [10]
+                0.00    0.00    3600/3600        fndsa_mqpoly_small_to_int [36]
+                0.00    0.00    3600/3600        fndsa_mqpoly_int_to_ntt [35]
+                0.00    0.00    2400/2400        fndsa_mqpoly_ntt_to_int [37]
+                0.00    0.00    1200/1200        fndsa_mqpoly_int_to_ext [41]
+                0.00    0.00    1200/1200        fndsa_mqpoly_encode [40]
+                0.00    0.00    1200/4800        fndsa_shake_init [34]
+                0.00    0.00    1200/4800        fndsa_shake_flip [33]
+-----------------------------------------------
+                0.00    4.21       1/1           main [5]
+[4]    100.0    0.00    4.21       1         gprof_sign_1024 [4]
+                0.00    4.21    1200/1200        fndsa_sign_seeded [2]
+-----------------------------------------------
+                                                 <spontaneous>
+[5]    100.0    0.00    4.21                 main [5]
+                0.00    4.21       1/1           gprof_sign_1024 [4]
+-----------------------------------------------
+                0.03    3.40    1200/1200        sign_step1 [3]
+[6]     81.6    0.03    3.40    1200         fndsa_sign_core [6]
+                0.07    2.56    1200/1200        ffsamp_fft_inner [7]
+                0.00    0.45    2400/2400        basis_to_FFT [14]
+                0.11    0.00    2400/2400        fndsa_fpoly_iFFT [19]
+                0.02    0.06    1200/1200        fndsa_hash_to_point [21]
+                0.02    0.06    1200/1200        fndsa_fpoly_apply_basis [22]
+                0.03    0.00    1200/1200        fndsa_fpoly_gram_fft [27]
+                0.00    0.01    2400/12000       fndsa_shake_inject [23]
+                0.01    0.00    2400/4800        fndsa_fpoly_neg [29]
+                0.00    0.00    1200/1200        fndsa_sampler_init [31]
+                0.00    0.00    1200/362400      fndsa_shake_extract [10]
+                0.00    0.00    4800/620400      fndsa_fpoly_mul_fft [18]
+                0.00    0.00    2400/615600      fndsa_fpoly_add [24]
+                0.00    0.00    1200/1226400     fndsa_fpoly_merge_fft [20]
+                0.00    0.00    1200/4800        fndsa_shake_init [34]
+                0.00    0.00    1200/4800        fndsa_shake_flip [33]
+                0.00    0.00    1200/1200        fndsa_ffsamp_fft [39]
+                0.00    0.00    1200/1200        fndsa_mqpoly_sqnorm_is_acceptable [42]
+                0.00    0.00    1200/1200        fndsa_comp_encode [38]
+-----------------------------------------------
+                             1226400             ffsamp_fft_inner [7]
+                0.07    2.56    1200/1200        fndsa_sign_core [6]
+[7]     62.5    0.07    2.56    1200+1226400 ffsamp_fft_inner [7]
+                1.12    0.67 2457600/2457600     sampler_next_rv64d [8]
+                0.18    0.00  613200/613200      fndsa_fpoly_LDL_fft [15]
+                0.15    0.00 1226400/1226400     fndsa_fpoly_split_fft [16]
+                0.15    0.00 1226400/1226400     fndsa_fpoly_split_selfadj_fft [17]
+                0.12    0.00  613200/620400      fndsa_fpoly_mul_fft [18]
+                0.09    0.00 1225200/1226400     fndsa_fpoly_merge_fft [20]
+                0.04    0.00  613200/613200      fndsa_fpoly_sub [25]
+                0.04    0.00  613200/615600      fndsa_fpoly_add [24]
+                             1226400             ffsamp_fft_inner [7]
+-----------------------------------------------
+                1.12    0.67 2457600/2457600     ffsamp_fft_inner [7]
+[8]     42.6    1.12    0.67 2457600         sampler_next_rv64d [8]
+                0.02    0.66  339600/362400      fndsa_shake_extract [10]
+-----------------------------------------------
+                0.03    0.00   15600/378000      fndsa_shake_inject [23]
+                0.70    0.00  362400/378000      fndsa_shake_extract [10]
+[9]     17.3    0.73    0.00  378000         fndsa_sha3_process_block [9]
+-----------------------------------------------
+                0.00    0.00    1200/362400      sign_step1 [3]
+                0.00    0.00    1200/362400      fndsa_sign_core [6]
+                0.00    0.04   20400/362400      fndsa_hash_to_point [21]
+                0.02    0.66  339600/362400      sampler_next_rv64d [8]
+[10]    17.1    0.02    0.70  362400         fndsa_shake_extract [10]
+                0.70    0.00  362400/378000      fndsa_sha3_process_block [9]
+-----------------------------------------------
+                0.00    0.00    6000/1234800     sign_step1 [3]
+                0.70    0.00 1228800/1234800     fndsa_mqpoly_div_ntt [12]
+[11]    16.6    0.70    0.00 1234800         mq_div [11]
+-----------------------------------------------
+                0.00    0.70    1200/1200        sign_step1 [3]
+[12]    16.5    0.00    0.70    1200         fndsa_mqpoly_div_ntt [12]
+                0.70    0.00 1228800/1234800     mq_div [11]
+-----------------------------------------------
+                0.06    0.00    1200/10800       fndsa_fpoly_apply_basis [22]
+                0.44    0.00    9600/10800       basis_to_FFT [14]
+[13]    11.9    0.50    0.00   10800         fndsa_fpoly_FFT [13]
+-----------------------------------------------
+                0.00    0.45    2400/2400        fndsa_sign_core [6]
+[14]    10.7    0.00    0.45    2400         basis_to_FFT [14]
+                0.44    0.00    9600/10800       fndsa_fpoly_FFT [13]
+                0.01    0.00    2400/4800        fndsa_fpoly_neg [29]
+                0.00    0.00    9600/9600        fndsa_fpoly_set_small [32]
+-----------------------------------------------
+                0.18    0.00  613200/613200      ffsamp_fft_inner [7]
+[15]     4.3    0.18    0.00  613200         fndsa_fpoly_LDL_fft [15]
+-----------------------------------------------
+                0.15    0.00 1226400/1226400     ffsamp_fft_inner [7]
+[16]     3.6    0.15    0.00 1226400         fndsa_fpoly_split_fft [16]
+-----------------------------------------------
+                0.15    0.00 1226400/1226400     ffsamp_fft_inner [7]
+[17]     3.6    0.15    0.00 1226400         fndsa_fpoly_split_selfadj_fft [17]
+-----------------------------------------------
+                0.00    0.00    2400/620400      fndsa_fpoly_apply_basis [22]
+                0.00    0.00    4800/620400      fndsa_sign_core [6]
+                0.12    0.00  613200/620400      ffsamp_fft_inner [7]
+[18]     2.9    0.12    0.00  620400         fndsa_fpoly_mul_fft [18]
+-----------------------------------------------
+                0.11    0.00    2400/2400        fndsa_sign_core [6]
+[19]     2.6    0.11    0.00    2400         fndsa_fpoly_iFFT [19]
+-----------------------------------------------
+                0.00    0.00    1200/1226400     fndsa_sign_core [6]
+                0.09    0.00 1225200/1226400     ffsamp_fft_inner [7]
+[20]     2.1    0.09    0.00 1226400         fndsa_fpoly_merge_fft [20]
+-----------------------------------------------
+                0.02    0.06    1200/1200        fndsa_sign_core [6]
+[21]     2.0    0.02    0.06    1200         fndsa_hash_to_point [21]
+                0.00    0.04   20400/362400      fndsa_shake_extract [10]
+                0.01    0.02    7200/12000       fndsa_shake_inject [23]
+                0.00    0.00    1200/4800        fndsa_shake_init [34]
+                0.00    0.00    1200/4800        fndsa_shake_flip [33]
+-----------------------------------------------
+                0.02    0.06    1200/1200        fndsa_sign_core [6]
+[22]     1.8    0.02    0.06    1200         fndsa_fpoly_apply_basis [22]
+                0.06    0.00    1200/10800       fndsa_fpoly_FFT [13]
+                0.00    0.00    2400/620400      fndsa_fpoly_mul_fft [18]
+-----------------------------------------------
+                0.00    0.00    1200/12000       sign_step1 [3]
+                0.00    0.00    1200/12000       fndsa_sampler_init [31]
+                0.00    0.01    2400/12000       fndsa_sign_core [6]
+                0.01    0.02    7200/12000       fndsa_hash_to_point [21]
+[23]     1.0    0.01    0.03   12000         fndsa_shake_inject [23]
+                0.03    0.00   15600/378000      fndsa_sha3_process_block [9]
+-----------------------------------------------
+                0.00    0.00    2400/615600      fndsa_sign_core [6]
+                0.04    0.00  613200/615600      ffsamp_fft_inner [7]
+[24]     1.0    0.04    0.00  615600         fndsa_fpoly_add [24]
+-----------------------------------------------
+                0.04    0.00  613200/613200      ffsamp_fft_inner [7]
+[25]     1.0    0.04    0.00  613200         fndsa_fpoly_sub [25]
+-----------------------------------------------
+                0.03    0.00    3600/3600        sign_step1 [3]
+[26]     0.7    0.03    0.00    3600         fndsa_trim_i8_decode [26]
+-----------------------------------------------
+                0.03    0.00    1200/1200        fndsa_sign_core [6]
+[27]     0.7    0.03    0.00    1200         fndsa_fpoly_gram_fft [27]
+-----------------------------------------------
+                0.03    0.00    1200/1200        sign_step1 [3]
+[28]     0.7    0.03    0.00    1200         fndsa_mqpoly_mul_ntt [28]
+-----------------------------------------------
+                0.01    0.00    2400/4800        basis_to_FFT [14]
+                0.01    0.00    2400/4800        fndsa_sign_core [6]
+[29]     0.2    0.01    0.00    4800         fndsa_fpoly_neg [29]
+-----------------------------------------------
+                0.01    0.00    1200/1200        sign_step1 [3]
+[30]     0.2    0.01    0.00    1200         fndsa_mqpoly_int_to_small [30]
+-----------------------------------------------
+                0.00    0.00    1200/1200        fndsa_sign_core [6]
+[31]     0.1    0.00    0.00    1200         fndsa_sampler_init [31]
+                0.00    0.00    1200/12000       fndsa_shake_inject [23]
+                0.00    0.00    1200/4800        fndsa_shake_init [34]
+                0.00    0.00    1200/4800        fndsa_shake_flip [33]
+-----------------------------------------------
+                0.00    0.00    9600/9600        basis_to_FFT [14]
+[32]     0.0    0.00    0.00    9600         fndsa_fpoly_set_small [32]
+-----------------------------------------------
+                0.00    0.00    1200/4800        fndsa_hash_to_point [21]
+                0.00    0.00    1200/4800        sign_step1 [3]
+                0.00    0.00    1200/4800        fndsa_sign_core [6]
+                0.00    0.00    1200/4800        fndsa_sampler_init [31]
+[33]     0.0    0.00    0.00    4800         fndsa_shake_flip [33]
+-----------------------------------------------
+                0.00    0.00    1200/4800        fndsa_hash_to_point [21]
+                0.00    0.00    1200/4800        sign_step1 [3]
+                0.00    0.00    1200/4800        fndsa_sign_core [6]
+                0.00    0.00    1200/4800        fndsa_sampler_init [31]
+[34]     0.0    0.00    0.00    4800         fndsa_shake_init [34]
+-----------------------------------------------
+                0.00    0.00    3600/3600        sign_step1 [3]
+[35]     0.0    0.00    0.00    3600         fndsa_mqpoly_int_to_ntt [35]
+-----------------------------------------------
+                0.00    0.00    3600/3600        sign_step1 [3]
+[36]     0.0    0.00    0.00    3600         fndsa_mqpoly_small_to_int [36]
+-----------------------------------------------
+                0.00    0.00    2400/2400        sign_step1 [3]
+[37]     0.0    0.00    0.00    2400         fndsa_mqpoly_ntt_to_int [37]
+-----------------------------------------------
+                0.00    0.00    1200/1200        fndsa_sign_core [6]
+[38]     0.0    0.00    0.00    1200         fndsa_comp_encode [38]
+-----------------------------------------------
+                0.00    0.00    1200/1200        fndsa_sign_core [6]
+[39]     0.0    0.00    0.00    1200         fndsa_ffsamp_fft [39]
+-----------------------------------------------
+                0.00    0.00    1200/1200        sign_step1 [3]
+[40]     0.0    0.00    0.00    1200         fndsa_mqpoly_encode [40]
+-----------------------------------------------
+                0.00    0.00    1200/1200        sign_step1 [3]
+[41]     0.0    0.00    0.00    1200         fndsa_mqpoly_int_to_ext [41]
+-----------------------------------------------
+                0.00    0.00    1200/1200        fndsa_sign_core [6]
+[42]     0.0    0.00    0.00    1200         fndsa_mqpoly_sqnorm_is_acceptable [42]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [14] basis_to_FFT           [16] fndsa_fpoly_split_fft   [9] fndsa_sha3_process_block
+   [7] ffsamp_fft_inner       [17] fndsa_fpoly_split_selfadj_fft [10] fndsa_shake_extract
+  [38] fndsa_comp_encode      [25] fndsa_fpoly_sub        [33] fndsa_shake_flip
+  [39] fndsa_ffsamp_fft       [21] fndsa_hash_to_point    [34] fndsa_shake_init
+  [13] fndsa_fpoly_FFT        [12] fndsa_mqpoly_div_ntt   [23] fndsa_shake_inject
+  [15] fndsa_fpoly_LDL_fft    [40] fndsa_mqpoly_encode     [6] fndsa_sign_core
+  [24] fndsa_fpoly_add        [41] fndsa_mqpoly_int_to_ext [2] fndsa_sign_seeded
+  [22] fndsa_fpoly_apply_basis [35] fndsa_mqpoly_int_to_ntt [26] fndsa_trim_i8_decode
+  [27] fndsa_fpoly_gram_fft   [30] fndsa_mqpoly_int_to_small [4] gprof_sign_1024
+  [19] fndsa_fpoly_iFFT       [28] fndsa_mqpoly_mul_ntt   [11] mq_div
+  [20] fndsa_fpoly_merge_fft  [37] fndsa_mqpoly_ntt_to_int [8] sampler_next_rv64d
+  [18] fndsa_fpoly_mul_fft    [36] fndsa_mqpoly_small_to_int [1] sign_32
+  [29] fndsa_fpoly_neg        [42] fndsa_mqpoly_sqnorm_is_acceptable [3] sign_step1
+  [32] fndsa_fpoly_set_small  [31] fndsa_sampler_init

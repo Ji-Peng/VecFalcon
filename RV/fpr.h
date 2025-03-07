@@ -711,9 +711,9 @@ static inline fpr fpr_sqrt(fpr x)
     return x;
 #        elif defined _M_IX86
     __asm {
-		 fld x.v
-		 fsqrt
-		 fstp x.v
+		fld x.v
+		fsqrt
+		fstp x.v
     }
     return x;
 #        elif defined __PPC__ && defined __GNUC__

@@ -3,3 +3,5 @@ test_vectors_falcon
 test_speed_falcon
 .vscode
 gmon.out
+speed_fndsa
+test_fndsa

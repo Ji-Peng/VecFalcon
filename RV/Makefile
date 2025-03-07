@@ -57,9 +57,6 @@ OBJ = codec.o common.o falcon.o fft.o fpr.o keygen.o rng.o shake.o sign.o vrfy.o
 
 all: test_vectors_falcon test_speed_falcon
 
-run_all: test_speed_falcon
-	perf stat ./test_speed_falcon > speed_falcon_x60.txt 2>/dev/null
-
 clean:
 	-rm -f $(OBJ) test_vectors_falcon test_speed_falcon test_vectors_falcon.o test_speed_falcon.o
 
