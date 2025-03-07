@@ -1,112 +1,157 @@
-# Build script for the Falcon implementation.
+# Possible options:
+#   -DFNDSA_AVX2=0         disable AVX2 support
+#   -DFNDSA_SSE2=0         disable SSE2 support
+#   -DFNDSA_NEON=0         disable NEON support
+#   -DFNDSA_RV64D=0        disable use of floating-point hardware on RISC-V
 #
-# ==========================(LICENSE BEGIN)============================
+#   -DFNDSA_NEON_SHA3=1    enable NEON optimizations for parallel SHAKE256
+#   -DFNDSA_DIV_EMU=1      force integer emulation of divisions (RISC-V only)
+#   -DFNDSA_SQRT_EMU=1     force integer emulation of square roots (RISC-V only)
 #
-# Copyright (c) 2017-2019  Falcon Project
+#   -DFNDSA_SHAKE256X4=1   use four parallel SHAKE256 as internal PRNG
 #
-# Permission is hereby granted, free of charge, to any person obtaining
-# a copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and to
-# permit persons to whom the Software is furnished to do so, subject to
-# the following conditions:
+# AVX2 support is compiled on x86 and x86_64 but is gated at runtime
+# with a check that AVX2 is supported by the current CPU (and not
+# disabled by the operating system); if AVX2 cannot be used, then the
+# fallback code (normally with SSE2) is used. Thus, support of AVX2 does
+# not prevent the code from running on non-AVX2 machines.
 #
-# The above copyright notice and this permission notice shall be
-# included in all copies or substantial portions of the Software.
+# SSE2 intrinsics are used if supported by the target architecture at
+# compile-time (no runtime test); this is normally the case for 64-bit
+# builds, since SSE2 is part of the 64-bit ABI. On 32-bit builds, this
+# depends on the compiler's defaults, which are OS dependent (e.g. MSVC
+# on Windows enables SSE2 by default, and so does Clang on 32-bit MacOS,
+# but on 32-bit Linux this is not done by default, and you have to add
+# the '-msse2' flag to the compiler to get SSE2). You can force SSE2
+# usage even if not detected by setting '-DFNDSA_SSE2=1'.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# NEON intrisics are used if supported by the target architecture at
+# compile-time (no runtime test) _and_ the build is 64-bit. Since NEON is
+# part of the 64-bit ARMv8 ABI, you normally don't have to fiddle with
+# that.
 #
-# ===========================(LICENSE END)=============================
+# An optional NEON-optimized SHAKE256 implementation can be enabled (it
+# runs two SHAKE256 implementations in parallel). It is disabled by default
+# because it turns out to be slower than the plain code on ARM Cortex-A55
+# and Cortex-A76 test systems. It _might_ be faster on some other ARM
+# systems. To enable it, use '-DFNDSA_NEON_SHA3=1'.
 #
-# @author   Thomas Pornin <thomas.pornin@nccgroup.com>
-
-.POSIX:
-
-# =====================================================================
+# On 64-bit RISC-V systems, the floating-point hardware is used if
+# detected at compile-time (i.e. the target architecture includes the 'D'
+# extension, which is part of the usual "RV64GC" package). When these
+# instructions are used, the divisions and square roots may optionally
+# be done with only integer computations, which is slower but possibly
+# safer with regard to timing attacks.
 #
-# Configurable options:
-#   CC       C compiler; GCC or Clang are fine; MSVC (2015+) works too.
-#   CFLAGS   Compilation flags:
-#             * Optimization level -O2 or higher is recommended
-#            See config.h for some possible configuration macros.
-#   LD       Linker; normally the same command as the compiler.
-#   LDFLAGS  Linker options, not counting the extra libs.
-#   LIBS     Extra libraries for linking:
-#             * If using the native FPU, test_falcon and application
-#               code that calls this library may need: -lm
-#               (normally not needed on x86, both 32-bit and 64-bit)
-
-COMMONDIR 		= ../common
+# An internal PRNG is used during key pair generation (to generate
+# candidate (f,g) polynomial pairs) and during signature generation (to
+# power the Gaussian sampling). By default, that PRNG is a simple
+# SHAKE256. An alternate PRNG is enabled by setting
+# '-DFNDSA_SHAKE256X4=1': this new PRNG uses four SHAKE256 in parallel,
+# with interleaved outputs. The alternate PRNG speeds up signature
+# generation by about 20% when runing on an x86 CPU with AVX2 support;
+# however, it also increases stack usage by aout 1.1 kB, which can be a
+# problem on small embedded systems such as microcontrollers, which is
+# why it is not the default. Moreover, using the alternate PRNG
+# necessarily changes the keys and signatures obtained from a given seed
+# (note that reproducibility of keys and signatures should not be relied
+# upon, at least until the FN-DSA standard is finalized, as things are
+# expected to change again in some areas).
+#
+# By default, this code compiles 'test_fndsa' (a test framework to validate
+# that all computations are correct) and 'speed_fndsa' (speed benchmarks).
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wshadow -Wundef -O3 -I$(COMMONDIR) -I. -march=rv64gcv_zba_zbb -mabi=lp64d #-pg -fno-pie
+CFLAGS = -W -Wextra -Wundef -Wshadow -O2 \
+	-march=rv64gcv_zba_zbb -mabi=lp64d	 \
+	-DFNDSA_RV64D=1 -pg
 LD = gcc
-LDFLAGS = #-pg -no-pie
-LIBS = -lm
+LDFLAGS = -pg
+LIBS =
 
-# =====================================================================
+OBJ_COMM = codec.o mq.o sha3.o sysrng.o util.o
+OBJ_KGEN = kgen.o kgen_fxp.o kgen_gauss.o kgen_mp31.o kgen_ntru.o kgen_poly.o kgen_zint31.o
+OBJ_SIGN = sign.o sign_core.o sign_fpoly.o sign_fpr.o sign_sampler.o
+OBJ_VRFY = vrfy.o
+OBJ = $(OBJ_COMM) $(OBJ_KGEN) $(OBJ_SIGN) $(OBJ_VRFY)
+TESTOBJ = test_fndsa.o test_sampler.o test_sign.o
+SPEEDOBJ = speed_fndsa.o
 
-OBJ = codec.o common.o falcon.o fft.o fpr.o keygen.o rng.o shake.o sign.o vrfy.o cpucycles.o speed_print.o
-
-all: test_vectors_falcon test_speed_falcon
-
-run_all: test_speed_falcon
-	perf stat ./test_speed_falcon > speed_falcon_x60.txt 2>/dev/null
+all: test_fndsa speed_fndsa
 
 clean:
-	-rm -f $(OBJ) test_vectors_falcon test_speed_falcon test_vectors_falcon.o test_speed_falcon.o
+	-rm -f $(OBJ) $(TESTOBJ) $(SPEEDOBJ) test_fndsa speed_fndsa
 
-test_vectors_falcon: test_vectors_falcon.o $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $(filter %.o, $^) $(LIBS)
+test_fndsa: $(OBJ) $(TESTOBJ)
+	$(LD) $(LDFLAGS) -o test_fndsa $(OBJ) $(TESTOBJ) $(LIBS)
 
-test_speed_falcon: test_speed_falcon.o $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $(filter %.o, $^) $(LIBS)
+speed_fndsa: $(OBJ) $(SPEEDOBJ)
+	$(LD) $(LDFLAGS) -o speed_fndsa $(OBJ) $(SPEEDOBJ) $(LIBS)
 
-codec.o: codec.c config.h inner.h fpr.h
+# -----------------------------------------------------------------------
+
+codec.o: codec.c fndsa.h inner.h
 	$(CC) $(CFLAGS) -c -o codec.o codec.c
 
-common.o: common.c config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o common.o common.c
+mq.o: mq.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o mq.o mq.c
 
-falcon.o: falcon.c falcon.h config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o falcon.o falcon.c
+sha3.o: sha3.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o sha3.o sha3.c
 
-fft.o: fft.c config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o fft.o fft.c
+sysrng.o: sysrng.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o sysrng.o sysrng.c
 
-fpr.o: fpr.c config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o fpr.o fpr.c
+util.o: util.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o util.o util.c
 
-keygen.o: keygen.c config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o keygen.o keygen.c
+kgen.o: kgen.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen.o kgen.c
 
-rng.o: rng.c config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o rng.o rng.c
+kgen_fxp.o: kgen_fxp.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_fxp.o kgen_fxp.c
 
-shake.o: shake.c config.h inner.h fpr.h
-	$(CC) $(CFLAGS) -c -o shake.o shake.c
+kgen_gauss.o: kgen_gauss.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_gauss.o kgen_gauss.c
 
-sign.o: sign.c config.h inner.h fpr.h
+kgen_mp31.o: kgen_mp31.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_mp31.o kgen_mp31.c
+
+kgen_ntru.o: kgen_ntru.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_ntru.o kgen_ntru.c
+
+kgen_poly.o: kgen_poly.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_poly.o kgen_poly.c
+
+kgen_zint31.o: kgen_zint31.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_zint31.o kgen_zint31.c
+
+sign.o: sign.c fndsa.h sign_inner.h inner.h
 	$(CC) $(CFLAGS) -c -o sign.o sign.c
 
-vrfy.o: vrfy.c config.h inner.h fpr.h
+sign_core.o: sign_core.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_core.o sign_core.c
+
+sign_fpoly.o: sign_fpoly.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_fpoly.o sign_fpoly.c
+
+sign_fpr.o: sign_fpr.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_fpr.o sign_fpr.c
+
+sign_sampler.o: sign_sampler.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_sampler.o sign_sampler.c
+
+vrfy.o: vrfy.c fndsa.h inner.h
 	$(CC) $(CFLAGS) -c -o vrfy.o vrfy.c
 
-cpucycles.o: $(COMMONDIR)/cpucycles.c $(COMMONDIR)/cpucycles.h
-	$(CC) $(CFLAGS) -c -o $@ $(filter %.c, $^)
+test_fndsa.o: test_fndsa.c fndsa.h inner.h kgen_inner.h sign_inner.h
+	$(CC) $(CFLAGS) -c -o test_fndsa.o test_fndsa.c
 
-speed_print.o: $(COMMONDIR)/speed_print.c $(COMMONDIR)/speed_print.h $(COMMONDIR)/cpucycles.h
-	$(CC) $(CFLAGS) -c -o $@ $(filter %.c, $^)
+test_sampler.o: test_sampler.c sign_sampler.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o test_sampler.o test_sampler.c
 
-test_speed_falcon.o: $(COMMONDIR)/test_speed_falcon.c falcon.h $(COMMONDIR)/speed_print.h $(COMMONDIR)/cpucycles.h
-	$(CC) $(CFLAGS) -c -o $@ $(filter %.c, $^)
+test_sign.o: test_sign.c sign_sampler.c sign_core.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o test_sign.o test_sign.c
 
-test_vectors_falcon.o: $(COMMONDIR)/test_vectors_falcon.c falcon.h config.h inner.h fpr.h $(COMMONDIR)/speed_print.h $(COMMONDIR)/cpucycles.h
-	$(CC) $(CFLAGS) -c -o $@ $(filter %.c, $^)
+speed_fndsa.o: speed_fndsa.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o speed_fndsa.o speed_fndsa.c

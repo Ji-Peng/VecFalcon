@@ -1,1152 +1,743 @@
-#ifndef FALCON_INNER_H__
-#define FALCON_INNER_H__
+#ifndef FNDSA_INNER_H__
+#define FNDSA_INNER_H__
 
-/*
- * Internal functions for Falcon. This is not the API intended to be
- * used by applications; instead, this internal API provides all the
- * primitives on which wrappers build to provide external APIs.
- *
- * ==========================(LICENSE BEGIN)============================
- *
- * Copyright (c) 2017-2019  Falcon Project
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * ===========================(LICENSE END)=============================
- *
- * @author   Thomas Pornin <thomas.pornin@nccgroup.com>
- */
+/* ==================================================================== */
 
-/*
- * IMPORTANT API RULES
- * -------------------
- *
- * This API has some non-trivial usage rules:
- *
- *
- *  - All public functions (i.e. the non-static ones) must be referenced
- *    with the Zf() macro (e.g. verify_raw for the verify_raw()
- *    function). That macro adds a prefix to the name, which is
- *    configurable with the FALCON_PREFIX macro. This allows compiling
- *    the code into a specific "namespace" and potentially including
- *    several versions of this code into a single application (e.g. to
- *    have an AVX2 and a non-AVX2 variants and select the one to use at
- *    runtime based on availability of AVX2 opcodes).
- *
- *  - Functions that need temporary buffers expects them as a final
- *    tmp[] array of type uint8_t*, with a size which is documented for
- *    each function. However, most have some alignment requirements,
- *    because they will use the array to store 16-bit, 32-bit or 64-bit
- *    values (e.g. uint64_t or double). The caller must ensure proper
- *    alignment. What happens on unaligned access depends on the
- *    underlying architecture, ranging from a slight time penalty
- *    to immediate termination of the process.
- *
- *  - Some functions rely on specific rounding rules and precision for
- *    floating-point numbers. On some systems (in particular 32-bit x86
- *    with the 387 FPU), this requires setting an hardware control
- *    word. The caller MUST use set_fpu_cw() to ensure proper precision:
- *
- *      oldcw = set_fpu_cw(2);
- *      sign_dyn(...);
- *      set_fpu_cw(oldcw);
- *
- *    On systems where the native floating-point precision is already
- *    proper, or integer-based emulation is used, the set_fpu_cw()
- *    function does nothing, so it can be called systematically.
- */
-
-// yyyPQCLEAN+0 yyyNIST+0 yyySUPERCOP+0
-#include "config.h"
-// yyyPQCLEAN- yyyNIST- yyySUPERCOP-
-// yyySUPERCOP+1
-// yyyCONF*
-// yyySUPERCOP-
-
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
-#if defined FALCON_AVX2 && FALCON_AVX2  // yyyAVX2+1
-/*
- * This implementation uses AVX2 and optionally FMA intrinsics.
- */
-#    include <immintrin.h>
-#    ifndef FALCON_LE
-#        define FALCON_LE 1
-#    endif
-#    ifndef FALCON_UNALIGNED
-#        define FALCON_UNALIGNED 1
-#    endif
-#    if defined __GNUC__
-#        if defined FALCON_FMA && FALCON_FMA
-#            define TARGET_AVX2 __attribute__((target("avx2,fma")))
-#        else
-#            define TARGET_AVX2 __attribute__((target("avx2")))
-#        endif
-#    elif defined _MSC_VER && _MSC_VER
-#        pragma warning(disable : 4752)
-#    endif
-#    if defined FALCON_FMA && FALCON_FMA
-#        define FMADD(a, b, c) _mm256_fmadd_pd(a, b, c)
-#        define FMSUB(a, b, c) _mm256_fmsub_pd(a, b, c)
-#    else
-#        define FMADD(a, b, c) _mm256_add_pd(_mm256_mul_pd(a, b), c)
-#        define FMSUB(a, b, c) _mm256_sub_pd(_mm256_mul_pd(a, b), c)
-#    endif
-#endif  // yyyAVX2-
+#include "fndsa.h"
 
-// yyyNIST+0 yyyPQCLEAN+0
 /*
- * On MSVC, disable warning about applying unary minus on an unsigned
- * type: this is perfectly defined standard behaviour and we do it
- * quite often.
+ * Naming conventions
+ * ==================
+ *
+ * All identifiers with external linkage are prefixed with "fndsa_".
+ * This header includes convenient macros that map the prefix-less names
+ * to the actual identifiers.
+ *
+ * When a function has an alternate implementation, using special CPU
+ * feature "fff" and which is to be used conditionally to a runtime test
+ * on the support by the CPU, then the prefix for that alternate
+ * implementation is "fndsa_fff_"; again, a convenient macro allows using
+ * the name without the "fndsa_" prefix.
  */
-#if defined _MSC_VER && _MSC_VER
-#    pragma warning(disable : 4146)
+
+/* Define FNDSA_AVX2 to 1 in order to add AVX2 support, 0 otherwise. */
+#ifndef FNDSA_AVX2
+#    if defined __x86_64__ || defined _M_X64 || defined __i386__ || \
+        defined _M_IX86
+#        define FNDSA_AVX2 1
+#    else
+#        define FNDSA_AVX2 0
+#    endif
 #endif
 
-// yyySUPERCOP+0
-/*
- * Enable ARM assembly on any ARMv7m platform (if it was not done before).
- */
-#ifndef FALCON_ASM_CORTEXM4
-#    if (defined __ARM_ARCH_7EM__ && __ARM_ARCH_7EM__) && \
-      (defined __ARM_FEATURE_DSP && __ARM_FEATURE_DSP)
-#        define FALCON_ASM_CORTEXM4 1
+/* TARGET_AVX2 is applied to a function definition and allows use of AVX2
+   intrinsics in that function. */
+#if FNDSA_AVX2
+#    if defined __GNUC__ || defined __clang__
+#        define TARGET_AVX2 __attribute__((target("avx2,lzcnt")))
 #    else
-#        define FALCON_ASM_CORTEXM4 0
+#        define TARGET_AVX2
 #    endif
-#endif
-// yyySUPERCOP-
-
-#if defined __i386__ || defined _M_IX86 || defined __x86_64__ || \
-  defined _M_X64 ||                                              \
-  (defined _ARCH_PWR8 &&                                         \
-   (defined __LITTLE_ENDIAN || defined __LITTLE_ENDIAN__))
-
-#    ifndef FALCON_LE
-#        define FALCON_LE 1
-#    endif
-#    ifndef FALCON_UNALIGNED
-#        define FALCON_UNALIGNED 1
-#    endif
-
-#elif defined FALCON_ASM_CORTEXM4 && FALCON_ASM_CORTEXM4
-
-#    ifndef FALCON_LE
-#        define FALCON_LE 1
-#    endif
-#    ifndef FALCON_UNALIGNED
-#        define FALCON_UNALIGNED 0
-#    endif
-
-#elif (defined __LITTLE_ENDIAN__ && __LITTLE_ENDIAN__) ||       \
-  (defined __BYTE_ORDER__ && defined __ORDER_LITTLE_ENDIAN__ && \
-   __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-
-#    ifndef FALCON_LE
-#        define FALCON_LE 1
-#    endif
-#    ifndef FALCON_UNALIGNED
-#        define FALCON_UNALIGNED 0
-#    endif
-
 #else
-
-#    ifndef FALCON_LE
-#        define FALCON_LE 0
-#    endif
-#    ifndef FALCON_UNALIGNED
-#        define FALCON_UNALIGNED 0
-#    endif
-
-#endif
-
-/*
- * We ensure that both FALCON_FPEMU and FALCON_FPNATIVE are defined,
- * with compatible values (exactly one of them must be non-zero).
- * If none is defined, then default FP implementation is 'native'
- * except on ARM Cortex M4.
- */
-#if !defined FALCON_FPEMU && !defined FALCON_FPNATIVE
-
-#    if (defined __ARM_FP && ((__ARM_FP & 0x08) == 0x08)) || \
-      (!defined __ARM_FP && defined __ARM_VFPV2__)
-#        define FALCON_FPEMU 0
-#        define FALCON_FPNATIVE 1
-#    elif defined FALCON_ASM_CORTEXM4 && FALCON_ASM_CORTEXM4
-#        define FALCON_FPEMU 1
-#        define FALCON_FPNATIVE 0
-#    else
-#        define FALCON_FPEMU 0
-#        define FALCON_FPNATIVE 1
-#    endif
-
-#elif defined FALCON_FPEMU && !defined FALCON_FPNATIVE
-
-#    if FALCON_FPEMU
-#        define FALCON_FPNATIVE 0
-#    else
-#        define FALCON_FPNATIVE 1
-#    endif
-
-#elif defined FALCON_FPNATIVE && !defined FALCON_FPEMU
-
-#    if FALCON_FPNATIVE
-#        define FALCON_FPEMU 0
-#    else
-#        define FALCON_FPEMU 1
-#    endif
-
-#endif
-
-#if (FALCON_FPEMU && FALCON_FPNATIVE) || \
-  (!FALCON_FPEMU && !FALCON_FPNATIVE)
-#    error Exactly one of FALCON_FPEMU and FALCON_FPNATIVE must be selected
-#endif
-
-// yyySUPERCOP+0
-/*
- * For seed generation from the operating system:
- *  - On Linux and glibc-2.25+, FreeBSD 12+ and OpenBSD, use getentropy().
- *  - On Unix-like systems, use /dev/urandom (including as a fallback
- *    for failed getentropy() calls).
- *  - On Windows, use CryptGenRandom().
- */
-
-#ifndef FALCON_RAND_GETENTROPY
-#    if (defined __linux__ && defined __GLIBC__ &&                        \
-         (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))) || \
-      (defined __FreeBSD__ && __FreeBSD__ >= 12) || defined __OpenBSD__
-#        define FALCON_RAND_GETENTROPY 1
-#    else
-#        define FALCON_RAND_GETENTROPY 0
-#    endif
-#endif
-
-#ifndef FALCON_RAND_URANDOM
-#    if defined _AIX || defined __ANDROID__ || defined __FreeBSD__ || \
-      defined __NetBSD__ || defined __OpenBSD__ ||                    \
-      defined __DragonFly__ || defined __linux__ ||                   \
-      (defined __sun && (defined __SVR4 || defined __svr4__)) ||      \
-      (defined __APPLE__ && defined __MACH__)
-#        define FALCON_RAND_URANDOM 1
-#    else
-#        define FALCON_RAND_URANDOM 0
-#    endif
-#endif
-
-#ifndef FALCON_RAND_WIN32
-#    if defined _WIN32 || defined _WIN64
-#        define FALCON_RAND_WIN32 1
-#    else
-#        define FALCON_RAND_WIN32 0
-#    endif
-#endif
-// yyySUPERCOP-
-
-/*
- * For still undefined compile-time macros, define them to 0 to avoid
- * warnings with -Wundef.
- */
-#ifndef FALCON_AVX2
-#    define FALCON_AVX2 0
-#endif
-#ifndef FALCON_FMA
-#    define FALCON_FMA 0
-#endif
-#ifndef FALCON_KG_CHACHA20
-#    define FALCON_KG_CHACHA20 0
-#endif
-// yyyNIST- yyyPQCLEAN-
-
-// yyyPQCLEAN+0 yyySUPERCOP+0
-/*
- * "Naming" macro used to apply a consistent prefix over all global
- * symbols.
- */
-#ifndef FALCON_PREFIX
-#    define FALCON_PREFIX falcon_inner
-#endif
-#define name Zf_(FALCON_PREFIX, name)
-#define Zf_(prefix, name) Zf__(prefix, name)
-#define Zf__(prefix, name) prefix##_##name
-// yyyPQCLEAN- yyySUPERCOP-
-
-// yyyAVX2+1
-/*
- * We use the TARGET_AVX2 macro to tag some functions which, in some
- * configurations, may use AVX2 and FMA intrinsics; this depends on
- * the compiler. In all other cases, we just define it to emptiness
- * (i.e. it will have no effect).
- */
-#ifndef TARGET_AVX2
 #    define TARGET_AVX2
 #endif
-// yyyAVX2-
 
-/*
- * Some computations with floating-point elements, in particular
- * rounding to the nearest integer, rely on operations using _exactly_
- * the precision of IEEE-754 binary64 type (i.e. 52 bits). On 32-bit
- * x86, the 387 FPU may be used (depending on the target OS) and, in
- * that case, may use more precision bits (i.e. 64 bits, for an 80-bit
- * total type length); to prevent miscomputations, we define an explicit
- * function that modifies the precision in the FPU control word.
- *
- * set_fpu_cw() sets the precision to the provided value, and returns
- * the previously set precision; callers are supposed to restore the
- * previous precision on exit. The correct (52-bit) precision is
- * configured with the value "2". On unsupported compilers, or on
- * targets other than 32-bit x86, or when the native 'double' type is
- * not used, the set_fpu_cw() function does nothing at all.
- */
-#if FALCON_FPNATIVE  // yyyFPNATIVE+1
-#    if defined __GNUC__ && defined __i386__
-static inline unsigned set_fpu_cw(unsigned x)
-{
-    unsigned short t;
-    unsigned old;
+/* ALIGN32 is applied to a declarator and will try to make the declared
+   object aligned at a 32-byte boundary in memory. */
+#if defined __GNUC__ || defined __clang__
+#    define ALIGN32 __attribute__((aligned(32)))
+#elif defined _MSC_VER
+#    define ALIGN32 __declspec(align(32))
+#else
+#    define ALIGN32
+#endif
 
-    __asm__ __volatile__("fstcw %0" : "=m"(t) : :);
-    old = (t & 0x0300u) >> 8;
-    t = (unsigned short)((t & ~0x0300u) | (x << 8));
-    __asm__ __volatile__("fldcw %0" : : "m"(t) :);
-    return old;
-}
-#    elif defined _M_IX86
-static inline unsigned set_fpu_cw(unsigned x)
-{
-    unsigned short t;
-    unsigned old;
-
-    __asm { fstcw t }
-    old = (t & 0x0300u) >> 8;
-    t = (unsigned short)((t & ~0x0300u) | (x << 8));
-    __asm { fldcw t }
-    return old;
-}
+/* FNDSA_SSE2 is set to 1 if SSE2 is supported (x86 only). This test
+   is static (no runtime detection). On 64-bit x86, SSE2 is part of the
+   ABI, so FNDSA_SSE2 will always be set. On 32-bit x86, whether SSE2
+   is enabled or not depends on the compiler (recent MSVC versions set
+   it by default, GCC and Clang on Linux do not). */
+#ifndef FNDSA_SSE2
+#    if ((defined __GNUC__ || defined __clang__) && defined __SSE2__) || \
+        (defined _MSC_VER && defined _M_X64) ||                          \
+        (defined _MSC_VER && defined _M_IX86_FP && _M_IX86_FP >= 2)
+#        define FNDSA_SSE2 1
 #    else
-static inline unsigned set_fpu_cw(unsigned x)
-{
-    return x;
-}
-#    endif
-#else   // yyyFPNATIVE+0
-static inline unsigned set_fpu_cw(unsigned x)
-{
-    return x;
-}
-#endif  // yyyFPNATIVE-
-
-#if FALCON_FPNATIVE && !FALCON_AVX2  // yyyFPNATIVE+1 yyyAVX2+0
-/*
- * If using the native 'double' type but not AVX2 code, on an x86
- * machine with SSE2 activated for maths, then we will use the
- * SSE2 intrinsics.
- */
-#    if defined __GNUC__ && defined __SSE2_MATH__
-#        include <immintrin.h>
-#    endif
-#endif  // yyyFPNATIVE- yyyAVX2-
-
-#if FALCON_FPNATIVE  // yyyFPNATIVE+1
-/*
- * For optimal reproducibility of values, we need to disable contraction
- * of floating-point expressions; otherwise, on some architectures (e.g.
- * PowerPC), the compiler may generate fused-multiply-add opcodes that
- * may round differently than two successive separate opcodes. C99 defines
- * a standard pragma for that, but GCC-6.2.2 appears to ignore it,
- * hence the GCC-specific pragma (that Clang does not support).
- */
-#    if defined __clang__
-#        pragma STDC FP_CONTRACT OFF
-#    elif defined __GNUC__
-#        pragma GCC optimize("fp-contract=off")
-#    endif
-#endif  // yyyFPNATIVE-
-
-// yyyPQCLEAN+0
-/*
- * MSVC 2015 does not know the C99 keyword 'restrict'.
- */
-#if defined _MSC_VER && _MSC_VER
-#    ifndef restrict
-#        define restrict __restrict
+#        define FNDSA_SSE2 0
 #    endif
 #endif
-// yyyPQCLEAN-
+
+/* TARGET_SSE2 is applied to a function definition and allows use of SSE2
+   intrinsics in that function. */
+#if FNDSA_SSE2
+#    if defined __GNUC__ || defined __clang__
+#        define TARGET_SSE2 __attribute__((target("sse2")))
+#    else
+#        define TARGET_SSE2
+#    endif
+#else
+#    define TARGET_SSE2
+#endif
+
+#if FNDSA_AVX2 || FNDSA_SSE2
+#    include <immintrin.h>
+#    if defined __GNUC__ || defined __clang__
+#        include <x86intrin.h>
+#    endif
+#endif
+
+/* FNDSA_NEON is set to 1 if NEON is supported by the hardware, including
+   vectors of 64-bit (double precision) floating-point values (aarch64
+   only). This test is static (no runtime detection). Since NEON is
+   normally part of the aarch64 ABI, this should always be set on this
+   architecture. */
+#ifndef FNDSA_NEON
+#    if defined __aarch64__ &&                                       \
+        ((defined __ARM_NEON_FP && ((__ARM_NEON_FP & 0x0C) != 0)) || \
+         (!defined __ARM_NEON_FP && ((__ARM_FP & 0x0C) != 0)))
+#        define FNDSA_NEON 1
+#    else
+#        define FNDSA_NEON 0
+#    endif
+#endif
+
+/* TARGET_NEON is applied to a function definition and allows use of NEON
+   intrinsics in that function. */
+#if FNDSA_NEON
+#    if defined __GNUC__ || defined __clang__
+#        define TARGET_NEON __attribute__((target("neon")))
+#    else
+#        define TARGET_NEON
+#    endif
+#else
+#    define TARGET_NEON
+#endif
+
+#if FNDSA_NEON
+#    include <arm_neon.h>
+#endif
+
+/* If FNDSA_NEON_SHA3 is non-zero, then NEON opcodes will be used to
+   make two SHAKE256 parallel evaluations during keygen and signing.
+   This happens to be slower than the plain code on ARM Cortex-A55
+   and Cortex-A76, which is why it is not enabled by default. */
+#ifndef FNDSA_NEON_SHA3
+#    define FNDSA_NEON_SHA3 0
+#endif
+
+/* FNDSA_RV64D is set to 1 if the hardware uses the riscv64 architecture
+   with the D (64-bit floating-point) extension; this is the case of most
+   "general purpose" RISC-V hardware (which is "RV64GC", with "G" being
+   a shorthand for I, M, A, F and D). */
+#ifndef FNDSA_RV64D
+#    if defined __riscv && defined __riscv_xlen && __riscv_xlen >= 64 && \
+        defined __riscv_d && defined __riscv_flen && __riscv_flen >= 64
+#        define FNDSA_RV64D 1
+#    else
+#        define FNDSA_RV64D 0
+#    endif
+#endif
+
+/* If FNDSA_DIV_EMU is 1, then floating-point division will use the
+   emulated code with only integer operations, instead of the hardware
+   abilities. This option impacts only architecture which otherwise use
+   the hardware native abilities for divisions; moreover, for platforms
+   where SIMD opcodes are used (e.g. SSE2 or NEON), the divisions
+   will still be performed with the SIMD unit. The main target for this
+   option is RISC-V cores; in particular, the SiFive U74 offers only
+   non-constant-time floating-point divisions in hardware. Enabling this
+   option (and also FNDSA_SQRT_EMU) increases signing cost by about 25%. */
+#ifndef FNDSA_DIV_EMU
+#    define FNDSA_DIV_EMU 0
+#endif
+
+/* If FNDSA_SQRT_EMU is 1, then floating-point square roots will use the
+   emulated code with only integer operations, instead of the hardware
+   abilities. As with FNDSA_DIV_EMU, this impacts only architecture for
+   which the hardware abitilies as used for square roots, but not platforms
+   with explicit SIMD opcode support (e.g. SSE2 or NEON). */
+#ifndef FNDSA_SQRT_EMU
+#    define FNDSA_SQRT_EMU 0
+#endif
+
+/* If FNDSA_ASM_CORTEXM4 is 1, then the code will use optimized assembly
+   routines, under the assumption that it runs on an ARM Cortex-M4
+   (specifically an M4F: the hardware floating-point is not used since
+   it's only single-precision, but the FP registers are leveraged as
+   temporary storage).
+   This is not set by default because some of the routines are in
+   external assembly-only source files which the Makefile must then
+   include explicitly. That Makefile may thus set FNDSA_ASM_CORTEXM4 too.
+ */
+#ifndef FNDSA_ASM_CORTEXM4
+#    define FNDSA_ASM_CORTEXM4 0
+#endif
+
+/* Failsafe check: if ARMv7M assembly code is detected, the compiler should
+   know about it too. */
+#if FNDSA_ASM_CORTEXM4
+#    if !(defined __ARM_ARCH_7EM__ && defined __ARM_FEATURE_DSP)
+#        error ARMv7M+DSP assembly code selected but supported.
+#    endif
+#endif
+
+/* Automatically recognize some architectures as being "64-bit", which
+   mostly means that we assume that 64-bit shifts are constant-time
+   with regard to the shift count. */
+#ifndef FNDSA_64
+#    if defined __x86_64__ || defined _M_X64 || defined __ia64 ||         \
+        defined __itanium__ || defined _M_IA64 ||                         \
+        defined __powerpc64__ || defined __ppc64__ ||                     \
+        defined __PPC64__ || defined __64BIT__ || defined _LP64 ||        \
+        defined __LP64__ || defined __sparc64__ || defined __aarch64__ || \
+        defined _M_ARM64 || defined __mips64
+#        define FNDSA_64 1
+#    else
+#        define FNDSA_64 0
+#    endif
+#endif
+
+/* Recognize little-endian architectures. A little-endian system can
+   extract bytes from a SHAKE context more efficiently. If
+   FNDSA_LITTLE_ENDIAN is 0, then the platform is not assumed to be
+   little-endian (but it still can be). */
+#ifndef FNDSA_LITTLE_ENDIAN
+#    if defined __LITTLE_ENDIAN__ ||                                  \
+        (defined __BYTE_ORDER__ && defined __ORDER_LITTLE_ENDIAN__ && \
+         __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) ||                \
+        defined _M_IX86 || defined _M_X64 || defined _M_ARM64
+#        define FNDSA_LITTLE_ENDIAN 1
+#    else
+#        define FNDSA_LITTLE_ENDIAN 0
+#    endif
+#endif
+
+/* Some architectures tolerate well unaligned accesses to 64-bit words. */
+#ifndef FNDSA_UNALIGNED_64
+#    if defined __x86_64__ || defined _M_X64 || defined __i386__ || \
+        defined _M_IX86 || defined __aarch64__ || defined _M_ARM64
+#        define FNDSA_UNALIGNED_64 1
+#    else
+#        define FNDSA_UNALIGNED_64 0
+#    endif
+#endif
+
+/* Some architectures tolerate well unaligned accesses to 16-bit words. */
+#ifndef FNDSA_UNALIGNED_16
+#    if defined __x86_64__ || defined _M_X64 || defined __i386__ ||     \
+        defined _M_IX86 || FNDSA_ASM_CORTEXM4 || defined __aarch64__ || \
+        defined _M_ARM64
+#        define FNDSA_UNALIGNED_16 1
+#    else
+#        define FNDSA_UNALIGNED_16 0
+#    endif
+#endif
+
+/* Some MSVC adjustments. */
+#if defined _MSC_VER
+/* Disable some warnings which are about valid and well-defined operations
+   that are often unwanted (but here we want them, e.g. applying the
+   negation operator on unsigned types). */
+#    pragma warning(disable : 4146)
+#    pragma warning(disable : 4204)
+#    pragma warning(disable : 4244)
+#    pragma warning(disable : 4267)
+#    pragma warning(disable : 4334)
+/* MSVC does not like the 'restrict' keyword. */
+#    define restrict
+#endif
 
 /* ==================================================================== */
 /*
- * SHAKE256 implementation (shake.c).
+ * SHAKE implementation.
  *
- * API is defined to be easily replaced with the fips202.h API defined
- * as part of PQClean.
+ * A SHAKE context is (re)initialized with shake_init(). After
+ * initialization, the context is in input mode, and accepts data with
+ * shake_inject() calls. shake_flip() switches the context to output mode,
+ * allowing data to be extracted with shake_extract() calls.
+ *
+ * Callers MUST NOT inject data in a context which has been flipped to
+ * output mode. Callers MUST NOT extract data from a context which has
+ * not been flipped to output mode. Reinitializing the context also sets
+ * it back to input mode.
+ *
+ * A context contains no external or internal pointers, and can thus be
+ * moved, cloned, or abandoned.
  */
 
-// yyyPQCLEAN+0
 typedef struct {
-    union {
-        uint64_t A[25];
-        uint8_t dbuf[200];
-    } st;
-    uint64_t dptr;
-} inner_shake256_context;
+    uint64_t A[25];
+    unsigned dptr, rate;
+} shake_context;
 
-#define inner_shake256_init i_shake256_init
-#define inner_shake256_inject i_shake256_inject
-#define inner_shake256_flip i_shake256_flip
-#define inner_shake256_extract i_shake256_extract
+#define shake_init fndsa_shake_init
+#define shake_inject fndsa_shake_inject
+#define shake_flip fndsa_shake_flip
+#define shake_extract fndsa_shake_extract
 
-void i_shake256_init(inner_shake256_context *sc);
-void i_shake256_inject(inner_shake256_context *sc, const uint8_t *in,
-                           size_t len);
-void i_shake256_flip(inner_shake256_context *sc);
-void i_shake256_extract(inner_shake256_context *sc, uint8_t *out,
-                            size_t len);
+/* Initialize context, size = 128 or 256 (for SHAKE128 or SHAKE256). */
+void shake_init(shake_context *sc, unsigned size);
+/* Inject some bytes in context. */
+void shake_inject(shake_context *sc, const void *in, size_t len);
+/* Flip context from input to output mode. */
+void shake_flip(shake_context *sc);
+/* Extract some bytes from context. If out is NULL, then len bytes are
+   still virtually extracted, but discarded.
+   In systems with little-endian encoding, the discarded bytes
+   can still be obtained from the context; this is used for saving some
+   RAM (especially stack space) on embedded systems. */
+void shake_extract(shake_context *sc, void *out, size_t len);
 
-/*
-// yyyPQCLEAN+1
-
-#include "fips202.h"
-
-#define inner_shake256_context                shake256incctx
-#define inner_shake256_init(sc)               shake256_inc_init(sc)
-#define inner_shake256_inject(sc, in, len)    shake256_inc_absorb(sc, in,
-len) #define inner_shake256_flip(sc) shake256_inc_finalize(sc) #define
-inner_shake256_extract(sc, out, len)  shake256_inc_squeeze(out, len, sc)
-
-// yyyPQCLEAN+0
- */
-// yyyPQCLEAN-
-
-/* ==================================================================== */
-/*
- * Encoding/decoding functions (codec.c).
- *
- * Encoding functions take as parameters an output buffer (out) with
- * a given maximum length (max_out_len); returned value is the actual
- * number of bytes which have been written. If the output buffer is
- * not large enough, then 0 is returned (some bytes may have been
- * written to the buffer). If 'out' is NULL, then 'max_out_len' is
- * ignored; instead, the function computes and returns the actual
- * required output length (in bytes).
- *
- * Decoding functions take as parameters an input buffer (in) with
- * its maximum length (max_in_len); returned value is the actual number
- * of bytes that have been read from the buffer. If the provided length
- * is too short, then 0 is returned.
- *
- * Values to encode or decode are vectors of integers, with N = 2^logn
- * elements.
- *
- * Three encoding formats are defined:
- *
- *   - modq: sequence of values modulo 12289, each encoded over exactly
- *     14 bits. The encoder and decoder verify that integers are within
- *     the valid range (0..12288). Values are arrays of uint16.
- *
- *   - trim: sequence of signed integers, a specified number of bits
- *     each. The number of bits is provided as parameter and includes
- *     the sign bit. Each integer x must be such that |x| < 2^(bits-1)
- *     (which means that the -2^(bits-1) value is forbidden); encode and
- *     decode functions check that property. Values are arrays of
- *     int16_t or int8_t, corresponding to names 'trim_i16' and
- *     'trim_i8', respectively.
- *
- *   - comp: variable-length encoding for signed integers; each integer
- *     uses a minimum of 9 bits, possibly more. This is normally used
- *     only for signatures.
- *
- */
-
-size_t modq_encode(void *out, size_t max_out_len, const uint16_t *x,
-                       unsigned logn);
-size_t trim_i16_encode(void *out, size_t max_out_len, const int16_t *x,
-                           unsigned logn, unsigned bits);
-size_t trim_i8_encode(void *out, size_t max_out_len, const int8_t *x,
-                          unsigned logn, unsigned bits);
-size_t comp_encode(void *out, size_t max_out_len, const int16_t *x,
-                       unsigned logn);
-
-size_t modq_decode(uint16_t *x, unsigned logn, const void *in,
-                       size_t max_in_len);
-size_t trim_i16_decode(int16_t *x, unsigned logn, unsigned bits,
-                           const void *in, size_t max_in_len);
-size_t trim_i8_decode(int8_t *x, unsigned logn, unsigned bits,
-                          const void *in, size_t max_in_len);
-size_t comp_decode(int16_t *x, unsigned logn, const void *in,
-                       size_t max_in_len);
-
-/*
- * Number of bits for key elements, indexed by logn (1 to 10). This
- * is at most 8 bits for all degrees, but some degrees may have shorter
- * elements.
- */
-extern const uint8_t max_fg_bits[];
-extern const uint8_t max_FG_bits[];
-
-/*
- * Maximum size, in bits, of elements in a signature, indexed by logn
- * (1 to 10). The size includes the sign bit.
- */
-extern const uint8_t max_sig_bits[];
-
-/* ==================================================================== */
-/*
- * Support functions used for both signature generation and signature
- * verification (common.c).
- */
-
-/*
- * From a SHAKE256 context (must be already flipped), produce a new
- * point. This is the non-constant-time version, which may leak enough
- * information to serve as a stop condition on a brute force attack on
- * the hashed message (provided that the nonce value is known).
- */
-void hash_to_point_vartime(inner_shake256_context *sc, uint16_t *x,
-                               unsigned logn);
-
-/*
- * From a SHAKE256 context (must be already flipped), produce a new
- * point. The temporary buffer (tmp) must have room for 2*2^logn bytes.
- * This function is constant-time but is typically more expensive than
- * hash_to_point_vartime().
- *
- * tmp[] must have 16-bit alignment.
- */
-void hash_to_point_ct(inner_shake256_context *sc, uint16_t *x,
-                          unsigned logn, uint8_t *tmp);
-
-/*
- * Tell whether a given vector (2N coordinates, in two halves) is
- * acceptable as a signature. This compares the appropriate norm of the
- * vector with the acceptance bound. Returned value is 1 on success
- * (vector is short enough to be acceptable), 0 otherwise.
- */
-int is_short(const int16_t *s1, const int16_t *s2, unsigned logn);
-
-/*
- * Tell whether a given vector (2N coordinates, in two halves) is
- * acceptable as a signature. Instead of the first half s1, this
- * function receives the "saturated squared norm" of s1, i.e. the
- * sum of the squares of the coordinates of s1 (saturated at 2^32-1
- * if the sum exceeds 2^31-1).
- *
- * Returned value is 1 on success (vector is short enough to be
- * acceptable), 0 otherwise.
- */
-int is_short_half(uint32_t sqn, const int16_t *s2, unsigned logn);
-
-/* ==================================================================== */
-/*
- * Signature verification functions (vrfy.c).
- */
-
-/*
- * Convert a public key to NTT + Montgomery format. Conversion is done
- * in place.
- */
-void to_ntt_monty(uint16_t *h, unsigned logn);
-
-/*
- * Internal signature verification code:
- *   c0[]      contains the hashed nonce+message
- *   s2[]      is the decoded signature
- *   h[]       contains the public key, in NTT + Montgomery format
- *   logn      is the degree log
- *   tmp[]     temporary, must have at least 2*2^logn bytes
- * Returned value is 1 on success, 0 on error.
- *
- * tmp[] must have 16-bit alignment.
- */
-int verify_raw(const uint16_t *c0, const int16_t *s2,
-                   const uint16_t *h, unsigned logn, uint8_t *tmp);
-
-/*
- * Compute the public key h[], given the private key elements f[] and
- * g[]. This computes h = g/f mod phi mod q, where phi is the polynomial
- * modulus. This function returns 1 on success, 0 on error (an error is
- * reported if f is not invertible mod phi mod q).
- *
- * The tmp[] array must have room for at least 2*2^logn elements.
- * tmp[] must have 16-bit alignment.
- */
-int compute_public(uint16_t *h, const int8_t *f, const int8_t *g,
-                       unsigned logn, uint8_t *tmp);
-
-/*
- * Recompute the fourth private key element. Private key consists in
- * four polynomials with small coefficients f, g, F and G, which are
- * such that fG - gF = q mod phi; furthermore, f is invertible modulo
- * phi and modulo q. This function recomputes G from f, g and F.
- *
- * The tmp[] array must have room for at least 4*2^logn bytes.
- *
- * Returned value is 1 in success, 0 on error (f not invertible).
- * tmp[] must have 16-bit alignment.
- */
-int complete_private(int8_t *G, const int8_t *f, const int8_t *g,
-                         const int8_t *F, unsigned logn, uint8_t *tmp);
-
-/*
- * Test whether a given polynomial is invertible modulo phi and q.
- * Polynomial coefficients are small integers.
- *
- * tmp[] must have 16-bit alignment.
- */
-int is_invertible(const int16_t *s2, unsigned logn, uint8_t *tmp);
-
-/*
- * Count the number of elements of value zero in the NTT representation
- * of the given polynomial: this is the number of primitive 2n-th roots
- * of unity (modulo q = 12289) that are roots of the provided polynomial
- * (taken modulo q).
- *
- * tmp[] must have 16-bit alignment.
- */
-int count_nttzero(const int16_t *sig, unsigned logn, uint8_t *tmp);
-
-/*
- * Internal signature verification with public key recovery:
- *   h[]       receives the public key (NOT in NTT/Montgomery format)
- *   c0[]      contains the hashed nonce+message
- *   s1[]      is the first signature half
- *   s2[]      is the second signature half
- *   logn      is the degree log
- *   tmp[]     temporary, must have at least 2*2^logn bytes
- * Returned value is 1 on success, 0 on error. Success is returned if
- * the signature is a short enough vector; in that case, the public
- * key has been written to h[]. However, the caller must still
- * verify that h[] is the correct value (e.g. with regards to a known
- * hash of the public key).
- *
- * h[] may not overlap with any of the other arrays.
- *
- * tmp[] must have 16-bit alignment.
- */
-int verify_recover(uint16_t *h, const uint16_t *c0, const int16_t *s1,
-                       const int16_t *s2, unsigned logn, uint8_t *tmp);
-
-/* ==================================================================== */
-/*
- * Implementation of floating-point real numbers (fpr.h, fpr.c).
- */
-
-/*
- * Real numbers are implemented by an extra header file, included below.
- * This is meant to support pluggable implementations. The default
- * implementation relies on the C type 'double'.
- *
- * The included file must define the following types, functions and
- * constants:
- *
- *   fpr
- *         type for a real number
- *
- *   fpr fpr_of(int64_t i)
- *         cast an integer into a real number; source must be in the
- *         -(2^63-1)..+(2^63-1) range
- *
- *   fpr fpr_scaled(int64_t i, int sc)
- *         compute i*2^sc as a real number; source 'i' must be in the
- *         -(2^63-1)..+(2^63-1) range
- *
- *   fpr fpr_ldexp(fpr x, int e)
- *         compute x*2^e
- *
- *   int64_t fpr_rint(fpr x)
- *         round x to the nearest integer; x must be in the -(2^63-1)
- *         to +(2^63-1) range
- *
- *   int64_t fpr_trunc(fpr x)
- *         round to an integer; this rounds towards zero; value must
- *         be in the -(2^63-1) to +(2^63-1) range
- *
- *   fpr fpr_add(fpr x, fpr y)
- *         compute x + y
- *
- *   fpr fpr_sub(fpr x, fpr y)
- *         compute x - y
- *
- *   fpr fpr_neg(fpr x)
- *         compute -x
- *
- *   fpr fpr_half(fpr x)
- *         compute x/2
- *
- *   fpr fpr_double(fpr x)
- *         compute x*2
- *
- *   fpr fpr_mul(fpr x, fpr y)
- *         compute x * y
- *
- *   fpr fpr_sqr(fpr x)
- *         compute x * x
- *
- *   fpr fpr_inv(fpr x)
- *         compute 1/x
- *
- *   fpr fpr_div(fpr x, fpr y)
- *         compute x/y
- *
- *   fpr fpr_sqrt(fpr x)
- *         compute the square root of x
- *
- *   int fpr_lt(fpr x, fpr y)
- *         return 1 if x < y, 0 otherwise
- *
- *   uint64_t fpr_expm_p63(fpr x)
- *         return exp(x), assuming that 0 <= x < log(2). Returned value
- *         is scaled to 63 bits (i.e. it really returns 2^63*exp(-x),
- *         rounded to the nearest integer). Computation should have a
- *         precision of at least 45 bits.
- *
- *   const fpr fpr_gm_tab[]
- *         array of constants for FFT / iFFT
- *
- *   const fpr fpr_p2_tab[]
- *         precomputed powers of 2 (by index, 0 to 10)
- *
- * Constants of type 'fpr':
- *
- *   fpr fpr_q                 12289
- *   fpr fpr_inverse_of_q      1/12289
- *   fpr fpr_inv_2sqrsigma0    1/(2*(1.8205^2))
- *   fpr fpr_inv_sigma[]       1/sigma (indexed by logn, 1 to 10)
- *   fpr fpr_sigma_min[]       1/sigma_min (indexed by logn, 1 to 10)
- *   fpr fpr_log2              log(2)
- *   fpr fpr_inv_log2          1/log(2)
- *   fpr fpr_bnorm_max         16822.4121
- *   fpr fpr_zero              0
- *   fpr fpr_one               1
- *   fpr fpr_two               2
- *   fpr fpr_onehalf           0.5
- *   fpr fpr_ptwo31            2^31
- *   fpr fpr_ptwo31m1          2^31-1
- *   fpr fpr_mtwo31m1          -(2^31-1)
- *   fpr fpr_ptwo63m1          2^63-1
- *   fpr fpr_mtwo63m1          -(2^63-1)
- *   fpr fpr_ptwo63            2^63
- */
-#include "fpr.h"
-
-/* ==================================================================== */
-/*
- * RNG (rng.c).
- *
- * A PRNG based on ChaCha20 is implemented; it is seeded from a SHAKE256
- * context (flipped) and is used for bulk pseudorandom generation.
- * A system-dependent seed generator is also provided.
- */
-
-/*
- * Obtain a random seed from the system RNG.
- *
- * Returned value is 1 on success, 0 on error.
- */
-int get_seed(void *seed, size_t seed_len);
-
-/*
- * Structure for a PRNG. This includes a large buffer so that values
- * get generated in advance. The 'state' is used to keep the current
- * PRNG algorithm state (contents depend on the selected algorithm).
- *
- * The unions with 'dummy_u64' are there to ensure proper alignment for
- * 64-bit direct access.
- */
-typedef struct {
-    union {
-        uint8_t d[512]; /* MUST be 512, exactly */
-        uint64_t dummy_u64;
-    } buf;
-    size_t ptr;
-    union {
-        uint8_t d[256];
-        uint64_t dummy_u64;
-    } state;
-    int type;
-} prng;
-
-/*
- * Instantiate a PRNG. That PRNG will feed over the provided SHAKE256
- * context (in "flipped" state) to obtain its initial state.
- */
-void prng_init(prng *p, inner_shake256_context *src);
-
-/*
- * Refill the PRNG buffer. This is normally invoked automatically, and
- * is declared here only so that prng_get_u64() may be inlined.
- */
-void prng_refill(prng *p);
-
-/*
- * Get some bytes from a PRNG.
- */
-void prng_get_bytes(prng *p, void *dst, size_t len);
-
-/*
- * Get a 64-bit random value from a PRNG.
- */
-static inline uint64_t prng_get_u64(prng *p)
+/* Get the next byte from a SHAKE context. */
+static inline uint8_t shake_next_u8(shake_context *sc)
 {
-    size_t u;
-
-    /*
-     * If there are less than 9 bytes in the buffer, we refill it.
-     * This means that we may drop the last few bytes, but this allows
-     * for faster extraction code. Also, it means that we never leave
-     * an empty buffer.
-     */
-    u = p->ptr;
-    if (u >= (sizeof p->buf.d) - 9) {
-        prng_refill(p);
-        u = 0;
+    if (sc->dptr == sc->rate) {
+        uint8_t x;
+        shake_extract(sc, &x, 1);
+        return x;
     }
-    p->ptr = u + 8;
-
-    /*
-     * On systems that use little-endian encoding and allow
-     * unaligned accesses, we can simply read the data where it is.
-     */
-#if FALCON_LE && FALCON_UNALIGNED  // yyyLEU+1
-    return *(uint64_t *)(p->buf.d + u);
-#else   // yyyLEU+0
-    return (uint64_t)p->buf.d[u + 0] | ((uint64_t)p->buf.d[u + 1] << 8) |
-           ((uint64_t)p->buf.d[u + 2] << 16) |
-           ((uint64_t)p->buf.d[u + 3] << 24) |
-           ((uint64_t)p->buf.d[u + 4] << 32) |
-           ((uint64_t)p->buf.d[u + 5] << 40) |
-           ((uint64_t)p->buf.d[u + 6] << 48) |
-           ((uint64_t)p->buf.d[u + 7] << 56);
-#endif  // yyyLEU-
+#if FNDSA_LITTLE_ENDIAN
+    uint8_t *d = (uint8_t *)(void *)sc;
+    return d[sc->dptr++];
+#else
+    uint8_t x = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    return x;
+#endif
 }
 
-/*
- * Get an 8-bit random value from a PRNG.
- */
-static inline unsigned prng_get_u8(prng *p)
+/* Get the next 16-bit word from SHAKE. */
+static inline unsigned shake_next_u16(shake_context *sc)
 {
-    unsigned v;
-
-    v = p->buf.d[p->ptr++];
-    if (p->ptr == sizeof p->buf.d) {
-        prng_refill(p);
+    if (sc->dptr + 1 >= sc->rate) {
+        uint8_t x[2];
+        shake_extract(sc, x, 2);
+        return (unsigned)x[0] | ((unsigned)x[1] << 8);
     }
+#if FNDSA_LITTLE_ENDIAN
+    uint8_t *d = (uint8_t *)(void *)sc;
+#    if FNDSA_UNALIGNED_16
+    unsigned v = *(uint16_t *)(d + sc->dptr);
+#    else
+    unsigned v = (unsigned)d[sc->dptr] | ((unsigned)d[sc->dptr + 1] << 8);
+#    endif
+    sc->dptr += 2;
     return v;
+#else
+    unsigned x0 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    unsigned x1 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    return x0 | (x1 << 8);
+#endif
 }
 
-/* ==================================================================== */
-/*
- * FFT (falcon-fft.c).
- *
- * A real polynomial is represented as an array of N 'fpr' elements.
- * The FFT representation of a real polynomial contains N/2 complex
- * elements; each is stored as two real numbers, for the real and
- * imaginary parts, respectively. See falcon-fft.c for details on the
- * internal representation.
- */
+/* Get the next 64-bit word from SHAKE. */
+static inline uint64_t shake_next_u64(shake_context *sc)
+{
+    if ((sc->dptr + 7) >= sc->rate) {
+#if FNDSA_LITTLE_ENDIAN
+        uint64_t v;
+        shake_extract(sc, &v, 8);
+        return v;
+#else
+        uint8_t x[8];
+        shake_extract(sc, x, 8);
+        return (uint64_t)x[0] | ((uint64_t)x[1] << 8) |
+               ((uint64_t)x[2] << 16) | ((uint64_t)x[3] << 24) |
+               ((uint64_t)x[4] << 32) | ((uint64_t)x[5] << 40) |
+               ((uint64_t)x[6] << 48) | ((uint64_t)x[7] << 56);
+#endif
+    }
+    uint64_t x;
+#if FNDSA_LITTLE_ENDIAN && FNDSA_UNALIGNED_64
+    x = *(uint64_t *)((uint8_t *)(void *)sc + sc->dptr);
+#else
+    size_t j = sc->dptr >> 3;
+    unsigned n = sc->dptr & 7;
+    if (n == 0) {
+        x = sc->A[j];
+    } else {
+        x = sc->A[j] >> (n << 3);
+        x |= sc->A[j + 1] << (64 - (n << 3));
+    }
+#endif
+    sc->dptr += 8;
+    return x;
+}
 
-/*
- * Compute FFT in-place: the source array should contain a real
- * polynomial (N coefficients); its storage area is reused to store
- * the FFT representation of that polynomial (N/2 complex numbers).
- *
- * 'logn' MUST lie between 1 and 10 (inclusive).
- */
-void FFT(fpr *f, unsigned logn);
+/* By default, we use a simple SHAKE256 for internal PRNG needs
+   (in keygen to generate (f,g), in signing for the Gaussian sampling).
+   If FNDSA_SHAKE256X4 is non-zero, then SHAKE256x4 is used: it is a
+   PRNG consisting of four SHAKE256 running in parallel, with interleaved
+   outputs. This has two main effects:
+     - On x86 with AVX2 support, this makes signing faster (by about 20%).
+     - It increases stack usage by about 1.1 kB, which can be a concern
+       for small embedded systems (e.g. ARM Cortex-M4).
+   It otherwise has no real perceivable effect, except that (of course)
+   it changes the exact key pairs and signature values obtained from a
+   given seed. */
+#ifndef FNDSA_SHAKE256X4
+#    define FNDSA_SHAKE256X4 0
+#endif
 
+#if FNDSA_SHAKE256X4
 /*
- * Compute the inverse FFT in-place: the source array should contain the
- * FFT representation of a real polynomial (N/2 elements); the resulting
- * real polynomial (N coefficients of type 'fpr') is written over the
- * array.
- *
- * 'logn' MUST lie between 1 and 10 (inclusive).
- */
-void iFFT(fpr *f, unsigned logn);
-
-/*
- * Add polynomial b to polynomial a. a and b MUST NOT overlap. This
- * function works in both normal and FFT representations.
- */
-void poly_add(fpr *restrict a, const fpr *restrict b, unsigned logn);
-
-/*
- * Subtract polynomial b from polynomial a. a and b MUST NOT overlap. This
- * function works in both normal and FFT representations.
- */
-void poly_sub(fpr *restrict a, const fpr *restrict b, unsigned logn);
-
-/*
- * Negate polynomial a. This function works in both normal and FFT
- * representations.
- */
-void poly_neg(fpr *a, unsigned logn);
-
-/*
- * Compute adjoint of polynomial a. This function works only in FFT
- * representation.
- */
-void poly_adj_fft(fpr *a, unsigned logn);
-
-/*
- * Multiply polynomial a with polynomial b. a and b MUST NOT overlap.
- * This function works only in FFT representation.
- */
-void poly_mul_fft(fpr *restrict a, const fpr *restrict b,
-                      unsigned logn);
-
-/*
- * Multiply polynomial a with the adjoint of polynomial b. a and b MUST NOT
- * overlap. This function works only in FFT representation.
- */
-void poly_muladj_fft(fpr *restrict a, const fpr *restrict b,
-                         unsigned logn);
-
-/*
- * Multiply polynomial with its own adjoint. This function works only in
- * FFT representation.
- */
-void poly_mulselfadj_fft(fpr *a, unsigned logn);
-
-/*
- * Multiply polynomial with a real constant. This function works in both
- * normal and FFT representations.
- */
-void poly_mulconst(fpr *a, fpr x, unsigned logn);
-
-/*
- * Divide polynomial a by polynomial b, modulo X^N+1 (FFT representation).
- * a and b MUST NOT overlap.
- */
-void poly_div_fft(fpr *restrict a, const fpr *restrict b,
-                      unsigned logn);
-
-/*
- * Given f and g (in FFT representation), compute 1/(f*adj(f)+g*adj(g))
- * (also in FFT representation). Since the result is auto-adjoint, all its
- * coordinates in FFT representation are real; as such, only the first N/2
- * values of d[] are filled (the imaginary parts are skipped).
- *
- * Array d MUST NOT overlap with either a or b.
- */
-void poly_invnorm2_fft(fpr *restrict d, const fpr *restrict a,
-                           const fpr *restrict b, unsigned logn);
-
-/*
- * Given F, G, f and g (in FFT representation), compute F*adj(f)+G*adj(g)
- * (also in FFT representation). Destination d MUST NOT overlap with
- * any of the source arrays.
- */
-void poly_add_muladj_fft(fpr *restrict d, const fpr *restrict F,
-                             const fpr *restrict G, const fpr *restrict f,
-                             const fpr *restrict g, unsigned logn);
-
-/*
- * Multiply polynomial a by polynomial b, where b is autoadjoint. Both
- * a and b are in FFT representation. Since b is autoadjoint, all its
- * FFT coefficients are real, and the array b contains only N/2 elements.
- * a and b MUST NOT overlap.
- */
-void poly_mul_autoadj_fft(fpr *restrict a, const fpr *restrict b,
-                              unsigned logn);
-
-/*
- * Divide polynomial a by polynomial b, where b is autoadjoint. Both
- * a and b are in FFT representation. Since b is autoadjoint, all its
- * FFT coefficients are real, and the array b contains only N/2 elements.
- * a and b MUST NOT overlap.
- */
-void poly_div_autoadj_fft(fpr *restrict a, const fpr *restrict b,
-                              unsigned logn);
-
-/*
- * Perform an LDL decomposition of an auto-adjoint matrix G, in FFT
- * representation. On input, g00, g01 and g11 are provided (where the
- * matrix G = [[g00, g01], [adj(g01), g11]]). On output, the d00, l10
- * and d11 values are written in g00, g01 and g11, respectively
- * (with D = [[d00, 0], [0, d11]] and L = [[1, 0], [l10, 1]]).
- * (In fact, d00 = g00, so the g00 operand is left unmodified.)
- */
-void poly_LDL_fft(const fpr *restrict g00, fpr *restrict g01,
-                      fpr *restrict g11, unsigned logn);
-
-/*
- * Perform an LDL decomposition of an auto-adjoint matrix G, in FFT
- * representation. This is identical to poly_LDL_fft() except that
- * g00, g01 and g11 are unmodified; the outputs d11 and l10 are written
- * in two other separate buffers provided as extra parameters.
- */
-void poly_LDLmv_fft(fpr *restrict d11, fpr *restrict l10,
-                        const fpr *restrict g00, const fpr *restrict g01,
-                        const fpr *restrict g11, unsigned logn);
-
-/*
- * Apply "split" operation on a polynomial in FFT representation:
- * f = f0(x^2) + x*f1(x^2), for half-size polynomials f0 and f1
- * (polynomials modulo X^(N/2)+1). f0, f1 and f MUST NOT overlap.
- */
-void poly_split_fft(fpr *restrict f0, fpr *restrict f1,
-                        const fpr *restrict f, unsigned logn);
-
-/*
- * Apply "merge" operation on two polynomials in FFT representation:
- * given f0 and f1, polynomials moduo X^(N/2)+1, this function computes
- * f = f0(x^2) + x*f1(x^2), in FFT representation modulo X^N+1.
- * f MUST NOT overlap with either f0 or f1.
- */
-void poly_merge_fft(fpr *restrict f, const fpr *restrict f0,
-                        const fpr *restrict f1, unsigned logn);
-
-/* ==================================================================== */
-/*
- * Key pair generation.
- */
-
-/*
- * Required sizes of the temporary buffer (in bytes).
- *
- * This size is 28*2^logn bytes, except for degrees 2 and 4 (logn = 1
- * or 2) where it is slightly greater.
- */
-#define FALCON_KEYGEN_TEMP_1 136
-#define FALCON_KEYGEN_TEMP_2 272
-#define FALCON_KEYGEN_TEMP_3 224
-#define FALCON_KEYGEN_TEMP_4 448
-#define FALCON_KEYGEN_TEMP_5 896
-#define FALCON_KEYGEN_TEMP_6 1792
-#define FALCON_KEYGEN_TEMP_7 3584
-#define FALCON_KEYGEN_TEMP_8 7168
-#define FALCON_KEYGEN_TEMP_9 14336
-#define FALCON_KEYGEN_TEMP_10 28672
-
-/*
- * Generate a new key pair. Randomness is extracted from the provided
- * SHAKE256 context, which must have already been seeded and flipped.
- * The tmp[] array must have suitable size (see FALCON_KEYGEN_TEMP_*
- * macros) and be aligned for the uint32_t, uint64_t and fpr types.
- *
- * The private key elements are written in f, g, F and G, and the
- * public key is written in h. Either or both of G and h may be NULL,
- * in which case the corresponding element is not returned (they can
- * be recomputed from f, g and F).
- *
- * tmp[] must have 64-bit alignment.
- * This function uses floating-point rounding (see set_fpu_cw()).
- */
-void keygen(inner_shake256_context *rng, int8_t *f, int8_t *g,
-                int8_t *F, int8_t *G, uint16_t *h, unsigned logn,
-                uint8_t *tmp);
-
-/* ==================================================================== */
-/*
- * Signature generation.
- */
-
-/*
- * Expand a private key into the B0 matrix in FFT representation and
- * the LDL tree. All the values are written in 'expanded_key', for
- * a total of (8*logn+40)*2^logn bytes.
- *
- * The tmp[] array must have room for at least 48*2^logn bytes.
- *
- * tmp[] must have 64-bit alignment.
- * This function uses floating-point rounding (see set_fpu_cw()).
- */
-void expand_privkey(fpr *restrict expanded_key, const int8_t *f,
-                        const int8_t *g, const int8_t *F, const int8_t *G,
-                        unsigned logn, uint8_t *restrict tmp);
-
-/*
- * Compute a signature over the provided hashed message (hm); the
- * signature value is one short vector. This function uses an
- * expanded key (as generated by expand_privkey()).
- *
- * The sig[] and hm[] buffers may overlap.
- *
- * On successful output, the start of the tmp[] buffer contains the s1
- * vector (as int16_t elements).
- *
- * The minimal size (in bytes) of tmp[] is 48*2^logn bytes.
- *
- * tmp[] must have 64-bit alignment.
- * This function uses floating-point rounding (see set_fpu_cw()).
- */
-void sign_tree(int16_t *sig, inner_shake256_context *rng,
-                   const fpr *restrict expanded_key, const uint16_t *hm,
-                   unsigned logn, uint8_t *tmp);
-
-/*
- * Compute a signature over the provided hashed message (hm); the
- * signature value is one short vector. This function uses a raw
- * key and dynamically recompute the B0 matrix and LDL tree; this
- * saves RAM since there is no needed for an expanded key, but
- * increases the signature cost.
- *
- * The sig[] and hm[] buffers may overlap.
- *
- * On successful output, the start of the tmp[] buffer contains the s1
- * vector (as int16_t elements).
- *
- * The minimal size (in bytes) of tmp[] is 72*2^logn bytes.
- *
- * tmp[] must have 64-bit alignment.
- * This function uses floating-point rounding (see set_fpu_cw()).
- */
-void sign_dyn(int16_t *sig, inner_shake256_context *rng,
-                  const int8_t *restrict f, const int8_t *restrict g,
-                  const int8_t *restrict F, const int8_t *restrict G,
-                  const uint16_t *hm, unsigned logn, uint8_t *tmp);
-
-/*
- * Internal sampler engine. Exported for tests.
- *
- * sampler_context wraps around a source of random numbers (PRNG) and
- * the sigma_min value (nominally dependent on the degree).
- *
- * sampler() takes as parameters:
- *   ctx      pointer to the sampler_context structure
- *   mu       center for the distribution
- *   isigma   inverse of the distribution standard deviation
- * It returns an integer sampled along the Gaussian distribution centered
- * on mu and of standard deviation sigma = 1/isigma.
- *
- * gaussian0_sampler() takes as parameter a pointer to a PRNG, and
- * returns an integer sampled along a half-Gaussian with standard
- * deviation sigma0 = 1.8205 (center is 0, returned value is
- * nonnegative).
+ * SHAKE256x4 is a PRNG based on SHAKE256; it runs four SHAKE256 instances
+ * in parallel, interleaving their outputs with 64-bit granularity. The
+ * four instances are initialized with a common seed, followed by a single
+ * byte of value 0x00, 0x01, 0x02 or 0x03, depending on the SHAKE instance.
  */
 
 typedef struct {
-    prng p;
-    fpr sigma_min;
-} sampler_context;
+    uint64_t state[100];
+    uint8_t buf[4 * 136];
+    unsigned ptr;
+#    if FNDSA_AVX2
+    int use_avx2;
+#    endif
+} shake256x4_context;
 
-TARGET_AVX2
-int sampler(void *ctx, fpr mu, fpr isigma);
+/* Initialize a SHAKE256x4 context from a given seed.
+   WARNING: seed length MUST NOT exceed 134 bytes. */
+#    define shake256x4_init fndsa_shake256x4_init
+void shake256x4_init(shake256x4_context *sc, const void *seed,
+                     size_t seed_len);
+/* Refill the SHAKE256x4 output buffer. */
+#    define shake256x4_refill fndsa_shake256x4_refill
+void shake256x4_refill(shake256x4_context *sc);
 
-TARGET_AVX2
-int gaussian0_sampler(prng *p);
+/* Get the next byte of pseudorandom output. */
+static inline uint8_t shake256x4_next_u8(shake256x4_context *sc)
+{
+    if (sc->ptr >= sizeof sc->buf) {
+        shake256x4_refill(sc);
+    }
+    return sc->buf[sc->ptr++];
+}
+
+/* Get the next 16-bit word of pseudorandom output. */
+static inline unsigned shake256x4_next_u16(shake256x4_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 1) {
+        shake256x4_refill(sc);
+    }
+    unsigned x =
+        (unsigned)sc->buf[sc->ptr] | ((unsigned)sc->buf[sc->ptr + 1] << 8);
+    sc->ptr += 2;
+    return x;
+}
+
+/* Get the next 64-bit word of pseudorandom output. */
+static inline uint64_t shake256x4_next_u64(shake256x4_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 7) {
+        shake256x4_refill(sc);
+    }
+    uint64_t x = (uint64_t)sc->buf[sc->ptr] |
+                 ((uint64_t)sc->buf[sc->ptr + 1] << 8) |
+                 ((uint64_t)sc->buf[sc->ptr + 2] << 16) |
+                 ((uint64_t)sc->buf[sc->ptr + 3] << 24) |
+                 ((uint64_t)sc->buf[sc->ptr + 4] << 32) |
+                 ((uint64_t)sc->buf[sc->ptr + 5] << 40) |
+                 ((uint64_t)sc->buf[sc->ptr + 6] << 48) |
+                 ((uint64_t)sc->buf[sc->ptr + 7] << 56);
+    sc->ptr += 8;
+    return x;
+}
+#endif
+
+/*
+ * SHA-3 implementation.
+ * This is a variation on the SHAKE implementation, which implements
+ * SHA-3 with outputs of 224, 256, 384 and 512 bits. The output size
+ * (in bits) is provided as parameter to sha3_init(). Input is provided
+ * with sha3_update(). The output is computed with sha3_close(); this
+ * function also reinitializes the context.
+ */
+typedef shake_context sha3_context;
+
+#define sha3_init fndsa_sha3_init
+#define sha3_update fndsa_sha3_update
+#define sha3_close fndsa_sha3_close
+
+/* Initialize context, size = 224, 256, 384 or 512 */
+void sha3_init(sha3_context *sc, unsigned size);
+/* Inject some bytes in context. */
+void sha3_update(sha3_context *sc, const void *in, size_t len);
+/* Compute the output and reinitialize the context. */
+void sha3_close(sha3_context *sc, void *out);
+
+/* ==================================================================== */
+/*
+ * Encoding/decoding primitives.
+ */
+
+#define trim_i8_encode fndsa_trim_i8_encode
+#define trim_i8_decode fndsa_trim_i8_decode
+#define mqpoly_encode fndsa_mqpoly_encode
+#define mqpoly_decode fndsa_mqpoly_decode
+#define comp_encode fndsa_comp_encode
+#define comp_decode fndsa_comp_decode
+
+/* Encode small polynomial f into output buffer d, nbits by element.
+   Total encoded size (in bytes) is returned. The encoding MUST use
+   an integral number of bytes (i.e. nbits*2^logn must be a multiple of 8).
+ */
+size_t trim_i8_encode(unsigned logn, const int8_t *f, unsigned nbits,
+                      uint8_t *d);
+
+/* Decode small polynomial f from input buffer d, nbits by element.
+   Returned value is the number of read bytes on success, 0 on error (an
+   error is reported if an element has value -2^(nbits-1), which is not
+   allowed). */
+size_t trim_i8_decode(unsigned logn, const uint8_t *d, int8_t *f,
+                      unsigned nbits);
+
+/* Encode polynomial h (external representation, values are in [0,q-1])
+   into bytes, 14 bits per value. Total encoded size (in bytes) is
+   returned. */
+size_t mqpoly_encode(unsigned logn, const uint16_t *h, uint8_t *d);
+
+/* Decode polynomial h (external representation, values are in [0,q-1])
+   from bytes, 14 bits per value. Total encoded size (in bytes) is
+   returned. On error (a value is out-of-range), 0 is returned. */
+size_t mqpoly_decode(unsigned logn, const uint8_t *d, uint16_t *h);
+
+/* Encode polynomial s into destination buffer d (of size dlen bytes),
+   using compressed (Golomb-Rice) format. If any of the source values is
+   outside of [-2047,+2047], this function fails and returns 0. If the
+   destination buffer is not large enough to receive all values, this
+   function fails and returns 0. Otherwise, this function succeeds and
+   returns 1. On success, the entirety of the d buffer is written
+   (padding bits/bytes of values 0 are appended if necessary). */
+int comp_encode(unsigned logn, const int16_t *s, uint8_t *d, size_t dlen);
+
+/* Decode polynomial s from buffer d (of size dlen bytes), using
+   compressed (Golomb-Rice) format. Returned value is 1 on success, 0 on
+   failure. A failure is reported in any of the following cases:
+     - Source does not contain enough bytes for all the polynomial values.
+     - An invalid value encoding is encountered.
+     - Unused bits/bytes in the source buffer are not all zeros.
+   Validly encoded values are in [-2047,+2047]. Each such value has a
+   single valid (canonical) encoding. */
+int comp_decode(unsigned logn, const uint8_t *d, size_t dlen, int16_t *s);
+
+/* ==================================================================== */
+/*
+ * Computations modulo q = 12289.
+ *
+ * Polynomials are held in arrays of integers. The following
+ * representations are used:
+ *   name       type     range
+ *  --------------------------------
+ *   small     int8_t    [-127,+127]
+ *   signed   uint16_t   [-2047,+2047] (int16_t cast to uint16_t)
+ *   ext      uint16_t   [0,q-1]
+ *   int      uint16_t   (internal)
+ *   ntt      uint16_t   (internal)
+ *
+ * The internal convention may change depending on the implementation.
+ * For most architectures, internal representation uses [1,q] (i.e. zero
+ * is represented by q instead of 0). The 32-bit ARMv7 code (for ARM
+ * Cortex-M4) uses [0,q] (i.e. zero can be represented by either 0 or q).
+ */
+
+#define mqpoly_small_to_int fndsa_mqpoly_small_to_int
+#define mqpoly_signed_to_int fndsa_mqpoly_signed_to_int
+#define mqpoly_int_to_small fndsa_mqpoly_int_to_small
+#define mqpoly_ext_to_int fndsa_mqpoly_ext_to_int
+#define mqpoly_int_to_ext fndsa_mqpoly_int_to_ext
+#define mqpoly_int_to_ntt fndsa_mqpoly_int_to_ntt
+#define mqpoly_ntt_to_int fndsa_mqpoly_ntt_to_int
+#define mqpoly_mul_ntt fndsa_mqpoly_mul_ntt
+#define mqpoly_div_ntt fndsa_mqpoly_div_ntt
+#define mqpoly_sub fndsa_mqpoly_sub
+#define mqpoly_is_invertible fndsa_mqpoly_is_invertible
+#define mqpoly_div_small fndsa_mqpoly_div_small
+#define mqpoly_sqnorm_ext fndsa_mqpoly_sqnorm_ext
+#define mqpoly_sqnorm_signed fndsa_mqpoly_sqnorm_signed
+#define mqpoly_sqnorm_is_acceptable fndsa_mqpoly_sqnorm_is_acceptable
+#define mq_GM fndsa_mq_GM
+#define mq_iGM fndsa_mq_iGM
+
+/* Convert a polynomial from small (f) to int (d). */
+void mqpoly_small_to_int(unsigned logn, const int8_t *f, uint16_t *d);
+
+/* Convert a polynomial from signed to int (in-place). */
+void mqpoly_signed_to_int(unsigned logn, uint16_t *d);
+
+/* Convert a polynomial from int (d) to small (f).
+   Returns 1 if all values are in [-127,+127], 0 otherwise. */
+int mqpoly_int_to_small(unsigned logn, const uint16_t *d, int8_t *f);
+
+#if FNDSA_ASM_CORTEXM4
+static inline void mqpoly_ext_to_int(unsigned logn, uint16_t *d)
+{
+    (void)logn;
+    (void)d;
+}
+#else
+/* Convert a polynomial from ext to int (in-place). */
+void mqpoly_ext_to_int(unsigned logn, uint16_t *d);
+#endif
+
+/* Convert a polynomial from int to ext (in-place). */
+void mqpoly_int_to_ext(unsigned logn, uint16_t *d);
+
+/* Convert a polynomial from int to ntt (in-place). */
+void mqpoly_int_to_ntt(unsigned logn, uint16_t *d);
+
+/* Convert a polynomial from ntt to int (in-place). */
+void mqpoly_ntt_to_int(unsigned logn, uint16_t *d);
+
+/* Multiply polynomial a by polynomial b (both in ntt representation). */
+void mqpoly_mul_ntt(unsigned logn, uint16_t *a, const uint16_t *b);
+
+/* Divide polynomial a by polynomial b (both in ntt representation).
+   If b is not invertible, then the corresponding coefficients are set
+   to zero in the output ntt representation.
+   Return value is 1 on success (b is invertible), 0 otherwise. */
+int mqpoly_div_ntt(unsigned logn, uint16_t *a, const uint16_t *b);
+
+/* Subtract polynomial b from polynomial a (both must be in int
+   representation, or both must be in ntt representation). */
+void mqpoly_sub(unsigned logn, uint16_t *a, const uint16_t *b);
+
+/* Check whether the small polynomial f is invertible. tmp[] must
+   have n elements. Returned value is 1 if invertible, 0 otherwise. */
+int mqpoly_is_invertible(unsigned logn, const int8_t *f, uint16_t *tmp);
+
+/* Compute h = g/f. Output is in external representation (coefficients
+   in [0,q-1]). This function assumes that f is invertible. tmp[] must
+   have n elements. */
+void mqpoly_div_small(unsigned logn, const int8_t *g, const int8_t *f,
+                      uint16_t *h, uint16_t *tmp);
+
+/* Compute the squared norm of a polynomial (in external representation).
+   The squared norm includes an implicit normalization to [-q/2,+q/2].
+   If the value exceeds 2^31-1 then 2^32-1 is returned. */
+uint32_t mqpoly_sqnorm_ext(unsigned logn, const uint16_t *a);
+
+/* Compute the squared norm of a polynomial (in signed representation).
+   Since the signed representation assumes that all coefficients are
+   in [-2047,+2047], and the degree is at most 2^10 = 1024, the largest
+   possible squared norm is 4290774016, which cannot overflow the 32-bit
+   return type. */
+uint32_t mqpoly_sqnorm_signed(unsigned logn, const uint16_t *a);
+
+/* Check whether a given squared norm (for a signature vector (s1,s2))
+   is acceptable. */
+int mqpoly_sqnorm_is_acceptable(unsigned logn, uint32_t norm);
+
+/* Tables of constants for NTT and inverse NTT modulo q. */
+extern const uint16_t mq_GM[];
+extern const uint16_t mq_iGM[];
+
+#if FNDSA_AVX2
+#    define avx2_mqpoly_small_to_int fndsa_avx2_mqpoly_small_to_int
+#    define avx2_mqpoly_signed_to_int fndsa_avx2_mqpoly_signed_to_int
+#    define avx2_mqpoly_int_to_small fndsa_avx2_mqpoly_int_to_small
+#    define avx2_mqpoly_ext_to_int fndsa_avx2_mqpoly_ext_to_int
+#    define avx2_mqpoly_int_to_ext fndsa_avx2_mqpoly_int_to_ext
+#    define avx2_mqpoly_int_to_ntt fndsa_avx2_mqpoly_int_to_ntt
+#    define avx2_mqpoly_ntt_to_int fndsa_avx2_mqpoly_ntt_to_int
+#    define avx2_mqpoly_mul_ntt fndsa_avx2_mqpoly_mul_ntt
+#    define avx2_mqpoly_div_ntt fndsa_avx2_mqpoly_div_ntt
+#    define avx2_mqpoly_sub fndsa_avx2_mqpoly_sub
+#    define avx2_mqpoly_is_invertible fndsa_avx2_mqpoly_is_invertible
+#    define avx2_mqpoly_div_small fndsa_avx2_mqpoly_div_small
+#    define avx2_mqpoly_sqnorm_ext fndsa_avx2_mqpoly_sqnorm_ext
+#    define avx2_mqpoly_sqnorm_signed fndsa_avx2_mqpoly_sqnorm_signed
+void avx2_mqpoly_small_to_int(unsigned logn, const int8_t *f, uint16_t *d);
+void avx2_mqpoly_signed_to_int(unsigned logn, uint16_t *d);
+int avx2_mqpoly_int_to_small(unsigned logn, const uint16_t *d, int8_t *f);
+void avx2_mqpoly_ext_to_int(unsigned logn, uint16_t *d);
+void avx2_mqpoly_int_to_ext(unsigned logn, uint16_t *d);
+void avx2_mqpoly_int_to_ntt(unsigned logn, uint16_t *d);
+void avx2_mqpoly_ntt_to_int(unsigned logn, uint16_t *d);
+void avx2_mqpoly_mul_ntt(unsigned logn, uint16_t *a, const uint16_t *b);
+int avx2_mqpoly_div_ntt(unsigned logn, uint16_t *a, const uint16_t *b);
+void avx2_mqpoly_sub(unsigned logn, uint16_t *a, const uint16_t *b);
+int avx2_mqpoly_is_invertible(unsigned logn, const int8_t *f,
+                              uint16_t *tmp);
+void avx2_mqpoly_div_small(unsigned logn, const int8_t *f, const int8_t *g,
+                           uint16_t *h, uint16_t *tmp);
+uint32_t avx2_mqpoly_sqnorm_ext(unsigned logn, const uint16_t *a);
+uint32_t avx2_mqpoly_sqnorm_signed(unsigned logn, const uint16_t *a);
+#endif
+
+/* ==================================================================== */
+/*
+ * Utility functions.
+ */
+
+/* Hash a (pre-hashed) message into a polynomial.
+    logn              degree (logarithmic, 2 to 10)
+    nonce             40-byte random nonce
+    hashed_vrfy_key   64-byte hashed public key (with SHAKE256)
+    ctx, ctx_len      domain separation context (at most 255 bytes)
+    hash_id           hash identifier
+    hv, hv_len        pre-hashed message (raw if hash_id =
+   FNDSA_HASH_ID_RAW) c                 output polynomial  */
+#define hash_to_point fndsa_hash_to_point
+void hash_to_point(unsigned logn, const uint8_t *nonce,
+                   const uint8_t *hashed_vrfy_key, const void *ctx,
+                   size_t ctx_len, const char *hash_id, const void *hv,
+                   size_t hv_len, uint16_t *c);
+
+#if FNDSA_AVX2
+#    define has_avx2 fndsa_has_avx2
+/* Check for AVX2 support by the current CPU. */
+int has_avx2(void);
+#endif
+
+/* Expand the top bit of a 32-bit word into a full 32-bit mask (i.e. return
+   0xFFFFFFFF if x >= 0x80000000, or 0x00000000 otherwise). */
+static inline uint32_t tbmask(uint32_t x)
+{
+    return (uint32_t)(*(int32_t *)&x >> 31);
+}
+
+/* Get the number of leading zeros in a 32-bit value. */
+static inline unsigned lzcnt(uint32_t x)
+{
+#if FNDSA_ASM_CORTEXM4
+    unsigned r;
+    __asm__("clz %0, %1" : "=r"(r) : "r"(x));
+    return r;
+#else
+    /* TODO: optimize on x86 and ARMv8 */
+    uint32_t m = tbmask((x >> 16) - 1);
+    uint32_t s = m & 16;
+    x = (x >> 16) ^ (m & (x ^ (x >> 16)));
+    m = tbmask((x >> 8) - 1);
+    s |= m & 8;
+    x = (x >> 8) ^ (m & (x ^ (x >> 8)));
+    m = tbmask((x >> 4) - 1);
+    s |= m & 4;
+    x = (x >> 4) ^ (m & (x ^ (x >> 4)));
+    m = tbmask((x >> 2) - 1);
+    s |= m & 2;
+    x = (x >> 2) ^ (m & (x ^ (x >> 2)));
+    return (unsigned)(s + ((2 - x) & tbmask(x - 3)));
+#endif
+}
+
+/* Same as lzcnt(), but the caller ensures that the operand is non-zero.
+   TODO: on x86, this can be implemented with the bsr opcode. */
+#define lzcnt_nonzero lzcnt
+
+/* Obtain fresh randomness from the operating system. This function shall
+   ensure that the requested entropy is achieved. If the operating system
+   does not have a secure random source, or if that source fails, then
+   this function will fail and return 0. On success it returns 1. */
+#define sysrng fndsa_sysrng
+int sysrng(void *dst, size_t len);
 
 /* ==================================================================== */
 
