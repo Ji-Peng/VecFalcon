@@ -433,14 +433,18 @@ int main(void)
 {
     unsigned x;
 
-    // printf("FN-DSA keygen (n = 512)        %13.2f\n", bench_keygen(9,
-    // &x)); printf("FN-DSA keygen (n = 1024)       %13.2f\n",
+    // printf("%-30s %13.0f\n", "FN-DSA keygen (n = 512):",
+    //        bench_keygen(9, &x));
+    // printf("%-30s %13.0f\n", "FN-DSA keygen (n = 1024):",
     //        bench_keygen(10, &x));
-    printf("FN-DSA sign (n = 512)          %13.2f\n", bench_sign(9, &x));
-    printf("FN-DSA sign (n = 1024)         %13.2f\n", bench_sign(10, &x));
-    printf("FN-DSA verify (n = 512) %13.2f\n", bench_verify(9, &x));
-    printf("FN-DSA verify (n = 1024) %13.2f\n", bench_verify(10, &x));
-    printf("%u\n", x);
+    printf("%-30s %13.0f\n", "FN-DSA sign (n = 512):", bench_sign(9, &x));
+    printf("%-30s %13.0f\n", "FN-DSA sign (n = 1024):",
+           bench_sign(10, &x));
+    printf("%-30s %13.0f\n", "FN-DSA verify (n = 512):",
+           bench_verify(9, &x));
+    printf("%-30s %13.0f\n\n", "FN-DSA verify (n = 1024):",
+           bench_verify(10, &x));
+    // printf("%u\n", x);
     // gprof_sign_1024();
     return 0;
 }

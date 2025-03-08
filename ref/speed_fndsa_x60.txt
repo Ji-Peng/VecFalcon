@@ -1,7 +1,24 @@
-FN-DSA keygen (n = 512)          51354524.00
-FN-DSA keygen (n = 1024)        195963107.00
-FN-DSA sign (n = 512)             3051415.00
-FN-DSA sign (n = 1024)            6348999.00
-FN-DSA verify (n = 512)            332848.00
-FN-DSA verify (n = 1024)           698917.00
-184
+FN-DSA on RV64GC
+FN-DSA sign (n = 512):               3232443
+FN-DSA sign (n = 1024):              6687911
+FN-DSA verify (n = 512):              352506
+FN-DSA verify (n = 1024):             737969
+
+FN-DSA on RV64GCV
+FN-DSA sign (n = 512):               3277272
+FN-DSA sign (n = 1024):              6706055
+FN-DSA verify (n = 512):              353105
+FN-DSA verify (n = 1024):             736414
+
+FN-DSA on RV64GCB
+FN-DSA sign (n = 512):               3041947
+FN-DSA sign (n = 1024):              6362209
+FN-DSA verify (n = 512):              331879
+FN-DSA verify (n = 1024):             697689
+
+FN-DSA on RV64GCVB
+FN-DSA sign (n = 512):               3044162
+FN-DSA sign (n = 1024):              6311422
+FN-DSA verify (n = 512):              333473
+FN-DSA verify (n = 1024):             698081
+

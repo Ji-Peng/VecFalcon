@@ -86,10 +86,17 @@ SRCS = $(SRCS_COMM) $(SRCS_KGEN) $(SRCS_SIGN) $(SRCS_VRFY)
 SRCS_TEST = test_fndsa.c test_sampler.c test_sign.c
 SRCS_SPEED = speed_fndsa.c
 
-OBJS_RV64GC 		= $(addprefix out/, $(SRCS:.c=_rv64gc.o))
-OBJS_RV64GCV 		= $(addprefix out/, $(SRCS:.c=_rv64gcv.o))
-OBJS_RV64GCB 		= $(addprefix out/, $(SRCS:.c=_rv64gcb.o))
-OBJS_RV64GCVB 		= $(addprefix out/, $(SRCS:.c=_rv64gcvb.o))
+ASMS_RV64IM 	= fips202_rv64im.S
+ASMS_RV64IMB	= fips202_rv64imb.S
+
+OBJS_RV64GC 		= $(addprefix out/, $(SRCS:.c=_rv64gc.o))	\
+	$(addprefix out/, $(ASMS_RV64IM:.S=.o))
+OBJS_RV64GCV 		= $(addprefix out/, $(SRCS:.c=_rv64gcv.o))	\
+	$(addprefix out/, $(ASMS_RV64IM:.S=.o))
+OBJS_RV64GCB 		= $(addprefix out/, $(SRCS:.c=_rv64gcb.o))	\
+	$(addprefix out/, $(ASMS_RV64IMB:.S=.o))
+OBJS_RV64GCVB 		= $(addprefix out/, $(SRCS:.c=_rv64gcvb.o))	\
+	$(addprefix out/, $(ASMS_RV64IMB:.S=.o))
 OBJS_TEST_RV64GC 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gc.o))
 OBJS_TEST_RV64GCV 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gcv.o))
 OBJS_TEST_RV64GCB 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gcb.o))
@@ -162,3 +169,7 @@ out/%_rv64gcvb.o: %.c
 	$(CC) $(CFLAGS_RV64GCVB) -MMD -MF out/$*.d -c $< -o $@
 
 -include $(wildcard out/*.d)
+
+out/%.o: %.S
+	mkdir -p out
+	$(CC) $(CFLAGS_RV64GCVB) -c $< -o $@
