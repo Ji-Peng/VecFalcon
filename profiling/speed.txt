@@ -1,0 +1,15 @@
+taskset -c 0 ./out/gaussian0
+gaussian0_avx2:                 53111 cycles
+gaussian0_ref:                  72870 cycles
+gaussian0_avx2_8w:              53540 cycles
+gaussian0_avx2_16w:             52794 cycles
+356675325
+
+taskset -c 0 ./out/gaussian0_x4
+gaussian0_avx2 != gaussian0_avx2_8w
+gaussian0_avx2 != gaussian0_avx2_16w
+gaussian0_avx2:                 36723 cycles
+gaussian0_ref:                  55165 cycles
+gaussian0_avx2_8w:              37549 cycles
+gaussian0_avx2_16w:             34278 cycles
+356697681

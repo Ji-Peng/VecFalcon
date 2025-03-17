@@ -7,3 +7,4 @@ speed_fndsa
 test_fndsa
 ref/out/
 RV/out
+profiling/out
