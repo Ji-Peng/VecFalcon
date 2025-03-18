@@ -7,7 +7,6 @@
 #include "cpucycles.h"
 #include "inner.h"
 #include "intrin.h"
-#include "speed_print.h"
 
 typedef struct {
 #if FNDSA_SHAKE256X4
@@ -65,7 +64,6 @@ int32_t gaussian0_avx2(sampler_state *ss)
     } rhi15 = {{0x51FB, 0x2A69, 0x113E, 0x0568, 0x014A, 0x003B, 0x0008,
                 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
                 0x0000, 0x0000}};
-
     static const union {
         uint64_t u64[20];
         __m256i ymm[5];
@@ -76,14 +74,12 @@ int32_t gaussian0_avx2(sampler_state *ss)
                 0x0000003665DA998, 0x00000000EBF6EBB, 0x0000000002F5D7E,
                 0x000000000007098, 0x0000000000000C6, 0x000000000000001,
                 0x000000000000000, 0x000000000000000}};
-
     uint64_t lo;
     unsigned hi;
     __m256i xhi, rhi, gthi, eqhi, eqm;
     __m256i xlo, gtlo0, gtlo1, gtlo2, gtlo3, gtlo4;
     __m128i t, zt;
     int r;
-
     /*
      * Get a 72-bit random value and split it into a low part
      * (57 bits) and a high part (15 bits)
@@ -93,7 +89,6 @@ int32_t gaussian0_avx2(sampler_state *ss)
 
     hi = (hi << 7) | (unsigned)(lo >> 57);
     lo &= 0x1FFFFFFFFFFFFFF;
-
     /*
      * Broadcast the high part and compare it with the relevant
      * values. We need both a "greater than" and an "equal"
@@ -103,7 +98,6 @@ int32_t gaussian0_avx2(sampler_state *ss)
     rhi = _mm256_loadu_si256(&rhi15.ymm[0]);
     gthi = _mm256_cmpgt_epi16(rhi, xhi);
     eqhi = _mm256_cmpeq_epi16(rhi, xhi);
-
     /*
      * The result is the number of 72-bit values (among the list of 19)
      * which are greater than the 72-bit random value. We first count
@@ -116,7 +110,6 @@ int32_t gaussian0_avx2(sampler_state *ss)
     t = _mm_hadd_epi16(t, zt);
     t = _mm_hadd_epi16(t, zt);
     r = _mm_cvtsi128_si32(t);
-
     /*
      * We must look at the low bits for all values for which the
      * high bits are an "equal" match; values 8-18 all have the
@@ -130,7 +123,6 @@ int32_t gaussian0_avx2(sampler_state *ss)
     gtlo2 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[2]), xlo);
     gtlo3 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[3]), xlo);
     gtlo4 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[4]), xlo);
-
     /*
      * Keep only comparison results that correspond to the non-zero
      * elements in eqhi.
@@ -144,7 +136,6 @@ int32_t gaussian0_avx2(sampler_state *ss)
     gtlo2 = _mm256_and_si256(gtlo2, eqm);
     gtlo3 = _mm256_and_si256(gtlo3, eqm);
     gtlo4 = _mm256_and_si256(gtlo4, eqm);
-
     /*
      * Add all values to count the total number of "-1" elements.
      * Since the first eight "high" words are all different, only
@@ -193,6 +184,32 @@ int32_t gaussian0_ref(sampler_state *ss)
     uint32_t v0 = (uint32_t)lo & 0xFFFFFF;
     uint32_t v1 = (uint32_t)(lo >> 24) & 0xFFFFFF;
     uint32_t v2 = (uint32_t)(lo >> 48) | (hi << 16);
+
+    /* Sampled value is z such that v0..v2 is lower than the first
+       z elements of the table. */
+    int32_t z = 0;
+    for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+        uint32_t cc;
+        cc = (v0 - GAUSS0[i][2]) >> 31;
+        cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+        cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+        z += (int32_t)cc;
+    }
+    return z;
+}
+
+/**
+ * The way to get 72-bit in gaussian0_ref is u64+u8. When using SHAKE256X4,
+ * the test vectors of u64+u8 and u24x3 will be different. The critical
+ * point is 136*4-60*9=4 bytes. The former will directly trigger refill,
+ * while the latter can still get 24 bits.
+ */
+int32_t gaussian0_ref_u24(sampler_state *ss)
+{
+    /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
+    uint32_t v0 = prng_next_u24(&ss->pc);
+    uint32_t v1 = prng_next_u24(&ss->pc);
+    uint32_t v2 = prng_next_u24(&ss->pc);
 
     /* Sampled value is z such that v0..v2 is lower than the first
        z elements of the table. */
@@ -302,13 +319,19 @@ void test_gaussian0()
     ALIGNED_INT32(SAMPLES_N) samples0, samples1;
     uint8_t seed[32] = {0};
     sampler_state ss0, ss1;
+    __m256i *vecp;
+    size_t i;
 
+    memset(&ss0, 0, sizeof(ss0));
+    memset(&samples0, 0, sizeof(samples0));
     sampler_init(&ss0, 9, seed, 32);
-    for (int i = 0; i < SAMPLES_N; i++) {
+    for (i = 0; i < SAMPLES_N; i++) {
         samples0.coeffs[i] = gaussian0_avx2(&ss0);
     }
+    memset(&ss1, 0, sizeof(ss1));
+    memset(&samples1, 0, sizeof(samples1));
     sampler_init(&ss1, 9, seed, 32);
-    for (int i = 0; i < SAMPLES_N; i++) {
+    for (i = 0; i < SAMPLES_N; i++) {
         samples1.coeffs[i] = gaussian0_ref(&ss1);
     }
     if (memcmp(samples0.coeffs, samples1.coeffs,
@@ -317,84 +340,103 @@ void test_gaussian0()
         // exit(0);
     }
 
+    memset(&ss0, 0, sizeof(ss0));
+    memset(&samples0, 0, sizeof(samples0));
+    sampler_init(&ss0, 9, seed, 32);
+    for (i = 0; i < SAMPLES_N; i++) {
+        samples0.coeffs[i] = gaussian0_ref_u24(&ss0);
+    }
+    memset(&ss1, 0, sizeof(ss1));
+    memset(&samples1, 0, sizeof(samples1));
     sampler_init(&ss1, 9, seed, 32);
-    for (int i = 0; i < SAMPLES_N; i += 8) {
-        gaussian0_avx2_8w(&ss1, &samples1.vec[i >> 3]);
+    for (i = 0, vecp = &samples1.vec[0]; i < SAMPLES_N; i += 8, vecp++) {
+        gaussian0_avx2_8w(&ss1, vecp);
     }
     if (memcmp(samples0.coeffs, samples1.coeffs,
                sizeof(int32_t) * SAMPLES_N) != 0) {
-        printf("gaussian0_avx2 != gaussian0_avx2_8w\n");
+        printf("gaussian0_ref_u24 != gaussian0_avx2_8w\n");
         // exit(0);
     }
 
+    memset(&ss1, 0, sizeof(ss1));
+    memset(&samples1, 0, sizeof(samples1));
     sampler_init(&ss1, 9, seed, 32);
-    for (int i = 0; i < SAMPLES_N; i += 16) {
-        gaussian0_avx2_16w(&ss1, &samples1.vec[i >> 3]);
+    for (i = 0, vecp = &samples1.vec[0]; i < SAMPLES_N;
+         i += 16, vecp += 2) {
+        gaussian0_avx2_16w(&ss1, vecp);
     }
     if (memcmp(samples0.coeffs, samples1.coeffs,
                sizeof(int32_t) * SAMPLES_N) != 0) {
-        printf("gaussian0_avx2 != gaussian0_avx2_16w\n");
+        printf("gaussian0_ref_u24 != gaussian0_avx2_16w\n");
         // exit(0);
     }
 }
 
-#define NTESTS 100000
-#define INNER_N (8 * (1 << 7))
+void test_prng()
+{
+    sampler_state ss0;
+    uint8_t seed[32] = {0};
+    uint32_t v0, v1, v2;
+    uint64_t lo64;
+    uint8_t hi8;
+    int i;
 
-uint64_t t[NTESTS];
+    sampler_init(&ss0, 9, seed, 32);
+    for (i = 0; i < 100; i++) {
+        v0 = prng_next_u24(&ss0.pc);
+        v1 = prng_next_u24(&ss0.pc);
+        v2 = prng_next_u24(&ss0.pc);
+        printf("%06x%06x%06x\n", v2, v1, v0);
+    }
 
-int main(void)
+    printf("\n");
+
+    sampler_init(&ss0, 9, seed, 32);
+    for (i = 0; i < 100; i++) {
+        lo64 = prng_next_u64(&ss0.pc);
+        hi8 = prng_next_u8(&ss0.pc);
+        printf("%02x%016lx\n", hi8, lo64);
+    }
+}
+
+#define WARMUP_N 1000
+#define TESTS_N 10000
+
+void speed_gaussian0()
 {
     size_t i, n;
-    int z = 0;
-    sampler_state ss0, ss1;
+    sampler_state ss0;
     uint8_t seed[32] = {0};
     ALIGNED_INT32(64) samples;
 
-    srand(time(NULL));
-
-    test_gaussian0();
-
-    // warm up the AVX2 engine
-    sampler_init(&ss0, 9, seed, 32);
-    for (i = 0; i < NTESTS; ++i) {
-        for (int j = 0; j < INNER_N; j++)
-            z += gaussian0_avx2(&ss0);
-    }
+    init_perf_counters();
 
     sampler_init(&ss0, 9, seed, 32);
-    for (i = 0; i < NTESTS; ++i) {
-        t[i] = cpucycles();
-        for (int j = 0; j < INNER_N; j++)
-            z += gaussian0_avx2(&ss0);
-    }
-    print_results_average("gaussian0_avx2:", t, NTESTS);
+    PERF(gaussian0_ref(&ss0), gaussian0_ref,
+         sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
 
-    sampler_init(&ss1, 9, seed, 32);
-    for (i = 0; i < NTESTS; ++i) {
-        t[i] = cpucycles();
-        for (int j = 0; j < INNER_N; j++)
-            z += gaussian0_ref(&ss1);
-    }
-    print_results_average("gaussian0_ref:", t, NTESTS);
+    sampler_init(&ss0, 9, seed, 32);
+    PERF(gaussian0_ref_u24(&ss0), gaussian0_ref_u24,
+         sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
 
-    sampler_init(&ss1, 9, seed, 32);
-    for (i = 0; i < NTESTS; ++i) {
-        t[i] = cpucycles();
-        for (int j = 0; j < INNER_N / 8; j++)
-            gaussian0_avx2_8w(&ss1, &samples.vec[0]);
-    }
-    print_results_average("gaussian0_avx2_8w:", t, NTESTS);
+    sampler_init(&ss0, 9, seed, 32);
+    PERF(gaussian0_avx2(&ss0), gaussian0_avx2,
+         sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
 
-    sampler_init(&ss1, 9, seed, 32);
-    for (i = 0; i < NTESTS; ++i) {
-        t[i] = cpucycles();
-        for (int j = 0; j < INNER_N / 16; j++)
-            gaussian0_avx2_16w(&ss1, &samples.vec[0]);
-    }
-    print_results_average("gaussian0_avx2_16w:", t, NTESTS);
+    sampler_init(&ss0, 9, seed, 32);
+    PERF_N(gaussian0_avx2_8w(&ss0, &samples.vec[0]), gaussian0_avx2_8w,
+           sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N, 8);
 
-    printf("%d\n", z);
+    sampler_init(&ss0, 9, seed, 32);
+    PERF_N(gaussian0_avx2_16w(&ss0, &samples.vec[0]), gaussian0_avx2_16w,
+           sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N, 16);
+}
+
+int main(void)
+{
+    // test_prng();
+    // test_gaussian0();
+    speed_gaussian0();
 
     return 0;
 }
