@@ -1,10 +1,6 @@
-*.o
-test_vectors_falcon
-test_speed_falcon
 .vscode
 gmon.out
-speed_fndsa
-test_fndsa
 ref/out/
-RV/out
-profiling/out
+RV/out/
+profiling/out/
+*.prof

@@ -1,0 +1,85 @@
+Total: 4155 samples
+     976  23.5%  23.5%      976  23.5% fndsa_sha3_process_block
+     522  12.6%  36.1%      561  13.5% expm_p63 (inline)
+     402   9.7%  45.7%     1197  28.8% gaussian0 (inline)
+     363   8.7%  54.5%      363   8.7% mq_mred (inline)
+     180   4.3%  58.8%     2472  59.5% sampler_next_sse2
+     126   3.0%  61.8%      126   3.0% _mm_mul_sd (inline)
+     125   3.0%  64.8%      125   3.0% _mm_add_pd (inline)
+     107   2.6%  67.4%      107   2.6% mq_add (inline)
+     105   2.5%  69.9%      861  20.7% ber_exp (inline)
+      95   2.3%  72.2%       95   2.3% _mm_mul_pd (inline)
+      85   2.0%  74.3%       85   2.0% _mm_storeu_pd (inline)
+      82   2.0%  76.2%      211   5.1% fndsa_mqpoly_ntt_to_int.part.0
+      80   1.9%  78.2%      255   6.1% fndsa_mqpoly_int_to_ntt.part.0
+      77   1.9%  80.0%       77   1.9% _mm_cvtsi32_sd (inline)
+      75   1.8%  81.8%       75   1.8% mq_sub (inline)
+      74   1.8%  83.6%       74   1.8% _mm_sub_sd (inline)
+      71   1.7%  85.3%       71   1.7% __memcpy_evex_unaligned_erms
+      40   1.0%  86.3%       40   1.0% _mm_shuffle_pd (inline)
+      39   0.9%  87.2%     2911  70.1% ffsamp_fft_inner
+      38   0.9%  88.1%       38   0.9% _mm_store_sd (inline)
+      31   0.7%  88.9%      969  23.3% fndsa_shake_extract
+      29   0.7%  89.6%       30   0.7% fndsa_comp_encode
+      28   0.7%  90.3%       28   0.7% _mm_sub_pd (inline)
+      26   0.6%  90.9%       26   0.6% fndsa_trim_i8_decode
+      22   0.5%  91.4%      154   3.7% fndsa_fpoly_FFT
+      21   0.5%  91.9%      695  16.7% shake_next_u64 (inline)
+      20   0.5%  92.4%       20   0.5% _mm_cvttsd_si32 (inline)
+      20   0.5%  92.9%       20   0.5% _mm_cvttsd_si64 (inline)
+      19   0.5%  93.3%       19   0.5% fndsa_mqpoly_small_to_int
+      19   0.5%  93.8%     3309  79.6% fndsa_sign_core
+      17   0.4%  94.2%       76   1.8% fndsa_hash_to_point
+      16   0.4%  94.6%       71   1.7% fndsa_fpoly_split_fft
+      16   0.4%  95.0%      251   6.0% shake_next_u8 (inline)
+      15   0.4%  95.3%       18   0.4% _mm_load_sd (inline)
+      15   0.4%  95.7%       66   1.6% fndsa_fpoly_merge_fft
+      14   0.3%  96.0%       52   1.3% fndsa_shake_inject
+      12   0.3%  96.3%       12   0.3% mq_half (inline)
+      11   0.3%  96.6%       11   0.3% _init
+      11   0.3%  96.8%       11   0.3% fndsa_mqpoly_encode
+      10   0.2%  97.1%       10   0.2% _mm_loadu_pd (inline)
+       9   0.2%  97.3%        9   0.2% _mm_xor_pd (inline)
+       9   0.2%  97.5%       41   1.0% fndsa_fpoly_split_selfadj_fft
+       9   0.2%  97.7%       89   2.1% memcpy (inline)
+       8   0.2%  97.9%        8   0.2% _mm_set_epi32 (inline)
+       8   0.2%  98.1%       28   0.7% fndsa_fpoly_mul_fft
+       7   0.2%  98.3%       36   0.9% fndsa_fpoly_iFFT
+       7   0.2%  98.5%       14   0.3% fndsa_mqpoly_int_to_small
+       6   0.1%  98.6%        6   0.1% _mm_comilt_sd (inline)
+       6   0.1%  98.7%        6   0.1% _mm_cvtepi32_pd (inline)
+       6   0.1%  98.9%       17   0.4% fndsa_fpoly_sub
+       5   0.1%  99.0%       23   0.6% fndsa_fpoly_add
+       5   0.1%  99.1%        5   0.1% fpr_ursh (inline)
+       4   0.1%  99.2%      245   5.9% fndsa_mqpoly_div_ntt
+       4   0.1%  99.3%        4   0.1% fndsa_mqpoly_int_to_ext
+       3   0.1%  99.4%        3   0.1% _mm_set_sd (inline)
+       3   0.1%  99.5%        3   0.1% _mm_sqrt_sd (inline)
+       3   0.1%  99.5%       27   0.6% fndsa_fpoly_set_small
+       2   0.0%  99.6%        2   0.0% _mm_bsrli_si128 (inline)
+       2   0.0%  99.6%        2   0.0% _mm_cvtsi128_si32 (inline)
+       2   0.0%  99.7%        2   0.0% _mm_div_pd (inline)
+       2   0.0%  99.7%       40   1.0% fndsa_fpoly_LDL_fft
+       2   0.0%  99.8%       21   0.5% fndsa_fpoly_apply_basis
+       2   0.0%  99.8%        8   0.2% fndsa_mqpoly_mul_ntt
+       1   0.0%  99.9%        1   0.0% __memset_evex_unaligned_erms
+       1   0.0%  99.9%     2916  70.2% fndsa_ffsamp_fft
+       1   0.0%  99.9%       20   0.5% fndsa_fpoly_gram_fft
+       1   0.0%  99.9%        3   0.1% fndsa_fpoly_neg
+       1   0.0% 100.0%        1   0.0% fndsa_shake_init
+       1   0.0% 100.0%      241   5.8% mq_div
+       1   0.0% 100.0%     4155 100.0% sign_1024
+       0   0.0% 100.0%     4155 100.0% __libc_start_call_main
+       0   0.0% 100.0%     4155 100.0% __libc_start_main_impl
+       0   0.0% 100.0%        8   0.2% _mm_setr_epi32 (inline)
+       0   0.0% 100.0%     4155 100.0% _start
+       0   0.0% 100.0%      171   4.1% basis_to_FFT
+       0   0.0% 100.0%        1   0.0% fndsa_sampler_init
+       0   0.0% 100.0%     4155 100.0% fndsa_sign_seeded
+       0   0.0% 100.0%     4155 100.0% gperf_sign_1024
+       0   0.0% 100.0%     4155 100.0% main
+       0   0.0% 100.0%        2   0.0% memmove (inline)
+       0   0.0% 100.0%      363   8.7% mq_mmul (inline)
+       0   0.0% 100.0%       39   0.9% mtwop63 (inline)
+       0   0.0% 100.0%     4154 100.0% sign_step1
+       0   0.0% 100.0%     4155 100.0% sign_wrapper (inline)

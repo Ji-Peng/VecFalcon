@@ -1,24 +1,40 @@
 FN-DSA on RV64GC
-FN-DSA sign (n = 512):               3232443
-FN-DSA sign (n = 1024):              6687911
-FN-DSA verify (n = 512):              352506
-FN-DSA verify (n = 1024):             737969
+n = 512:
+FN-DSA sign:                         3231043
+FN-DSA sign_core:                    2671058
+FN-DSA verify:                        351043
+n = 1024:
+FN-DSA sign:                         6783707
+FN-DSA sign_core:                    5534493
+FN-DSA verify:                        735354
 
 FN-DSA on RV64GCV
-FN-DSA sign (n = 512):               3277272
-FN-DSA sign (n = 1024):              6706055
-FN-DSA verify (n = 512):              353105
-FN-DSA verify (n = 1024):             736414
+n = 512:
+FN-DSA sign:                         3237660
+FN-DSA sign_core:                    2668464
+FN-DSA verify:                        351789
+n = 1024:
+FN-DSA sign:                         6717326
+FN-DSA sign_core:                    5594181
+FN-DSA verify:                        734879
 
 FN-DSA on RV64GCB
-FN-DSA sign (n = 512):               3041947
-FN-DSA sign (n = 1024):              6362209
-FN-DSA verify (n = 512):              331879
-FN-DSA verify (n = 1024):             697689
+n = 512:
+FN-DSA sign:                         3038783
+FN-DSA sign_core:                    2501125
+FN-DSA verify:                        331768
+n = 1024:
+FN-DSA sign:                         6403827
+FN-DSA sign_core:                    5197947
+FN-DSA verify:                        696944
 
 FN-DSA on RV64GCVB
-FN-DSA sign (n = 512):               3044162
-FN-DSA sign (n = 1024):              6311422
-FN-DSA verify (n = 512):              333473
-FN-DSA verify (n = 1024):             698081
+n = 512:
+FN-DSA sign:                         3055131
+FN-DSA sign_core:                    2508104
+FN-DSA verify:                        331082
+n = 1024:
+FN-DSA sign:                         6410578
+FN-DSA sign_core:                    5284430
+FN-DSA verify:                        697321
 

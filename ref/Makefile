@@ -63,21 +63,18 @@
 
 CC = gcc
 LD = gcc
-LDFLAGS = #-pg
-LIBS =
-DEPDIR = .deps
-DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
+# PG = -pg
+X4 = -DFNDSA_SHAKE256X4=1
+CFLAGS = -W -Wextra -Wundef -Wshadow -O2 $(PG) $(X4) -DWARMUP_N=2000 -DTESTS_N=10000 -g
+LDFLAGS = $(PG)
+LIBS = 
+LIBS_GPERF = -Wl,-rpath -Wl,/usr/local/lib -lprofiler
+# -MT $@: Set the target name in the dependency file to the current rule's target ($@).
+# -MMD: Generate a dependency file, excluding system headers.
+# -MP: Add empty phony targets for each dependency to prevent errors if headers are missing.
+# -MF out/$*.d: Output the dependency file to the specified path (out/$*.d).
+DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 
-CFLAGS_COMMON = -W -Wextra -Wundef -Wshadow -O2 #-pg
-CFLAGS_RV64GC	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc	\
-	-DFNDSA_RV64D=1 -DRV64=1
-CFLAGS_RV64GCV	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1
-CFLAGS_RV64GCB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc_zba_zbb 	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVB=1
-CFLAGS_RV64GCVB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv_zba_zbb	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVB=1
-	
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c
 SRCS_SIGN = sign.c sign_core.c sign_fpoly.c sign_fpr.c sign_sampler.c
@@ -85,80 +82,29 @@ SRCS_VRFY = vrfy.c
 SRCS = $(SRCS_COMM) $(SRCS_KGEN) $(SRCS_SIGN) $(SRCS_VRFY)
 SRCS_TEST = test_fndsa.c test_sampler.c test_sign.c
 SRCS_SPEED = speed_fndsa.c
+SRCS_GPERF = test_gperf.c test_sampler.c
 
-OBJS_RV64GC 		= $(addprefix out/, $(SRCS:.c=_rv64gc.o))
-OBJS_RV64GCV 		= $(addprefix out/, $(SRCS:.c=_rv64gcv.o))
-OBJS_RV64GCB 		= $(addprefix out/, $(SRCS:.c=_rv64gcb.o))
-OBJS_RV64GCVB 		= $(addprefix out/, $(SRCS:.c=_rv64gcvb.o))
-OBJS_TEST_RV64GC 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gc.o))
-OBJS_TEST_RV64GCV 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gcv.o))
-OBJS_TEST_RV64GCB 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gcb.o))
-OBJS_TEST_RV64GCVB 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gcvb.o))
-OBJS_SPEED_RV64GC 	= $(addprefix out/, $(SRCS_SPEED:.c=_rv64gc.o))
-OBJS_SPEED_RV64GCV 	= $(addprefix out/, $(SRCS_SPEED:.c=_rv64gcv.o))
-OBJS_SPEED_RV64GCB 	= $(addprefix out/, $(SRCS_SPEED:.c=_rv64gcb.o))
-OBJS_SPEED_RV64GCVB = $(addprefix out/, $(SRCS_SPEED:.c=_rv64gcvb.o))
+OBJS 		= $(addprefix out/, $(SRCS:.c=.o))
+OBJS_TEST 	= $(addprefix out/, $(SRCS_TEST:.c=.o))
+OBJS_SPEED 	= $(addprefix out/, $(SRCS_SPEED:.c=.o))
+OBJS_GPERF 	= $(addprefix out/, $(SRCS_GPERF:.c=.o))
 
-all: \
-	out/test_fndsa_rv64gc 		out/speed_fndsa_rv64gc		\
-	out/test_fndsa_rv64gcv 		out/speed_fndsa_rv64gcv		\
-	out/test_fndsa_rv64gcb 		out/speed_fndsa_rv64gcb		\
-	out/test_fndsa_rv64gcvb 	out/speed_fndsa_rv64gcvb
-
-run_speed: \
-	out/speed_fndsa_rv64gc 	out/speed_fndsa_rv64gcv		\
-	out/speed_fndsa_rv64gcb	out/speed_fndsa_rv64gcvb
-	echo "FN-DSA on RV64GC" >speed_fndsa_x60.txt
-	perf stat ./out/speed_fndsa_rv64gc   >>speed_fndsa_x60.txt   2>/dev/null
-	echo "FN-DSA on RV64GCV" >>speed_fndsa_x60.txt
-	perf stat ./out/speed_fndsa_rv64gcv  >>speed_fndsa_x60.txt  2>/dev/null
-	echo "FN-DSA on RV64GCB" >>speed_fndsa_x60.txt
-	perf stat ./out/speed_fndsa_rv64gcb  >>speed_fndsa_x60.txt  2>/dev/null
-	echo "FN-DSA on RV64GCVB" >>speed_fndsa_x60.txt
-	perf stat ./out/speed_fndsa_rv64gcvb >>speed_fndsa_x60.txt 2>/dev/null
+all: out/test_fndsa out/speed_fndsa out/test_gperf
 
 clean:
 	-rm -rf out/
 
-out/test_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_TEST_RV64GC)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
+out/test_fndsa: $(OBJS) $(OBJS_TEST)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/speed_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_SPEED_RV64GC)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
+out/speed_fndsa: $(OBJS) $(OBJS_SPEED)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/test_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_TEST_RV64GCV)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
+out/test_gperf: $(OBJS) $(OBJS_GPERF)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
-out/speed_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_SPEED_RV64GCV)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
-
-out/test_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_TEST_RV64GCB)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
-
-out/speed_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_SPEED_RV64GCB)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
-
-out/test_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_TEST_RV64GCVB)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
-
-out/speed_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_SPEED_RV64GCVB)
-	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
-
-# -MMD option is used to analyze file dependencies
-out/%_rv64gc.o: %.c
-	mkdir -p out
-	$(CC) $(CFLAGS_RV64GC) -MMD -MF out/$*.d -c $< -o $@
-
-out/%_rv64gcv.o: %.c
-	mkdir -p out
-	$(CC) $(CFLAGS_RV64GCV) -MMD -MF out/$*.d -c $< -o $@
-
-out/%_rv64gcb.o: %.c
-	mkdir -p out
-	$(CC) $(CFLAGS_RV64GCB) -MMD -MF out/$*.d -c $< -o $@
-
-out/%_rv64gcvb.o: %.c
-	mkdir -p out
-	$(CC) $(CFLAGS_RV64GCVB) -MMD -MF out/$*.d -c $< -o $@
+out/%.o: %.c
+	@mkdir -p out
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)

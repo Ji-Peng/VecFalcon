@@ -1,0 +1,18 @@
+n = 512:
+FN-DSA sign:                          697074
+FN-DSA sign_core:                     551862
+FN-DSA verify:                         35394
+n = 1024:
+FN-DSA sign:                         1433746
+FN-DSA sign_core:                    1119960
+FN-DSA verify:                         67452
+
+SHAKE256X4 variant
+n = 512:
+FN-DSA sign:                          620330
+FN-DSA sign_core:                     485766
+FN-DSA verify:                         35676
+n = 1024:
+FN-DSA sign:                         1298980
+FN-DSA sign_core:                     938420
+FN-DSA verify:                         67294

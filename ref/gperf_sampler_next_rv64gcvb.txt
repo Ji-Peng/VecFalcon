@@ -1,0 +1,18 @@
+File: test_gperf_rv64gcvb
+Type: cpu
+Showing nodes accounting for 50.12s, 98.97% of 50.64s total
+Dropped 6 nodes (cum <= 0.25s)
+      flat  flat%   sum%        cum   cum%
+    18.43s 36.39% 36.39%     24.94s 49.25%  gaussian0 (inline)
+    15.90s 31.40% 67.79%     16.03s 31.65%  expm_p63 (inline)
+     4.64s  9.16% 76.95%      6.32s 12.48%  test_prng_next_u64 (inline)
+     4.30s  8.49% 85.45%     21.29s 42.04%  ber_exp (inline)
+     2.59s  5.11% 90.56%     50.27s 99.27%  sampler_next_rv64d
+     2.52s  4.98% 95.54%      2.52s  4.98%  test_prng_next_u8 (inline)
+     1.19s  2.35% 97.89%      1.19s  2.35%  f64_mul (inline)
+     0.34s  0.67% 98.56%      0.34s  0.67%  f64_of (inline)
+     0.15s   0.3% 98.85%      0.31s  0.61%  test_sampler_next (inline)
+     0.06s  0.12% 98.97%      0.37s  0.73%  gperf_sampler
+         0     0% 98.97%     50.64s   100%  _libc_start_call_main
+         0     0% 98.97%     50.64s   100%  _libc_start_main_impl
+         0     0% 98.97%     50.64s   100%  start

@@ -1,0 +1,41 @@
+File: test_gperf_rv64gcvb
+Type: cpu
+Showing nodes accounting for 28.60s, 98.15% of 29.14s total
+Dropped 17 nodes (cum <= 0.15s)
+      flat  flat%   sum%        cum   cum%
+     5.13s 17.60% 17.60%      5.13s 17.60%  fndsa_sha3_process_block
+     3.99s 13.69% 31.30%      8.41s 28.86%  gaussian0 (inline)
+     3.17s 10.88% 42.18%      3.21s 11.02%  expm_p63 (inline)
+     2.31s  7.93% 50.10%      3.97s 13.62%  fndsa_fpoly_FFT
+     1.93s  6.62% 56.73%      1.93s  6.62%  f64_sub (inline)
+     1.38s  4.74% 61.46%      1.38s  4.74%  f64_mul (inline)
+     1.23s  4.22% 65.68%      1.23s  4.22%  f64_add (inline)
+     1.14s  3.91% 69.60%      1.35s  4.63%  fndsa_fpoly_LDL_fft
+        1s  3.43% 73.03%     14.60s 50.10%  sampler_next_rv64d
+     0.81s  2.78% 75.81%      0.81s  2.78%  _GI_memcpy
+     0.80s  2.75% 78.55%      0.95s  3.26%  fndsa_fpoly_mul_fft
+     0.77s  2.64% 81.19%      1.38s  4.74%  fndsa_fpoly_split_fft
+     0.76s  2.61% 83.80%      4.60s 15.79%  ber_exp (inline)
+     0.69s  2.37% 86.17%      0.95s  3.26%  fndsa_fpoly_split_selfadj_fft
+     0.66s  2.26% 88.44%      1.02s  3.50%  fndsa_fpoly_iFFT
+     0.62s  2.13% 90.56%      0.92s  3.16%  fndsa_fpoly_merge_fft
+     0.33s  1.13% 91.70%      0.33s  1.13%  fndsa_fpoly_set_small
+     0.31s  1.06% 92.76%     21.50s 73.78%  ffsamp_fft_inner
+     0.26s  0.89% 93.65%      0.26s  0.89%  f64_neg (inline)
+     0.26s  0.89% 94.54%      3.93s 13.49%  shake_next_u64 (inline)
+     0.18s  0.62% 95.16%      5.31s 18.22%  fndsa_shake_extract
+     0.16s  0.55% 95.71%      1.40s  4.80%  shake_next_u8 (inline)
+     0.14s  0.48% 96.19%      0.55s  1.89%  fndsa_hash_to_point
+     0.14s  0.48% 96.67%     29.10s 99.86%  fndsa_sign_core
+     0.11s  0.38% 97.05%      0.92s  3.16%  memcpy (inline)
+     0.09s  0.31% 97.36%      0.31s  1.06%  fndsa_fpoly_gram_fft
+     0.09s  0.31% 97.67%      0.18s  0.62%  fndsa_fpoly_neg
+     0.08s  0.27% 97.94%      0.47s  1.61%  fndsa_fpoly_add
+     0.03s   0.1% 98.04%      0.71s  2.44%  fndsa_fpoly_apply_basis
+     0.03s   0.1% 98.15%      0.27s  0.93%  fndsa_fpoly_sub
+         0     0% 98.15%     29.10s 99.86%  _libc_start_call_main
+         0     0% 98.15%     29.10s 99.86%  _libc_start_main_impl
+         0     0% 98.15%      3.97s 13.62%  basis_to_FFT
+         0     0% 98.15%     29.10s 99.86%  gperf_sign_core_1024
+         0     0% 98.15%     29.10s 99.86%  main
+         0     0% 98.15%     29.10s 99.86%  start
