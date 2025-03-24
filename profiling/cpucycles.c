@@ -1,6 +1,7 @@
 #include "cpucycles.h"
 
 static int fd_cycles, fd_instructions;
+// static int fd_stalled_cycles_frontend, fd_stalled_cycles_backend;
 
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
                             int cpu, int group_fd, unsigned long flags)
@@ -44,6 +45,7 @@ static inline uint64_t read_counter(int fd)
     uint64_t count;
     if (read(fd, &count, sizeof(count)) == -1) {
         perror("read_counter");
+        return 0;
     }
     return count;
 }
@@ -75,7 +77,21 @@ int init_perf_counters()
         perror("init_perf_counter fd_instructions");
         return -1;
     }
+
+    // if (init_perf_counter(&fd_stalled_cycles_frontend,
+    //                       PERF_COUNT_HW_STALLED_CYCLES_FRONTEND) == -1) {
+    //     perror("init_perf_counter fd_stalled_cycles_frontend");
+    //     return -1;
+    // }
+
+    // if (init_perf_counter(&fd_stalled_cycles_backend,
+    //                       PERF_COUNT_HW_STALLED_CYCLES_BACKEND) == -1) {
+    //     perror("init_perf_counter fd_stalled_cycles_backend");
+    //     return -1;
+    // }
 }
 
 IMPL_SSR(cycles)
 IMPL_SSR(instructions)
+// IMPL_SSR(stalled_cycles_frontend)
+// IMPL_SSR(stalled_cycles_backend)

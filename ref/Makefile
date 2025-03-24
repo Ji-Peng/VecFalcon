@@ -64,8 +64,8 @@
 CC = gcc
 LD = gcc
 # PG = -pg
-X4 = -DFNDSA_SHAKE256X4=1
-CFLAGS = -W -Wextra -Wundef -Wshadow -O2 $(PG) $(X4) -DWARMUP_N=2000 -DTESTS_N=10000 -g
+# X4 = -DFNDSA_SHAKE256X4=1
+CFLAGS = -W -Wextra -Wundef -Wshadow -O2 $(PG) $(X4) -DWARMUP_N=2000 -DTESTS_N=10000 -g -DFNDSA_AVX2=0
 LDFLAGS = $(PG)
 LIBS = 
 LIBS_GPERF = -Wl,-rpath -Wl,/usr/local/lib -lprofiler

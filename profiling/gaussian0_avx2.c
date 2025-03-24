@@ -6,7 +6,6 @@
 
 #include "cpucycles.h"
 #include "inner.h"
-#include "intrin.h"
 
 typedef struct {
 #if FNDSA_SHAKE256X4
@@ -49,6 +48,7 @@ void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
 /*
  * Sample an integer value along a half-gaussian distribution centered
  * on zero and standard deviation 1.8205, with a precision of 72 bits.
+ *
  * Obtained from https://falcon-sign.info/Falcon-impl-20211101.zip, the
  * prng_get_* subroutines were deleted to observe the implementation
  * efficiency of the sampler
@@ -173,6 +173,38 @@ static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
                                      {0, 0, 198},
                                      {0, 0, 1}};
 
+#define U32X8(W)                   \
+    {                              \
+        {                          \
+            W, W, W, W, W, W, W, W \
+        }                          \
+    }
+
+typedef union {
+    uint32_t u32[8];
+    __m256i ymm;
+} gauss0_32x8;
+
+static const gauss0_32x8 GAUSS0_AVX2[][3] = {
+    {U32X8(10745844), U32X8(3068844), U32X8(3741698)},
+    {U32X8(5559083), U32X8(1580863), U32X8(8248194)},
+    {U32X8(2260429), U32X8(13669192), U32X8(2736639)},
+    {U32X8(708981), U32X8(4421575), U32X8(10046180)},
+    {U32X8(169348), U32X8(7122675), U32X8(4136815)},
+    {U32X8(30538), U32X8(13063405), U32X8(7650655)},
+    {U32X8(4132), U32X8(14505003), U32X8(7826148)},
+    {U32X8(417), U32X8(16768101), U32X8(11363290)},
+    {U32X8(31), U32X8(8444042), U32X8(8086568)},
+    {U32X8(1), U32X8(12844466), U32X8(265321)},
+    {U32X8(0), U32X8(1232676), U32X8(13644283)},
+    {U32X8(0), U32X8(38047), U32X8(9111839)},
+    {U32X8(0), U32X8(870), U32X8(6138264)},
+    {U32X8(0), U32X8(14), U32X8(12545723)},
+    {U32X8(0), U32X8(0), U32X8(3104126)},
+    {U32X8(0), U32X8(0), U32X8(28824)},
+    {U32X8(0), U32X8(0), U32X8(198)},
+    {U32X8(0), U32X8(0), U32X8(1)}};
+
 /**
  * Obtained from https://github.com/pornin/c-fn-dsa
  */
@@ -238,78 +270,88 @@ typedef union {
 void gaussian0_avx2_8w(sampler_state *ss, __m256i *samples)
 {
     prn_24x3_8w prn[1];
-    /* Get 8 random 72-bit values, with 3x24-bit form. */
+    /* Get random 72-bit values, with 3x24-bit form. */
     for (int i = 0; i < 8; i++) {
         prn[0].u32[0][i] = prng_next_u24(&ss->pc);
         prn[0].u32[1][i] = prng_next_u24(&ss->pc);
         prn[0].u32[2][i] = prng_next_u24(&ss->pc);
     }
-    __m256i z0 = VZERO;
+    __m256i z0 = _mm256_setzero_si256();
     __m256i cc0;
     __m256i t0, t1, t2;
+    /**
+     * Through decompilation, we found that the following loop only uses
+     * six ymm registers.
+     * The number of AVX2 instructions in the loop is 13.
+     */
     for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
         // load pre-computed table
-        t2 = VSET1(GAUSS0[i][2]);
-        t1 = VSET1(GAUSS0[i][1]);
-        t0 = VSET1(GAUSS0[i][0]);
+        t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
+        t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
+        t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
         // cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc0 = VSUB(prn[0].ymm[0], t2);
-        cc0 = VSHR(cc0, 31);
+        cc0 = _mm256_sub_epi32(prn[0].ymm[0], t2);
+        cc0 = _mm256_srli_epi32(cc0, 31);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc0 = VSUB(prn[0].ymm[1], cc0);
-        cc0 = VSUB(cc0, t1);
-        cc0 = VSHR(cc0, 31);
+        cc0 = _mm256_sub_epi32(prn[0].ymm[1], cc0);
+        cc0 = _mm256_sub_epi32(cc0, t1);
+        cc0 = _mm256_srli_epi32(cc0, 31);
         // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
-        cc0 = VSUB(prn[0].ymm[2], cc0);
-        cc0 = VSUB(cc0, t0);
-        cc0 = VSHR(cc0, 31);
-        z0 = VADD(z0, cc0);
+        cc0 = _mm256_sub_epi32(prn[0].ymm[2], cc0);
+        cc0 = _mm256_sub_epi32(cc0, t0);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        z0 = _mm256_add_epi32(z0, cc0);
     }
-    VSTORE256(samples, z0);
+    _mm256_store_si256(samples, z0);
 }
 
 void gaussian0_avx2_16w(sampler_state *ss, __m256i *samples)
 {
     prn_24x3_8w prn[2];
-    /* Get 8 random 72-bit values, with 3x24-bit form. */
+    /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < 8; i++) {
             prn[j].u32[0][i] = prng_next_u24(&ss->pc);
             prn[j].u32[1][i] = prng_next_u24(&ss->pc);
             prn[j].u32[2][i] = prng_next_u24(&ss->pc);
         }
-    __m256i z0 = VZERO, z1 = VZERO;
+    __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2;
+    /**
+     * Through decompilation, we found that the following loop only uses
+     * at least 12 ymm registers.
+     * The number of AVX2 instructions in the loop is 23.
+     */
     for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
         // load pre-computed table
-        t2 = VSET1(GAUSS0[i][2]);
-        t1 = VSET1(GAUSS0[i][1]);
-        t0 = VSET1(GAUSS0[i][0]);
+        t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
+        t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
+        t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
         // cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc0 = VSUB(prn[0].ymm[0], t2);
-        cc1 = VSUB(prn[1].ymm[0], t2);
-        cc0 = VSHR(cc0, 31);
-        cc1 = VSHR(cc1, 31);
+        cc0 = _mm256_sub_epi32(prn[0].ymm[0], t2);
+        cc1 = _mm256_sub_epi32(prn[1].ymm[0], t2);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        cc1 = _mm256_srli_epi32(cc1, 31);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc0 = VSUB(prn[0].ymm[1], cc0);
-        cc1 = VSUB(prn[1].ymm[1], cc1);
-        cc0 = VSUB(cc0, t1);
-        cc1 = VSUB(cc1, t1);
-        cc0 = VSHR(cc0, 31);
-        cc1 = VSHR(cc1, 31);
+        cc0 = _mm256_sub_epi32(prn[0].ymm[1], cc0);
+        cc1 = _mm256_sub_epi32(prn[1].ymm[1], cc1);
+        cc0 = _mm256_sub_epi32(cc0, t1);
+        cc1 = _mm256_sub_epi32(cc1, t1);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        cc1 = _mm256_srli_epi32(cc1, 31);
         // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
-        cc0 = VSUB(prn[0].ymm[2], cc0);
-        cc1 = VSUB(prn[1].ymm[2], cc1);
-        cc0 = VSUB(cc0, t0);
-        cc1 = VSUB(cc1, t0);
-        cc0 = VSHR(cc0, 31);
-        cc1 = VSHR(cc1, 31);
-        z0 = VADD(z0, cc0);
-        z1 = VADD(z1, cc1);
+        cc0 = _mm256_sub_epi32(prn[0].ymm[2], cc0);
+        cc1 = _mm256_sub_epi32(prn[1].ymm[2], cc1);
+        cc0 = _mm256_sub_epi32(cc0, t0);
+        cc1 = _mm256_sub_epi32(cc1, t0);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        cc1 = _mm256_srli_epi32(cc1, 31);
+        z0 = _mm256_add_epi32(z0, cc0);
+        z1 = _mm256_add_epi32(z1, cc1);
     }
-    VSTORE256(samples, z0);
-    VSTORE256(samples + 1, z1);
+    _mm256_store_si256(samples, z0);
+    _mm256_store_si256(samples + 1, z1);
 }
 
 #define SAMPLES_N (8 * (1 << 5))
@@ -372,70 +414,34 @@ void test_gaussian0()
     }
 }
 
-void test_prng()
-{
-    sampler_state ss0;
-    uint8_t seed[32] = {0};
-    uint32_t v0, v1, v2;
-    uint64_t lo64;
-    uint8_t hi8;
-    int i;
-
-    sampler_init(&ss0, 9, seed, 32);
-    for (i = 0; i < 100; i++) {
-        v0 = prng_next_u24(&ss0.pc);
-        v1 = prng_next_u24(&ss0.pc);
-        v2 = prng_next_u24(&ss0.pc);
-        printf("%06x%06x%06x\n", v2, v1, v0);
-    }
-
-    printf("\n");
-
-    sampler_init(&ss0, 9, seed, 32);
-    for (i = 0; i < 100; i++) {
-        lo64 = prng_next_u64(&ss0.pc);
-        hi8 = prng_next_u8(&ss0.pc);
-        printf("%02x%016lx\n", hi8, lo64);
-    }
-}
-
 #define WARMUP_N 1000
-#define TESTS_N 10000
+// 136*4-(136*4%3)=543
+// 543*3 % 9 = 0
+#define TESTS_N ((543 * 3) * 100)
 
 void speed_gaussian0()
 {
-    size_t i, n;
     sampler_state ss0;
     uint8_t seed[32] = {0};
     ALIGNED_INT32(64) samples;
 
     init_perf_counters();
 
-    sampler_init(&ss0, 9, seed, 32);
     PERF(gaussian0_ref(&ss0), gaussian0_ref,
          sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
-
-    sampler_init(&ss0, 9, seed, 32);
     PERF(gaussian0_ref_u24(&ss0), gaussian0_ref_u24,
          sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
-
-    sampler_init(&ss0, 9, seed, 32);
     PERF(gaussian0_avx2(&ss0), gaussian0_avx2,
          sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
-
-    sampler_init(&ss0, 9, seed, 32);
     PERF_N(gaussian0_avx2_8w(&ss0, &samples.vec[0]), gaussian0_avx2_8w,
            sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N, 8);
-
-    sampler_init(&ss0, 9, seed, 32);
     PERF_N(gaussian0_avx2_16w(&ss0, &samples.vec[0]), gaussian0_avx2_16w,
            sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N, 16);
 }
 
 int main(void)
 {
-    // test_prng();
-    // test_gaussian0();
+    test_gaussian0();
     speed_gaussian0();
 
     return 0;

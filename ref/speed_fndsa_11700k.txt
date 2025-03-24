@@ -16,3 +16,13 @@ n = 1024:
 FN-DSA sign:                         1298980
 FN-DSA sign_core:                     938420
 FN-DSA verify:                         67294
+
+-DFNDSA_AVX2=0:
+n = 512:
+FN-DSA sign:                          725916
+FN-DSA sign_core:                     539254
+FN-DSA verify:                         76306
+n = 1024:
+FN-DSA sign:                         1488940
+FN-DSA sign_core:                    1165874
+FN-DSA verify:                        165558

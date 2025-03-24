@@ -1,0 +1,11 @@
+batch_gaussian0_ref with SHAKE256X4-AVX2 and gaussian0_ref:
+gaussian0                      cycles/insts/CPI/1-wayCC=108/499/0.22/108
+BATCH_STORE_GAUSSIAN0_get_next cycles/insts/CPI=126/490/0.26
+
+batch_gaussian0_sse2 with SHAKE256X2-SSE2 and gaussian0_sse2:
+gaussian0                      cycles/insts/CPI/1-wayCC=725/3381/0.21/90
+BATCH_STORE_GAUSSIAN0_get_next cycles/insts/CPI=92/430/0.22
+
+batch_gaussian0_avx2 with SHAKE256X4-AVX2 and gaussian0_avx2:
+gaussian0                      cycles/insts/CPI/1-wayCC=775/3047/0.25/48
+BATCH_STORE_GAUSSIAN0_get_next cycles/insts/CPI=50/197/0.25

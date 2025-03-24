@@ -24,6 +24,18 @@
 #    define TARGET_AVX2
 #endif
 
+/* TARGET_SSE2 is applied to a function definition and allows use of SSE2
+   intrinsics in that function. */
+   #if FNDSA_SSE2
+   #    if defined __GNUC__ || defined __clang__
+   #        define TARGET_SSE2 __attribute__((target("sse2")))
+   #    else
+   #        define TARGET_SSE2
+   #    endif
+   #else
+   #    define TARGET_SSE2
+   #endif
+
 #ifndef FNDSA_LITTLE_ENDIAN
 #    if defined __LITTLE_ENDIAN__ ||                                  \
         (defined __BYTE_ORDER__ && defined __ORDER_LITTLE_ENDIAN__ && \
