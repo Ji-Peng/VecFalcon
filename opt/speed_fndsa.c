@@ -309,10 +309,10 @@ int main(void)
 {
     unsigned x;
 
-// printf("%-30s %13.0f\n",
-//        "FN-DSA keygen (n = 512):", bench_keygen(9, &x));
-// printf("%-30s %13.0f\n",
-//        "FN-DSA keygen (n = 1024):", bench_keygen(10, &x));
+    // printf("%-30s %13.0f\n", "FN-DSA keygen (n = 512):",
+    //        bench_keygen(9, &x));
+    // printf("%-30s %13.0f\n", "FN-DSA keygen (n = 1024):",
+    //        bench_keygen(10, &x));
     printf("n = 512:\n");
     printf("%-30s %13.0f\n", "FN-DSA sign:", bench_sign(9, &x));
     printf("%-30s %13.0f\n", "FN-DSA sign_core:", bench_sign_core_512());
@@ -322,7 +322,7 @@ int main(void)
     printf("%-30s %13.0f\n", "FN-DSA sign:", bench_sign(10, &x));
     printf("%-30s %13.0f\n", "FN-DSA sign_core:", bench_sign_core_1024());
     printf("%-30s %13.0f\n\n", "FN-DSA verify:", bench_verify(10, &x));
-
+    
     // printf("%u\n", x);
     return 0;
 }

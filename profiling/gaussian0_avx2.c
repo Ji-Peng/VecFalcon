@@ -206,9 +206,21 @@ static const gauss0_32x8 GAUSS0_AVX2[][3] = {
     {U32X8(0), U32X8(0), U32X8(1)}};
 
 /**
- * Obtained from https://github.com/pornin/c-fn-dsa
+ * Obtained from https://github.com/pornin/c-fn-dsa.
+ *
+ * The original version returns z directly after the for loop ends. We do
+ * some additional operations, namely "z*z" and "get a random bit b to turn
+ * the sampling into a bimodal distribution". In the original version of
+ * the implementation, these additional operations are done in the
+ * sampler_next subroutine. The reason we do this is to facilitate
+ * vectorization of these additional operations.
+ *
+ * Let z after the loop be z0.
+ * @param *z_bimodal = b + ((b << 1) - 1) * z0, where b is a random bit
+ * @param *z_square = z0*z0
  */
-int32_t gaussian0_ref(sampler_state *ss)
+void gaussian0_ref(sampler_state *ss, int32_t *z_bimodal,
+                   int32_t *z_square)
 {
     /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
     uint64_t lo = prng_next_u64(&ss->pc);
@@ -218,7 +230,7 @@ int32_t gaussian0_ref(sampler_state *ss)
     uint32_t v2 = (uint32_t)(lo >> 48) | (hi << 16);
 
     /* Sampled value is z such that v0..v2 is lower than the first
-       z elements of the table. */
+    z elements of the table. */
     int32_t z = 0;
     for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
         uint32_t cc;
@@ -227,7 +239,10 @@ int32_t gaussian0_ref(sampler_state *ss)
         cc = (v2 - GAUSS0[i][0] - cc) >> 31;
         z += (int32_t)cc;
     }
-    return z;
+    // Get a random bit b to turn the sampling into a bimodal distribution.
+    int32_t b = prng_next_u8(&ss->pc) & 1;
+    *z_bimodal = b + ((b << 1) - 1) * z;
+    *z_square = z * z;
 }
 
 /**
@@ -236,8 +251,10 @@ int32_t gaussian0_ref(sampler_state *ss)
  * point is 136*4-60*9=4 bytes. The former will directly trigger refill,
  * while the latter can still get 24 bits.
  */
-int32_t gaussian0_ref_u24(sampler_state *ss)
+void gaussian0_ref_u24(sampler_state *ss, void *z_bimodal, void *z_square)
 {
+    int32_t *_z_bimodal = z_bimodal;
+    int32_t *_z_square = z_square;
     /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
     uint32_t v0 = prng_next_u24(&ss->pc);
     uint32_t v1 = prng_next_u24(&ss->pc);
@@ -253,7 +270,76 @@ int32_t gaussian0_ref_u24(sampler_state *ss)
         cc = (v2 - GAUSS0[i][0] - cc) >> 31;
         z += (int32_t)cc;
     }
-    return z;
+    // Get a random bit b to turn the sampling into a bimodal distribution.
+    int32_t b = prng_next_u8(&ss->pc) & 1;
+    *_z_bimodal = b + ((b << 1) - 1) * z;
+    *_z_square = z * z;
+}
+
+// used for test correctness of gaussian0_sse2_8w
+void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
+                          void *z_square)
+{
+    int32_t *_z_bimodal = z_bimodal;
+    int32_t *_z_square = z_square;
+
+    int32_t z[8] = {0};
+    for (size_t j = 0; j < 8; j++) {
+        /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
+        uint32_t v0 = prng_next_u24(&ss->pc);
+        uint32_t v1 = prng_next_u24(&ss->pc);
+        uint32_t v2 = prng_next_u24(&ss->pc);
+        /* Sampled value is z such that v0..v2 is lower than the first
+        z elements of the table. */
+        for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+            uint32_t cc;
+            cc = (v0 - GAUSS0[i][2]) >> 31;
+            cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+            cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+            z[j] += (int32_t)cc;
+        }
+    }
+
+    for (size_t j = 0; j < 8; j++) {
+        // Get a random bit b to turn the sampling into a bimodal
+        // distribution.
+        int32_t b = prng_next_u8(&ss->pc) & 1;
+        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_square + j) = z[j] * z[j];
+    }
+}
+
+// used for test correctness of gaussian0_sse2_8w
+void gaussian0_ref_u24_16w(sampler_state *ss, void *z_bimodal,
+                           void *z_square)
+{
+    int32_t *_z_bimodal = z_bimodal;
+    int32_t *_z_square = z_square;
+
+    int32_t z[16] = {0};
+    for (size_t j = 0; j < 16; j++) {
+        /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
+        uint32_t v0 = prng_next_u24(&ss->pc);
+        uint32_t v1 = prng_next_u24(&ss->pc);
+        uint32_t v2 = prng_next_u24(&ss->pc);
+        /* Sampled value is z such that v0..v2 is lower than the first
+        z elements of the table. */
+        for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+            uint32_t cc;
+            cc = (v0 - GAUSS0[i][2]) >> 31;
+            cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+            cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+            z[j] += (int32_t)cc;
+        }
+    }
+
+    for (size_t j = 0; j < 16; j++) {
+        // Get a random bit b to turn the sampling into a bimodal
+        // distribution.
+        int32_t b = prng_next_u8(&ss->pc) & 1;
+        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_square + j) = z[j] * z[j];
+    }
 }
 
 typedef union {
@@ -267,9 +353,12 @@ typedef union {
         __m256i vec[(N + 7) / 8]; \
     }
 
-void gaussian0_avx2_8w(sampler_state *ss, __m256i *samples)
+void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[1];
+    __m256i *_z_bimodal = (__m256i *)z_bimodal;
+    __m256i *_z_square = (__m256i *)z_square;
+
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int i = 0; i < 8; i++) {
         prn[0].u32[0][i] = prng_next_u24(&ss->pc);
@@ -302,12 +391,29 @@ void gaussian0_avx2_8w(sampler_state *ss, __m256i *samples)
         cc0 = _mm256_srli_epi32(cc0, 31);
         z0 = _mm256_add_epi32(z0, cc0);
     }
-    _mm256_store_si256(samples, z0);
+    ALIGNED_INT32(8) b;
+    for (size_t i = 0; i < 8; i++) {
+        b.coeffs[i] = prng_next_u8(&ss->pc) & 1;
+    }
+    t0 = _mm256_load_si256(&b.vec[0]);
+    t1 = _mm256_add_epi32(t0, t0);
+    t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
+    t2 = _mm256_mullo_epi32(t1, z0);
+    t2 = _mm256_add_epi32(t2, t0);
+    _mm256_store_si256(_z_bimodal, t2);
+    /**
+     * Each sample is in the range [0,18], so we can use the 16-bit
+     * multiplication instruction.
+     */
+    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
 }
 
-void gaussian0_avx2_16w(sampler_state *ss, __m256i *samples)
+void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[2];
+    __m256i *_z_bimodal = (__m256i *)z_bimodal;
+    __m256i *_z_square = (__m256i *)z_square;
+
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < 8; i++) {
@@ -317,7 +423,7 @@ void gaussian0_avx2_16w(sampler_state *ss, __m256i *samples)
         }
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
-    __m256i t0, t1, t2;
+    __m256i t0, t1, t2, t3, t4, t5;
     /**
      * Through decompilation, we found that the following loop only uses
      * at least 12 ymm registers.
@@ -350,67 +456,83 @@ void gaussian0_avx2_16w(sampler_state *ss, __m256i *samples)
         z0 = _mm256_add_epi32(z0, cc0);
         z1 = _mm256_add_epi32(z1, cc1);
     }
-    _mm256_store_si256(samples, z0);
-    _mm256_store_si256(samples + 1, z1);
+    ALIGNED_INT32(16) b;
+    for (size_t i = 0; i < 16; i++) {
+        b.coeffs[i] = prng_next_u8(&ss->pc) & 1;
+    }
+    t0 = _mm256_load_si256(&b.vec[0]);
+    t3 = _mm256_load_si256(&b.vec[1]);
+    t1 = _mm256_add_epi32(t0, t0);
+    t4 = _mm256_add_epi32(t3, t3);
+    t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
+    t4 = _mm256_sub_epi32(t4, _mm256_set1_epi32(1));
+    t2 = _mm256_mullo_epi32(t1, z0);
+    t5 = _mm256_mullo_epi32(t4, z1);
+    t2 = _mm256_add_epi32(t2, t0);
+    t5 = _mm256_add_epi32(t5, t3);
+    _mm256_store_si256(_z_bimodal, t2);
+    _mm256_store_si256(_z_bimodal + 1, t5);
+    /**
+     * Each sample is in the range [0,18], so we can use the 16-bit
+     * multiplication instruction.
+     */
+    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_square + 1, _mm256_mullo_epi16(z1, z1));
 }
 
 #define SAMPLES_N (8 * (1 << 5))
 
 void test_gaussian0()
 {
-    ALIGNED_INT32(SAMPLES_N) samples0, samples1;
+    ALIGNED_INT32(SAMPLES_N) z0_bimodal, z1_bimodal, z0_square, z1_square;
     uint8_t seed[32] = {0};
     sampler_state ss0, ss1;
-    __m256i *vecp;
     size_t i;
 
     memset(&ss0, 0, sizeof(ss0));
-    memset(&samples0, 0, sizeof(samples0));
+    memset(&z0_bimodal, 0, sizeof(z0_bimodal));
+    memset(&z0_square, 0, sizeof(z0_square));
     sampler_init(&ss0, 9, seed, 32);
-    for (i = 0; i < SAMPLES_N; i++) {
-        samples0.coeffs[i] = gaussian0_avx2(&ss0);
+    for (i = 0; i < SAMPLES_N; i += 8) {
+        gaussian0_ref_u24_8w(&ss0, &z0_bimodal.coeffs[i],
+                             &z0_square.coeffs[i]);
     }
     memset(&ss1, 0, sizeof(ss1));
-    memset(&samples1, 0, sizeof(samples1));
+    memset(&z1_bimodal, 0, sizeof(z1_bimodal));
+    memset(&z1_square, 0, sizeof(z1_square));
     sampler_init(&ss1, 9, seed, 32);
-    for (i = 0; i < SAMPLES_N; i++) {
-        samples1.coeffs[i] = gaussian0_ref(&ss1);
+    for (i = 0; i < SAMPLES_N; i += 8) {
+        gaussian0_avx2_8w(&ss1, &z1_bimodal.coeffs[i],
+                          &z1_square.coeffs[i]);
     }
-    if (memcmp(samples0.coeffs, samples1.coeffs,
+    if (memcmp(z0_bimodal.coeffs, z1_bimodal.coeffs,
+               sizeof(int32_t) * SAMPLES_N) != 0 ||
+        memcmp(z0_square.coeffs, z1_square.coeffs,
                sizeof(int32_t) * SAMPLES_N) != 0) {
-        printf("gaussian0_avx2 != gaussian0_ref\n");
-        // exit(0);
+        printf("gaussian0_ref_u24_8w != gaussian0_avx2_8w\n");
     }
 
     memset(&ss0, 0, sizeof(ss0));
-    memset(&samples0, 0, sizeof(samples0));
+    memset(&z0_bimodal, 0, sizeof(z0_bimodal));
+    memset(&z0_square, 0, sizeof(z0_square));
     sampler_init(&ss0, 9, seed, 32);
-    for (i = 0; i < SAMPLES_N; i++) {
-        samples0.coeffs[i] = gaussian0_ref_u24(&ss0);
+    for (i = 0; i < SAMPLES_N; i += 16) {
+        gaussian0_ref_u24_16w(&ss0, &z0_bimodal.coeffs[i],
+                              &z0_square.coeffs[i]);
     }
     memset(&ss1, 0, sizeof(ss1));
-    memset(&samples1, 0, sizeof(samples1));
+    memset(&z1_bimodal, 0, sizeof(z1_bimodal));
+    memset(&z1_square, 0, sizeof(z1_square));
     sampler_init(&ss1, 9, seed, 32);
-    for (i = 0, vecp = &samples1.vec[0]; i < SAMPLES_N; i += 8, vecp++) {
-        gaussian0_avx2_8w(&ss1, vecp);
+    for (i = 0; i < SAMPLES_N; i += 16) {
+        gaussian0_avx2_16w(&ss1, &z1_bimodal.coeffs[i],
+                           &z1_square.coeffs[i]);
     }
-    if (memcmp(samples0.coeffs, samples1.coeffs,
+    if (memcmp(z0_bimodal.coeffs, z1_bimodal.coeffs,
+               sizeof(int32_t) * SAMPLES_N) != 0 ||
+        memcmp(z0_square.coeffs, z1_square.coeffs,
                sizeof(int32_t) * SAMPLES_N) != 0) {
-        printf("gaussian0_ref_u24 != gaussian0_avx2_8w\n");
-        // exit(0);
-    }
-
-    memset(&ss1, 0, sizeof(ss1));
-    memset(&samples1, 0, sizeof(samples1));
-    sampler_init(&ss1, 9, seed, 32);
-    for (i = 0, vecp = &samples1.vec[0]; i < SAMPLES_N;
-         i += 16, vecp += 2) {
-        gaussian0_avx2_16w(&ss1, vecp);
-    }
-    if (memcmp(samples0.coeffs, samples1.coeffs,
-               sizeof(int32_t) * SAMPLES_N) != 0) {
-        printf("gaussian0_ref_u24 != gaussian0_avx2_16w\n");
-        // exit(0);
+        printf("gaussian0_ref_u24_16w != gaussian0_avx2_16w\n");
     }
 }
 
@@ -423,20 +545,26 @@ void speed_gaussian0()
 {
     sampler_state ss0;
     uint8_t seed[32] = {0};
-    ALIGNED_INT32(64) samples;
+    ALIGNED_INT32(64) z0_bimodal, z0_square;
 
     init_perf_counters();
 
-    PERF(gaussian0_ref(&ss0), gaussian0_ref,
-         sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
-    PERF(gaussian0_ref_u24(&ss0), gaussian0_ref_u24,
-         sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
-    PERF(gaussian0_avx2(&ss0), gaussian0_avx2,
-         sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N);
-    PERF_N(gaussian0_avx2_8w(&ss0, &samples.vec[0]), gaussian0_avx2_8w,
-           sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N, 8);
-    PERF_N(gaussian0_avx2_16w(&ss0, &samples.vec[0]), gaussian0_avx2_16w,
-           sampler_init(&ss0, 9, seed, 32), WARMUP_N, TESTS_N, 16);
+    PERF(gaussian0_ref(&ss0, &z0_bimodal.coeffs[0], &z0_square.coeffs[0]),
+         gaussian0_ref, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+         TESTS_N);
+    PERF(gaussian0_ref_u24(&ss0, &z0_bimodal.coeffs[0],
+                           &z0_square.coeffs[0]),
+         gaussian0_ref_u24, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+         TESTS_N);
+
+    PERF_N(gaussian0_avx2_8w(&ss0, &z0_bimodal.coeffs[0],
+                             &z0_square.coeffs[0]),
+           gaussian0_avx2_8w, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+           TESTS_N, 8);
+    PERF_N(gaussian0_avx2_16w(&ss0, &z0_bimodal.coeffs[0],
+                              &z0_square.coeffs[0]),
+           gaussian0_avx2_16w, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+           TESTS_N, 16);
 }
 
 int main(void)

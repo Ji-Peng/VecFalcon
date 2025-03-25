@@ -10,12 +10,16 @@ void test_gaussian0()
     sampler_state ss;
     BATCH_STORE_GAUSSIAN0 *store = NULL;
     uint8_t seed[32] = {0};
+    int32_t z_bimodal, z_square;
 
     sampler_init(&ss, 9, seed, 32);
     store = BATCH_STORE_GAUSSIAN0_new(&ss);
 
-    for (int i = 0; i < 10000000; i++) {
-        printf("%d, ", BATCH_STORE_GAUSSIAN0_get_next(store));
+    for (int i = 0; i < 10000; i++) {
+        BATCH_STORE_GAUSSIAN0_get_next(store, &z_bimodal, &z_square);
+        printf("%d,%d, ", z_bimodal, z_square);
+        if (i != 0 && i % 32 == 0)
+            printf("\n");
     }
     printf("\n");
 
@@ -32,25 +36,20 @@ void speed_gaussian0()
     sampler_state ss;
     BATCH_STORE_GAUSSIAN0 *store = NULL;
     uint8_t seed[32] = {0};
-    int n_way;
-
-#if FNDSA_AVX2 == 1 && BATCH_GAUSSIAN0 == 1
-    n_way = 16;
-#elif FNDSA_SSE2 == 1 && BATCH_GAUSSIAN0 == 1
-    n_way = 8;
-#else
-    n_way = 1;
-#endif
+    int32_t z_bimodal, z_square;
+    int n_way = 16;
 
     init_perf_counters();
     sampler_init(&ss, 9, seed, 32);
     store = BATCH_STORE_GAUSSIAN0_new(&ss);
 
-    PERF_N(gaussian0(&ss, store->data.coeffs), gaussian0,
-           sampler_init(&ss, 9, seed, 32), WARMUP_N, TESTS_N, n_way);
+    PERF_N(
+        gaussian0(&ss, store->_z_bimodal.coeffs, store->_z_square.coeffs),
+        gaussian0, sampler_init(&ss, 9, seed, 32), WARMUP_N, TESTS_N,
+        n_way);
 
     PERF(
-        BATCH_STORE_GAUSSIAN0_get_next(store),
+        BATCH_STORE_GAUSSIAN0_get_next(store, &z_bimodal, &z_square),
         BATCH_STORE_GAUSSIAN0_get_next,
         {
             sampler_init(&ss, 9, seed, 32);

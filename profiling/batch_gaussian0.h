@@ -23,6 +23,7 @@ typedef struct {
 #    if FNDSA_SHAKE256X4
 #        define prng_init shake256x4_init
 #        define prng_next_u8 shake256x4_next_u8
+#        define prng_next_u16 shake256x4_next_u16
 #        define prng_next_u24 shake256x4_next_u24
 #        define prng_next_u64 shake256x4_next_u64
 #    else
@@ -33,6 +34,7 @@ typedef struct {
                 shake_flip(pc);                   \
             } while (0)
 #        define prng_next_u8 shake_next_u8
+#        define prng_next_u16 shake_next_u16
 #        define prng_next_u24 shake_next_u24
 #        define prng_next_u64 shake_next_u64
 #    endif
@@ -47,6 +49,16 @@ void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
 }
 
 #if FNDSA_AVX2 == 1 && BATCH_GAUSSIAN0 == 1
+#    define BATCH_GAUSSIAN0_AVX2 1
+#elif FNDSA_SSE2 == 1 && BATCH_GAUSSIAN0 == 1
+#    define BATCH_GAUSSIAN0_SSE2 1
+#elif BATCH_GAUSSIAN0 == 1
+#    define BATCH_GAUSSIAN0_REF 1
+#else
+
+#endif
+
+#if BATCH_GAUSSIAN0_AVX2 == 1
 #    define U32X8(W)                   \
         {                              \
             {                          \
@@ -97,10 +109,12 @@ static const gauss0_32x8 GAUSS0_AVX2[][3] = {
  *
  * Returns the number of samples.
  */
-static inline int gaussian0(sampler_state *ss, void *samples)
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
 {
     prn_24x3_8w prn[2];
-    __m256i *_samples = samples;
+    __m256i *_z_bimodal = (__m256i *)z_bimodal;
+    __m256i *_z_square = (__m256i *)z_square;
 
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
@@ -111,7 +125,7 @@ static inline int gaussian0(sampler_state *ss, void *samples)
         }
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
-    __m256i t0, t1, t2;
+    __m256i t0, t1, t2, t3, t4, t5;
     /**
      * Through decompilation, we found that the following loop only uses
      * at least 12 ymm registers.
@@ -145,11 +159,32 @@ static inline int gaussian0(sampler_state *ss, void *samples)
         z0 = _mm256_add_epi32(z0, cc0);
         z1 = _mm256_add_epi32(z1, cc1);
     }
-    _mm256_store_si256(_samples, z0);
-    _mm256_store_si256(_samples + 1, z1);
+    ALIGNED_INT32(16) b;
+    unsigned b_16b = prng_next_u16(&ss->pc);
+    for (size_t i = 0; i < 16; i++) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+    }
+    t0 = _mm256_load_si256(&b.vec[0]);
+    t3 = _mm256_load_si256(&b.vec[1]);
+    t1 = _mm256_add_epi32(t0, t0);
+    t4 = _mm256_add_epi32(t3, t3);
+    t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
+    t4 = _mm256_sub_epi32(t4, _mm256_set1_epi32(1));
+    t2 = _mm256_mullo_epi32(t1, z0);
+    t5 = _mm256_mullo_epi32(t4, z1);
+    t2 = _mm256_add_epi32(t2, t0);
+    t5 = _mm256_add_epi32(t5, t3);
+    _mm256_store_si256(_z_bimodal, t2);
+    _mm256_store_si256(_z_bimodal + 1, t5);
+    /**
+     * Each sample is in the range [0,18], so we can use the 16-bit
+     * multiplication instruction.
+     */
+    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_square + 1, _mm256_mullo_epi16(z1, z1));
     return 16;
 }
-#elif FNDSA_SSE2 == 1 && BATCH_GAUSSIAN0 == 1
+#elif BATCH_GAUSSIAN0_SSE2 == 1
 #    define U32X4(W)       \
         {                  \
             {              \
@@ -197,60 +232,88 @@ static const gauss0_32x4 GAUSS0_SSE2[][3] = {
 
 /**
  * @param samples must be aligned on a 16-byte boundary.
- *
+ * This function generates 16 samples at a time to keep consistent with the
+ * AVX2 version.
  * Returns the number of samples.
  */
-static inline int gaussian0(sampler_state *ss, void *samples)
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
 {
     prn_24x3_4w prn[2];
-    __m128i *_samples = samples;
-
-    /* Get random 72-bit values, with 3x24-bit form. */
-    for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 4; i++) {
-            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
-            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
-            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
-        }
-    __m128i z0 = _mm_setzero_si128(), z1 = _mm_setzero_si128();
+    __m128i *_z_bimodal = (__m128i *)z_bimodal;
+    __m128i *_z_square = (__m128i *)z_square;
+    __m128i z0[2], z1[2];
     __m128i cc0, cc1;
-    __m128i t0, t1, t2;
-    /**
-     * Through decompilation, we found that the following loop only uses
-     * at least 12 ymm registers.
-     * The number of AVX2 instructions in the loop is 23.
-     */
-    for (size_t i = 0; i < (sizeof GAUSS0_SSE2) / sizeof(GAUSS0_SSE2[0]);
-         i++) {
-        // load pre-computed table
-        t2 = _mm_loadu_si128(&GAUSS0_SSE2[i][2].xmm);
-        t1 = _mm_loadu_si128(&GAUSS0_SSE2[i][1].xmm);
-        t0 = _mm_loadu_si128(&GAUSS0_SSE2[i][0].xmm);
-        // cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc0 = _mm_sub_epi32(prn[0].xmm[0], t2);
-        cc1 = _mm_sub_epi32(prn[1].xmm[0], t2);
-        cc0 = _mm_srli_epi32(cc0, 31);
-        cc1 = _mm_srli_epi32(cc1, 31);
-        // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc0 = _mm_sub_epi32(prn[0].xmm[1], cc0);
-        cc1 = _mm_sub_epi32(prn[1].xmm[1], cc1);
-        cc0 = _mm_sub_epi32(cc0, t1);
-        cc1 = _mm_sub_epi32(cc1, t1);
-        cc0 = _mm_srli_epi32(cc0, 31);
-        cc1 = _mm_srli_epi32(cc1, 31);
-        // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
-        cc0 = _mm_sub_epi32(prn[0].xmm[2], cc0);
-        cc1 = _mm_sub_epi32(prn[1].xmm[2], cc1);
-        cc0 = _mm_sub_epi32(cc0, t0);
-        cc1 = _mm_sub_epi32(cc1, t0);
-        cc0 = _mm_srli_epi32(cc0, 31);
-        cc1 = _mm_srli_epi32(cc1, 31);
-        z0 = _mm_add_epi32(z0, cc0);
-        z1 = _mm_add_epi32(z1, cc1);
+    __m128i t0, t1, t2, t3, t4, t5;
+
+    for (size_t j = 0; j < 2; j++) {
+        /* Get random 72-bit values, with 3x24-bit form. */
+        for (int k = 0; k < 2; k++)
+            for (int i = 0; i < 4; i++) {
+                prn[k].u32[0][i] = prng_next_u24(&ss->pc);
+                prn[k].u32[1][i] = prng_next_u24(&ss->pc);
+                prn[k].u32[2][i] = prng_next_u24(&ss->pc);
+            }
+        z0[j] = z1[j] = _mm_setzero_si128();
+        for (size_t i = 0;
+             i < (sizeof GAUSS0_SSE2) / sizeof(GAUSS0_SSE2[0]); i++) {
+            // load pre-computed table
+            t2 = _mm_loadu_si128(&GAUSS0_SSE2[i][2].xmm);
+            t1 = _mm_loadu_si128(&GAUSS0_SSE2[i][1].xmm);
+            t0 = _mm_loadu_si128(&GAUSS0_SSE2[i][0].xmm);
+            // cc = (v0 - GAUSS0[i][2]) >> 31;
+            cc0 = _mm_sub_epi32(prn[0].xmm[0], t2);
+            cc1 = _mm_sub_epi32(prn[1].xmm[0], t2);
+            cc0 = _mm_srli_epi32(cc0, 31);
+            cc1 = _mm_srli_epi32(cc1, 31);
+            // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+            cc0 = _mm_sub_epi32(prn[0].xmm[1], cc0);
+            cc1 = _mm_sub_epi32(prn[1].xmm[1], cc1);
+            cc0 = _mm_sub_epi32(cc0, t1);
+            cc1 = _mm_sub_epi32(cc1, t1);
+            cc0 = _mm_srli_epi32(cc0, 31);
+            cc1 = _mm_srli_epi32(cc1, 31);
+            // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+            cc0 = _mm_sub_epi32(prn[0].xmm[2], cc0);
+            cc1 = _mm_sub_epi32(prn[1].xmm[2], cc1);
+            cc0 = _mm_sub_epi32(cc0, t0);
+            cc1 = _mm_sub_epi32(cc1, t0);
+            cc0 = _mm_srli_epi32(cc0, 31);
+            cc1 = _mm_srli_epi32(cc1, 31);
+            z0[j] = _mm_add_epi32(z0[j], cc0);
+            z1[j] = _mm_add_epi32(z1[j], cc1);
+        }
     }
-    _mm_store_si128(_samples, z0);
-    _mm_store_si128(_samples + 1, z1);
-    return 8;
+    ALIGNED_INT32(8) b;
+    unsigned b_16b = prng_next_u16(&ss->pc);
+    for (size_t j = 0; j < 2; j++, b_16b >>= 8) {
+        for (size_t i = 0; i < 8; i++) {
+            b.coeffs[i] = (b_16b >> i) & 1;
+        }
+        /**
+         * Each sample is in the range [0,18], so we can use the 16-bit
+         * multiplication instruction.
+         *
+         * But when taking z_bimodal, please note that we only take the
+         * lower 16 bits of each sample and then convert it to a signed
+         * 32-bit number.
+         */
+        t0 = _mm_load_si128(&b.vec[0]);
+        t3 = _mm_load_si128(&b.vec[1]);
+        t1 = _mm_add_epi32(t0, t0);
+        t4 = _mm_add_epi32(t3, t3);
+        t1 = _mm_sub_epi32(t1, _mm_set1_epi32(1));
+        t4 = _mm_sub_epi32(t4, _mm_set1_epi32(1));
+        t2 = _mm_mullo_epi16(t1, z0[j]);
+        t5 = _mm_mullo_epi16(t4, z1[j]);
+        t2 = _mm_add_epi32(t2, t0);
+        t5 = _mm_add_epi32(t5, t3);
+        _mm_store_si128(_z_bimodal++, t2);
+        _mm_store_si128(_z_bimodal++, t5);
+        _mm_store_si128(_z_square++, _mm_mullo_epi16(z0[j], z0[j]));
+        _mm_store_si128(_z_square++, _mm_mullo_epi16(z1[j], z1[j]));
+    }
+    return 16;
 }
 #else
 #    define ALIGNED_INT32(N)   \
@@ -279,27 +342,37 @@ static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
 /**
  * Returns the number of samples.
  */
-static inline int gaussian0(sampler_state *ss, void *samples)
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
 {
-    int32_t *_samples = samples;
+    int32_t *_z_bimodal = z_bimodal;
+    int32_t *_z_square = z_square;
 
-    /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
-    uint32_t v0 = prng_next_u24(&ss->pc);
-    uint32_t v1 = prng_next_u24(&ss->pc);
-    uint32_t v2 = prng_next_u24(&ss->pc);
-
-    /* Sampled value is z such that v0..v2 is lower than the first
-       z elements of the table. */
-    int32_t z = 0;
-    for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
-        uint32_t cc;
-        cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc = (v2 - GAUSS0[i][0] - cc) >> 31;
-        z += (int32_t)cc;
+    int32_t z[16] = {0};
+    for (size_t j = 0; j < 16; j++) {
+        /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
+        uint32_t v0 = prng_next_u24(&ss->pc);
+        uint32_t v1 = prng_next_u24(&ss->pc);
+        uint32_t v2 = prng_next_u24(&ss->pc);
+        /* Sampled value is z such that v0..v2 is lower than the first
+           z elements of the table. */
+        for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+            uint32_t cc;
+            cc = (v0 - GAUSS0[i][2]) >> 31;
+            cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+            cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+            z[j] += (int32_t)cc;
+        }
     }
-    *_samples = z;
-    return 1;
+    unsigned b_16b = prng_next_u16(&ss->pc);
+    for (size_t j = 0; j < 16; j++) {
+        // Get a random bit b to turn the sampling into a bimodal
+        // distribution.
+        int32_t b = (b_16b >> j) & 1;
+        *_z_bimodal++ = b + ((b << 1) - 1) * z[j];
+        *_z_square++ = z[j] * z[j];
+    }
+    return 16;
 }
 #endif
 
@@ -312,12 +385,13 @@ static inline int gaussian0(sampler_state *ss, void *samples)
 #    define BATCH_GAUSSIAN0_SIZE (8 * 16)
 #endif
 
-typedef struct {
+typedef struct batch_store_gaussian0 {
     size_t batch_size;
+    /** current_pos==batch_size means the store is empty */
     size_t current_pos;
     sampler_state *ss;
-
-    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) data;
+    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_bimodal;
+    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_square;
 } BATCH_STORE_GAUSSIAN0;
 
 /**
@@ -328,10 +402,11 @@ typedef struct {
 static inline void BATCH_STORE_GAUSSIAN0_fill(BATCH_STORE_GAUSSIAN0 *store)
 {
     size_t i;
-    size_t num_once;
+    size_t num;
 
-    for (i = 0; i < store->batch_size; i += num_once) {
-        num_once = gaussian0(store->ss, &store->data.coeffs[i]);
+    for (i = 0; i < store->batch_size; i += num) {
+        num = gaussian0(store->ss, &store->_z_bimodal.coeffs[i],
+                        &store->_z_square.coeffs[i]);
     }
     /** The store is full */
     store->current_pos = 0;
@@ -359,13 +434,24 @@ static inline void BATCH_STORE_GAUSSIAN0_free(BATCH_STORE_GAUSSIAN0 *store)
     free(store);
 }
 
-static inline int32_t BATCH_STORE_GAUSSIAN0_get_next(
-    BATCH_STORE_GAUSSIAN0 *store)
+static inline void BATCH_STORE_GAUSSIAN0_get_next(
+    BATCH_STORE_GAUSSIAN0 *store, int32_t *z_bimodal, int32_t *z_square)
 {
     if (store->current_pos >= store->batch_size) {
         BATCH_STORE_GAUSSIAN0_fill(store);
     }
-    return store->data.coeffs[store->current_pos++];
+#if BATCH_GAUSSIAN0_SSE2 == 1
+    /**
+     * For SSE2, we must use _mm_mullo_epi16 to turn into bimodal
+     * distribution, so the following type conversion is necessary.
+     */
+    *z_bimodal =
+        (int32_t)(int16_t)store->_z_bimodal.coeffs[store->current_pos];
+#else
+    *z_bimodal = store->_z_bimodal.coeffs[store->current_pos];
+#endif
+    *z_square = store->_z_square.coeffs[store->current_pos];
+    store->current_pos++;
 }
 
 #endif  // BATCH_GAUSSIAN0_H

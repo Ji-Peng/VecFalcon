@@ -61,10 +61,6 @@ static inline uint64_t test_prng_next_u64(test_rng_context *pc)
 
 #include "sign_sampler.c"
 
-void *xmalloc(size_t);
-void xfree(void *);
-size_t hextobin(uint8_t *, size_t, const char *);
-
 static const char *const KAT512_RND =
     "C5442FF043D66E910FD1EAC64EA5450A22941ECADC6CDA0F8D8444D1A772F465"
     "C26F98BBBB4BEE7DB8EFD9B347F6D7FB9B19F25CDB36D6334D477A8BC0BE68B9"
@@ -2821,6 +2817,67 @@ static const int32_t KAT512_OUT[] = {
     263,  -142, 284,  141,  393,  286,  316,  500,  340,  -72,  210,  -355,
     -36,  119,  65,   629};
 
+static void *xmalloc(size_t len)
+{
+    if (len == 0) {
+        return NULL;
+    }
+    void *buf = malloc(len);
+    if (buf == NULL) {
+        fprintf(stderr, "memory allocation error (size=%zu)\n", len);
+        exit(EXIT_FAILURE);
+    }
+    return buf;
+}
+
+static void xfree(void *buf)
+{
+    if (buf != NULL) {
+        free(buf);
+    }
+}
+
+static size_t hextobin(uint8_t *buf, size_t max_len, const char *src)
+{
+    size_t j = 0;
+    unsigned acc = 0, z = 0;
+    for (;;) {
+        int c = *src++;
+        if (c == 0) {
+            if (z) {
+                fprintf(stderr, "lone hex nibble\n");
+                exit(EXIT_FAILURE);
+            }
+            return j;
+        }
+        if (c >= '0' && c <= '9') {
+            c -= '0';
+        } else if (c >= 'A' && c <= 'F') {
+            c -= 'A' - 10;
+        } else if (c >= 'a' && c <= 'f') {
+            c -= 'a' - 10;
+        } else if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            continue;
+        } else {
+            fprintf(stderr, "not an hex digit: 0x%02X\n", c);
+            exit(EXIT_FAILURE);
+        }
+        if (z) {
+            if (buf != NULL) {
+                if (j >= max_len) {
+                    fprintf(stderr, "output buffer overflow\n");
+                    exit(EXIT_FAILURE);
+                }
+                buf[j] = (uint8_t)((acc << 4) + c);
+            }
+            j++;
+        } else {
+            acc = c;
+        }
+        z = !z;
+    }
+}
+
 void test_sampler(void)
 {
     printf("Test sampler: ");
@@ -2857,4 +2914,24 @@ void test_sampler(void)
 
     printf(" done.\n");
     fflush(stdout);
+}
+
+void gperf_sampler(void)
+{
+    size_t rndlen = hextobin(NULL, 0, KAT512_RND);
+    uint8_t *rndbuf = xmalloc(rndlen);
+    hextobin(rndbuf, rndlen, KAT512_RND);
+    // num=1024
+    size_t num = sizeof(KAT512_MU_INVSIGMA) / (2 * sizeof(fpr));
+    sampler_state ss;
+    for (size_t ii = 0; ii < 100000; ii++) {
+        sampler_init(&ss, 9, rndbuf, rndlen);
+        for (size_t i = 0; i < num; i++) {
+            fpr mu = KAT512_MU_INVSIGMA[(i << 1) + 0];
+            fpr isigma = KAT512_MU_INVSIGMA[(i << 1) + 1];
+            int32_t v = sampler_next(&ss, mu, isigma);
+            int32_t w = KAT512_OUT[i];
+        }
+    }
+    xfree(rndbuf);
 }

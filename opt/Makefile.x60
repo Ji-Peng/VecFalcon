@@ -24,7 +24,7 @@ CFLAGS_RV64GCB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc_zba_zbb 	\
 	-DFNDSA_RV64D=1 -DRV64=1 -DRVB=1
 CFLAGS_RV64GCVB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv_zba_zbb	\
 	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVB=1
-
+	
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c
 SRCS_SIGN = sign.c sign_core.c sign_fpoly.c sign_fpr.c sign_sampler.c
@@ -34,10 +34,17 @@ SRCS_TEST = test_fndsa.c test_sampler.c test_sign.c
 SRCS_SPEED = speed_fndsa.c
 SRCS_GPERF = test_gperf.c test_sampler.c
 
-OBJS_RV64GC 		= $(addprefix out/, $(SRCS:.c=_rv64gc.o))
-OBJS_RV64GCV 		= $(addprefix out/, $(SRCS:.c=_rv64gcv.o))
-OBJS_RV64GCB 		= $(addprefix out/, $(SRCS:.c=_rv64gcb.o))
-OBJS_RV64GCVB 		= $(addprefix out/, $(SRCS:.c=_rv64gcvb.o))
+ASMS_RV64IM 	= fips202_rv64im.S
+ASMS_RV64IMB	= fips202_rv64imb.S
+
+OBJS_RV64GC 		= $(addprefix out/, $(SRCS:.c=_rv64gc.o))	\
+	$(addprefix out/, $(ASMS_RV64IM:.S=.o))
+OBJS_RV64GCV 		= $(addprefix out/, $(SRCS:.c=_rv64gcv.o))	\
+	$(addprefix out/, $(ASMS_RV64IM:.S=.o))
+OBJS_RV64GCB 		= $(addprefix out/, $(SRCS:.c=_rv64gcb.o))	\
+	$(addprefix out/, $(ASMS_RV64IMB:.S=.o))
+OBJS_RV64GCVB 		= $(addprefix out/, $(SRCS:.c=_rv64gcvb.o))	\
+	$(addprefix out/, $(ASMS_RV64IMB:.S=.o))
 
 OBJS_TEST_RV64GC 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gc.o))
 OBJS_TEST_RV64GCV 	= $(addprefix out/, $(SRCS_TEST:.c=_rv64gcv.o))
@@ -63,7 +70,7 @@ run_speed: \
 	out/speed_fndsa_rv64gcb	out/speed_fndsa_rv64gcvb
 	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_x60.txt
 	echo "FN-DSA on RV64GC" >>speed_fndsa_x60.txt
-	perf stat ./out/speed_fndsa_rv64gc   >>speed_fndsa_x60.txt   2>/dev/null
+	perf stat ./out/speed_fndsa_rv64gc  >>speed_fndsa_x60.txt  2>/dev/null
 	echo "FN-DSA on RV64GCV" >>speed_fndsa_x60.txt
 	perf stat ./out/speed_fndsa_rv64gcv  >>speed_fndsa_x60.txt  2>/dev/null
 	echo "FN-DSA on RV64GCB" >>speed_fndsa_x60.txt
@@ -75,28 +82,28 @@ clean:
 	-rm -rf out/
 
 out/test_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_TEST_RV64GC)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/speed_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_SPEED_RV64GC)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/test_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_TEST_RV64GCV)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/speed_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_SPEED_RV64GCV)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/test_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_TEST_RV64GCB)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/speed_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_SPEED_RV64GCB)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/test_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_TEST_RV64GCVB)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/speed_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_SPEED_RV64GCVB)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
 out/test_gperf_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_GPERF_RV64GCVB)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
@@ -118,3 +125,7 @@ out/%_rv64gcvb.o: %.c
 	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)
+
+out/%.o: %.S
+	@mkdir -p out
+	$(CC) $(CFLAGS_RV64GCVB) -c $< -o $@

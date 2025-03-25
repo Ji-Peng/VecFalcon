@@ -2,15 +2,9 @@ On Rocket Lake, i7-11700K with Turbo Boost and hyper thread disable
 
 -march=native -mtune=native
 
-taskset -c 0 ./out/gaussian0_avx2   
-gaussian0_ref                  cycles/insts/CPI=158/769/0.21
-gaussian0_ref_u24              cycles/insts/CPI=161/773/0.21
-gaussian0_avx2                 cycles/insts/CPI=107/467/0.23
-gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=813/3689/0.22/101
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=1544/7189/0.21/96
-gaussian0_avx2_16w_no_order    cycles/insts/CPI/1-wayCC=1554/7179/0.22/97
+all of them using SHAKE256X4
 
-taskset -c 0 ./out/gaussian0_avx2_shakex4
+taskset -c 0 ./out/gaussian0_avx2
 gaussian0_ref                  cycles/insts/CPI=103/470/0.22
 gaussian0_ref_u24              cycles/insts/CPI=97/464/0.21
 gaussian0_avx2                 cycles/insts/CPI=48/167/0.29
@@ -18,24 +12,9 @@ gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=337/1270/0.27/42
 gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=619/2353/0.26/38
 gaussian0_avx2_16w_no_order    cycles/insts/CPI/1-wayCC=616/2342/0.26/38
 
-taskset -c 0 ./out/gaussian0_sse2
-gaussian0_ref                  cycles/insts/CPI=169/785/0.22
-gaussian0_ref_u24              cycles/insts/CPI=161/792/0.20
-gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=482/2164/0.22/121
-gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=909/4141/0.22/114
-
 After disabling more advanced ISE
 
-taskset -c 0 ./out/gaussian0_avx2        
-gaussian0_ref                  cycles/insts/CPI=171/785/0.22
-gaussian0_ref_u24              cycles/insts/CPI=161/792/0.20
-gaussian0_avx2                 cycles/insts/CPI=110/487/0.23
-gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=881/3786/0.23/110
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=1662/7437/0.22/103
-gaussian0_avx2_16w_opt_tail    cycles/insts/CPI/1-wayCC=1624/7510/0.22/101
-gaussian0_avx2_16w_no_order    cycles/insts/CPI/1-wayCC=1617/7427/0.22/101
-
-taskset -c 0 ./out/gaussian0_avx2_shakex4
+taskset -c 0 ./out/gaussian0_avx2
 gaussian0_ref                  cycles/insts/CPI=117/517/0.23
 gaussian0_ref_u24              cycles/insts/CPI=108/511/0.21
 gaussian0_avx2                 cycles/insts/CPI=59/215/0.28
@@ -44,14 +23,22 @@ gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=778/3046/0.26/48
 gaussian0_avx2_16w_opt_tail    cycles/insts/CPI/1-wayCC=778/3119/0.25/48
 gaussian0_avx2_16w_no_order    cycles/insts/CPI/1-wayCC=784/3035/0.26/49
 
-taskset -c 0 ./out/gaussian0_sse2        
-gaussian0_ref                  cycles/insts/CPI=167/785/0.21
-gaussian0_ref_u24              cycles/insts/CPI=163/792/0.21
-gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=471/2107/0.22/117
-gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=878/4084/0.22/109
-
-taskset -c 0 ./out/gaussian0_sse2_shakex4
+taskset -c 0 ./out/gaussian0_sse2
 gaussian0_ref                  cycles/insts/CPI=156/705/0.22
 gaussian0_ref_u24              cycles/insts/CPI=138/698/0.20
 gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=382/1754/0.22/95
 gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=725/3381/0.21/90
+
+Including the computation of "turning into bimodal" and "z0*z0"
+
+taskset -c 0 ./out/gaussian0_avx2
+gaussian0_ref                  cycles/insts/CPI=118/548/0.22
+gaussian0_ref_u24              cycles/insts/CPI=120/546/0.22
+gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=472/1790/0.26/59
+gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=872/3436/0.25/54
+
+taskset -c 0 ./out/gaussian0_sse2
+gaussian0_ref                  cycles/insts/CPI=159/757/0.21
+gaussian0_ref_u24              cycles/insts/CPI=156/754/0.21
+gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=425/1947/0.22/106
+gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=786/3757/0.21/98
