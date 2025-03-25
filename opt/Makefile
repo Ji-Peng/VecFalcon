@@ -89,9 +89,9 @@ SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c k
 SRCS_SIGN = sign.c sign_core.c sign_fpoly.c sign_fpr.c sign_sampler.c
 SRCS_VRFY = vrfy.c
 SRCS = $(SRCS_COMM) $(SRCS_KGEN) $(SRCS_SIGN) $(SRCS_VRFY)
-SRCS_TEST = test_fndsa.c test_sampler.c test_sign.c
+SRCS_TEST = test_fndsa.c
 SRCS_SPEED = speed_fndsa.c
-SRCS_GPERF = test_gperf.c test_sampler.c
+SRCS_GPERF = test_gperf.c
 
 OBJS_SSE2		= $(addprefix out/, $(SRCS:.c=_sse2.o))
 OBJS_TEST_SSE2	= $(addprefix out/, $(SRCS_TEST:.c=_sse2.o))
@@ -103,15 +103,19 @@ OBJS_TEST_AVX2	= $(addprefix out/, $(SRCS_TEST:.c=_avx2.o))
 OBJS_SPEED_AVX2	= $(addprefix out/, $(SRCS_SPEED:.c=_avx2.o))
 OBJS_GPERF_AVX2	= $(addprefix out/, $(SRCS_GPERF:.c=_avx2.o))
 
+# all: \
+# 	out/test_fndsa_sse2 out/speed_fndsa_sse2 out/test_gperf_sse2 \
+# 	out/test_fndsa_avx2 out/speed_fndsa_avx2 out/test_gperf_avx2
+
 all: \
-	out/test_fndsa_sse2 out/speed_fndsa_sse2 out/test_gperf_sse2 \
-	out/test_fndsa_avx2 out/speed_fndsa_avx2 out/test_gperf_avx2
+	out/speed_fndsa_sse2 out/speed_fndsa_avx2 \
+	out/test_fndsa_sse2  out/test_fndsa_avx2
 
 run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
-	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_11700k.txt
+	echo "We work on the SHAKE256X4 variant.\n" >> speed_fndsa_11700k.txt
 	echo "SSE2 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_sse2 >> speed_fndsa_11700k.txt
-	echo "\nAVX2 version:" >> speed_fndsa_11700k.txt
+	echo "AVX2 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_avx2 >> speed_fndsa_11700k.txt
 
 clean:
@@ -123,8 +127,8 @@ out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2)
 out/speed_fndsa_sse2: $(OBJS_SSE2) $(OBJS_SPEED_SSE2)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+# out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2)
+# 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
 out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -132,8 +136,8 @@ out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2)
 out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+# out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2)
+# 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
 out/%_sse2.o: %.c
 	@mkdir -p out

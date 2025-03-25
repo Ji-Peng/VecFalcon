@@ -10,7 +10,6 @@ FN-DSA sign:                         1326990
 FN-DSA sign_core:                    1022402
 FN-DSA verify:                        157240
 
-
 AVX2 version:
 n = 512:
 FN-DSA sign:                          617886
@@ -20,4 +19,48 @@ n = 1024:
 FN-DSA sign:                         1223832
 FN-DSA sign_core:                     887964
 FN-DSA verify:                         64988
+
+We work on the SHAKE256X4 variant. BATCH GAUSSIAN0 with size = 64
+
+SSE2 version:
+n = 512:
+FN-DSA sign:                          583740
+FN-DSA sign_core:                     423530
+FN-DSA verify:                         77548
+n = 1024:
+FN-DSA sign:                         1172818
+FN-DSA sign_core:                     829244
+FN-DSA verify:                        157818
+
+AVX2 version:
+n = 512:
+FN-DSA sign:                          510112
+FN-DSA sign_core:                     340746
+FN-DSA verify:                         35104
+n = 1024:
+FN-DSA sign:                         1058892
+FN-DSA sign_core:                     693292
+FN-DSA verify:                         64930
+
+We work on the SHAKE256X4 variant. BATCH GAUSSIAN0 with size = 128
+
+SSE2 version:
+n = 512:
+FN-DSA sign:                          575854
+FN-DSA sign_core:                     402536
+FN-DSA verify:                         74826
+n = 1024:
+FN-DSA sign:                         1162870
+FN-DSA sign_core:                     816816
+FN-DSA verify:                        156636
+
+AVX2 version:
+n = 512:
+FN-DSA sign:                          501986
+FN-DSA sign_core:                     331998
+FN-DSA verify:                         33396
+n = 1024:
+FN-DSA sign:                          970168
+FN-DSA sign_core:                     671762
+FN-DSA verify:                         66018
 

@@ -336,6 +336,36 @@ static inline unsigned shake_next_u16(shake_context *sc)
 #endif
 }
 
+/* Get the next 24-bit word from SHAKE. */
+static inline unsigned shake_next_u24(shake_context *sc)
+{
+    if (sc->dptr + 2 >= sc->rate) {
+        uint8_t x[3];
+        shake_extract(sc, x, 3);
+        return (unsigned)x[0] | ((unsigned)x[1] << 8) |
+               ((unsigned)x[2] << 16);
+    }
+#if FNDSA_LITTLE_ENDIAN
+    uint8_t *d = (uint8_t *)(void *)sc;
+#    if FNDSA_UNALIGNED_16
+    unsigned v = (*(uint32_t *)(d + sc->dptr)) & 0xffffff;
+#    else
+    unsigned v = (unsigned)d[sc->dptr] | ((unsigned)d[sc->dptr + 1] << 8) |
+                 ((unsigned)d[sc->dptr + 2] << 16);
+#    endif
+    sc->dptr += 3;
+    return v;
+#else
+    unsigned x0 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    unsigned x1 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    unsigned x2 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    return x0 | (x1 << 8) | (x2 << 16);
+#endif
+}
+
 /* Get the next 64-bit word from SHAKE. */
 static inline uint64_t shake_next_u64(shake_context *sc)
 {
@@ -429,6 +459,19 @@ static inline unsigned shake256x4_next_u16(shake256x4_context *sc)
     unsigned x =
         (unsigned)sc->buf[sc->ptr] | ((unsigned)sc->buf[sc->ptr + 1] << 8);
     sc->ptr += 2;
+    return x;
+}
+
+/* Get the next 24-bit word of pseudorandom output. */
+static inline unsigned shake256x4_next_u24(shake256x4_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 2) {
+        shake256x4_refill(sc);
+    }
+    unsigned x = (unsigned)sc->buf[sc->ptr] |
+                 ((unsigned)sc->buf[sc->ptr + 1] << 8) |
+                 ((unsigned)sc->buf[sc->ptr + 2] << 16);
+    sc->ptr += 3;
     return x;
 }
 

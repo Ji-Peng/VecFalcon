@@ -102,7 +102,7 @@ static inline uint64_t fpr_ulsh(uint64_t x, int n)
 /* Given integer i and scale sc, return i*2^sc. Source integer MUST
    be in the [-(2^63-1),+(2^63-1)] range (i.e. value -2^63 is forbidden).
  */
-#define fpr_scaled fndsa_fpr_scaled
+// #define fpr_scaled fndsa_fpr_scaled
 fpr fpr_scaled(int64_t i, int sc);
 
 #define fpr_of(i) fpr_scaled(i, 0)
@@ -179,7 +179,7 @@ static inline int64_t fpr_trunc(fpr x)
 }
 
 /* Floating-point addition. */
-#define fpr_add fndsa_fpr_add
+// #define fpr_add fndsa_fpr_add
 fpr fpr_add(fpr x, fpr y);
 
 /* Floating-point subtraction. */
@@ -258,7 +258,7 @@ static inline fpr fpr_double(fpr x)
 }
 
 /* Floating-point multiplication. */
-#define fpr_mul fndsa_fpr_mul
+// #define fpr_mul fndsa_fpr_mul
 fpr fpr_mul(fpr x, fpr y);
 
 /* Floating-point squaring. */
@@ -268,7 +268,7 @@ static inline fpr fpr_sqr(fpr x)
 }
 
 /* Floating-point division. */
-#define fpr_div fndsa_fpr_div
+// #define fpr_div fndsa_fpr_div
 fpr fpr_div(fpr x, fpr y);
 
 /* Floating-point inversion. */
@@ -278,7 +278,7 @@ static inline fpr fpr_inv(fpr x)
 }
 
 /* Floating-point square root. */
-#define fpr_sqrt fndsa_fpr_sqrt
+// #define fpr_sqrt fndsa_fpr_sqrt
 fpr fpr_sqrt(fpr x);
 
 /* Division by 2^e. */
@@ -469,31 +469,31 @@ static inline int64_t f64_floor(f64 a)
  */
 
 /* Convert polynomial f from real to FFT representation (in-place). */
-#define fpoly_FFT fndsa_fpoly_FFT
+// #define fpoly_FFT fndsa_fpoly_FFT
 void fpoly_FFT(unsigned logn, fpr *f);
 
 /* Convert polynomial f from FFT to real representation (in-place). */
-#define fpoly_iFFT fndsa_fpoly_iFFT
+// #define fpoly_iFFT fndsa_fpoly_iFFT
 void fpoly_iFFT(unsigned logn, fpr *f);
 
 /* Set polynomial d from small polynomial f with integer coefficients. */
-#define fpoly_set_small fndsa_fpoly_set_small
+// #define fpoly_set_small fndsa_fpoly_set_small
 void fpoly_set_small(unsigned logn, fpr *d, const int8_t *f);
 
 /* Add polynomial b to polynomial a. */
-#define fpoly_add fndsa_fpoly_add
+// #define fpoly_add fndsa_fpoly_add
 void fpoly_add(unsigned logn, fpr *a, const fpr *b);
 
 /* Subtract polynomial b from polynomial a. */
-#define fpoly_sub fndsa_fpoly_sub
+// #define fpoly_sub fndsa_fpoly_sub
 void fpoly_sub(unsigned logn, fpr *a, const fpr *b);
 
 /* Negate polynomial a (in-place). */
-#define fpoly_neg fndsa_fpoly_neg
+// #define fpoly_neg fndsa_fpoly_neg
 void fpoly_neg(unsigned logn, fpr *a);
 
 /* Multiply polynomial a with polynomial b (FFT representation only). */
-#define fpoly_mul_fft fndsa_fpoly_mul_fft
+// #define fpoly_mul_fft fndsa_fpoly_mul_fft
 void fpoly_mul_fft(unsigned logn, fpr *a, const fpr *b);
 
 /* unused
@@ -509,7 +509,7 @@ void fpoly_mulownadj_fft(unsigned logn, fpr *a);
 */
 
 /* Multiply polynomial a with real constant x. */
-#define fpoly_mulconst fndsa_fpoly_mulconst
+// #define fpoly_mulconst fndsa_fpoly_mulconst
 void fpoly_mulconst(unsigned logn, fpr *a, fpr x);
 
 /* Perform an LDL decomposition of a self-adjoint matrix G. The matrix
@@ -521,27 +521,27 @@ void fpoly_mulconst(unsigned logn, fpr *a, fpr x);
    respectively. g00, g11 and d11 are self-adjoint: only their first
    n/2 coefficients are accessed. g00 is unmodified. All polynomials
    are in FFT representation. */
-#define fpoly_LDL_fft fndsa_fpoly_LDL_fft
+// #define fpoly_LDL_fft fndsa_fpoly_LDL_fft
 void fpoly_LDL_fft(unsigned logn, const fpr *g00, fpr *g01, fpr *g11);
 
 /* Split operation on a polynomial: for input polynomial f,
    half-size polynomials f0 and f1 (modulo X^(n/2)+1) are such that
    f = f0(x^2) + x*f1(x^2). All polynomials are in FFT representation. */
-#define fpoly_split_fft fndsa_fpoly_split_fft
+// #define fpoly_split_fft fndsa_fpoly_split_fft
 void fpoly_split_fft(unsigned logn, fpr *f0, fpr *f1, const fpr *f);
 
 /* Specialized version of fpoly_split_fft() when the source polynomial
    f is self-adjoint. Only the first n/2 coefficients of f are accessed.
    On output, f0 is self-adjoint (all its n/2 coefficients are set), but
    in general f1 is not self-adjoint. */
-#define fpoly_split_selfadj_fft fndsa_fpoly_split_selfadj_fft
+// #define fpoly_split_selfadj_fft fndsa_fpoly_split_selfadj_fft
 void fpoly_split_selfadj_fft(unsigned logn, fpr *f0, fpr *f1,
                              const fpr *f);
 
 /* Merge operation on polynomials: for input half-size polynomials f0
    and f1 (modulo X^(n/2)+1), compute f = f0(x^2) + x*f1(x^2). All
    polynomials are in FFT representation. */
-#define fpoly_merge_fft fndsa_fpoly_merge_fft
+// #define fpoly_merge_fft fndsa_fpoly_merge_fft
 void fpoly_merge_fft(unsigned logn, fpr *f, const fpr *f0, const fpr *f1);
 
 /* Given matrix B = [[b00, b01], [b10, b11]], compute the Gram matrix
@@ -552,7 +552,7 @@ void fpoly_merge_fft(unsigned logn, fpr *f, const fpr *f0, const fpr *f1);
       g11 = b10*adj(b10) + b11*adj(b11)
    Only g00, g01 and g11 are returned, in b00, b01 and b10, respectively.
    b11 is unmodified. All polynomials are in FFT representation. */
-#define fpoly_gram_fft fndsa_fpoly_gram_fft
+// #define fpoly_gram_fft fndsa_fpoly_gram_fft
 void fpoly_gram_fft(unsigned logn, fpr *b00, fpr *b01, fpr *b10,
                     const fpr *b11);
 
@@ -560,9 +560,83 @@ void fpoly_gram_fft(unsigned logn, fpr *b00, fpr *b01, fpr *b10,
    [t0,t1] = (1/q)*B*[0,hm], for polynomial hm with coefficients in
    [0,q-1]. Only b01 and b11 are needed. hm is in normal representation;
    all other polynomials are in FFT representation. */
-#define fpoly_apply_basis fndsa_fpoly_apply_basis
+// #define fpoly_apply_basis fndsa_fpoly_apply_basis
 void fpoly_apply_basis(unsigned logn, fpr *t0, fpr *t1, const fpr *b01,
                        const fpr *b11, const uint16_t *hm);
+
+#if FNDSA_AVX2 == 1
+#    define U32X8(W)                   \
+        {                              \
+            {                          \
+                W, W, W, W, W, W, W, W \
+            }                          \
+        }
+
+typedef union {
+    uint32_t u32[8];
+    __m256i ymm;
+} gauss0_32x8;
+
+typedef union {
+    uint32_t u32[3][8];
+    __m256i ymm[3];
+} prn_24x3_8w;
+
+#    define ALIGNED_INT32(N)          \
+        union {                       \
+            int32_t coeffs[N];        \
+            __m256i vec[(N + 7) / 8]; \
+        }
+#elif FNDSA_SSE2 == 1
+#    define U32X4(W)       \
+        {                  \
+            {              \
+                W, W, W, W \
+            }              \
+        }
+
+typedef union {
+    uint32_t u32[4];
+    __m128i xmm;
+} gauss0_32x4;
+
+typedef union {
+    uint32_t u32[3][4];
+    __m128i xmm[3];
+} prn_24x3_4w;
+
+#    define ALIGNED_INT32(N)          \
+        union {                       \
+            int32_t coeffs[N];        \
+            __m128i vec[(N + 3) / 4]; \
+        }
+#else
+#    define ALIGNED_INT32(N)   \
+        union {                \
+            int32_t coeffs[N]; \
+        }
+#endif
+
+/**
+ * 8*16*sizeof(int32_t) = 0.5 KB
+ * This number must be a multiple of 16, because for the AVX2
+ * implementation of gaussian0 we generate 16 samples at a time
+ */
+#ifndef BATCH_GAUSSIAN0_SIZE
+#    define BATCH_GAUSSIAN0_SIZE (8 * 16)
+#endif
+
+struct sampler_state;
+struct batch_store_gaussian0;
+
+typedef struct batch_store_gaussian0 {
+    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_bimodal;
+    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_square;
+    size_t batch_size;
+    /** current_pos==batch_size means the store is empty */
+    size_t current_pos;
+    struct sampler_state *ss;
+} BATCH_STORE_GAUSSIAN0;
 
 /* ==================================================================== */
 /*
@@ -575,25 +649,27 @@ void fpoly_apply_basis(unsigned logn, fpr *t0, fpr *t1, const fpr *b01,
  * rejection sampling of the target distribution.
  */
 
-typedef struct {
+typedef struct sampler_state {
 #if FNDSA_SHAKE256X4
     shake256x4_context pc;
 #else
     shake_context pc;
 #endif
     unsigned logn;
+    struct batch_store_gaussian0 *gauss_store;
 } sampler_state;
 
 /* Initialize the sampler for a given degree and seed. */
-#define sampler_init fndsa_sampler_init
+// #define sampler_init fndsa_sampler_init
 void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
                   size_t seed_len);
+void sampler_free(sampler_state *ss);
 
 /* Sample the next small integer. Parameters are:
       ss       sampler state
       mu       distribution centre
       isigma   inverse of the distribution standard deviation  */
-#define sampler_next fndsa_sampler_next
+// #define sampler_next fndsa_sampler_next
 int32_t sampler_next(sampler_state *ss, fpr mu, fpr isigma);
 
 /* Apply Fast Fourier sampling:
@@ -603,7 +679,7 @@ int32_t sampler_next(sampler_state *ss, fpr mu, fpr isigma);
       tmp             temporary (at least 4*n elements)
    Output is written over t0 and t1. g00, g01 and g11 are consumed. All
    polynomials are in FFT representation. */
-#define ffsamp_fft fndsa_ffsamp_fft
+// #define ffsamp_fft fndsa_ffsamp_fft
 void ffsamp_fft(sampler_state *ss, fpr *t0, fpr *t1, fpr *g00, fpr *g01,
                 fpr *g11, fpr *tmp);
 
@@ -623,7 +699,7 @@ void ffsamp_fft(sampler_state *ss, fpr *t0, fpr *t1, fpr *g00, fpr *g01,
    error is possible if seed is NULL and the system RNG fails.
 
    tmp size: 74*n bytes  */
-#define sign_core fndsa_sign_core
+// #define sign_core fndsa_sign_core
 size_t sign_core(unsigned logn, const int8_t *f, const int8_t *g,
                  const int8_t *F, const int8_t *G,
                  const uint8_t *hashed_vk, const uint8_t *ctx,

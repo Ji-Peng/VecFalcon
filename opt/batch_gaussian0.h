@@ -3,50 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>  // for posix_memalign
-
-#include "inner.h"
-
-// from sign_inner.h
-typedef struct {
-#if FNDSA_SHAKE256X4
-    shake256x4_context pc;
-#else
-    shake_context pc;
-#endif
-    unsigned logn;
-} sampler_state;
-
-/* We access the PRNG through macros so that they can be overridden by some
-   compatiblity tests with the original Falcon implementation. */
-#ifndef prng_init
-#    if FNDSA_SHAKE256X4
-#        define prng_init shake256x4_init
-#        define prng_next_u8 shake256x4_next_u8
-#        define prng_next_u16 shake256x4_next_u16
-#        define prng_next_u24 shake256x4_next_u24
-#        define prng_next_u64 shake256x4_next_u64
-#    else
-#        define prng_init(pc, seed, seed_len)     \
-            do {                                  \
-                shake_init(pc, 256);              \
-                shake_inject(pc, seed, seed_len); \
-                shake_flip(pc);                   \
-            } while (0)
-#        define prng_next_u8 shake_next_u8
-#        define prng_next_u16 shake_next_u16
-#        define prng_next_u24 shake_next_u24
-#        define prng_next_u64 shake_next_u64
-#    endif
-#endif
-
-/* see sign_inner.h */
-void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
-                  size_t seed_len)
-{
-    prng_init(&ss->pc, seed, seed_len);
-    ss->logn = logn;
-}
+#include <stdlib.h>
 
 #if FNDSA_AVX2 == 1 && BATCH_GAUSSIAN0 == 1
 #    define BATCH_GAUSSIAN0_AVX2 1
@@ -417,14 +374,7 @@ static inline BATCH_STORE_GAUSSIAN0 *BATCH_STORE_GAUSSIAN0_new(
 {
     BATCH_STORE_GAUSSIAN0 *store = NULL;
 
-    // posix_memalign is used to allocate aligned memory space
-    int ret = posix_memalign((void **)&store, 32, sizeof(*store));
-    if (ret != 0) {
-        fprintf(stderr,
-                "BATCH_STORE_GAUSSIAN0_new Error: Failed to allocate "
-                "memory for store\n");
-        return NULL;
-    }
+    store = (BATCH_STORE_GAUSSIAN0 *)malloc(sizeof(*store));
     store->batch_size = BATCH_GAUSSIAN0_SIZE;
     store->current_pos = 0;
     store->ss = ss;

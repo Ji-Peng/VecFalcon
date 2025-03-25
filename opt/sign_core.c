@@ -163,6 +163,7 @@ sign_core(unsigned logn, const int8_t *f, const int8_t *g, const int8_t *F,
               g00 g01 g11 t0 t1
            We now do the Fast Fourier sampling. */
         ffsamp_fft(&ss, t0, t1, g00, g01, g11, t1 + n);
+        sampler_free(&ss);
 
         /* Rearrange layout back to:
               b00 b01 b10 b11 t0 t1  */
