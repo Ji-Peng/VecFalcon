@@ -1,6 +1,6 @@
 CC = gcc
 COMMONDIR = ../common
-CFLAGS_COMM = -W -Wextra -Wshadow -g -O2 -DFNDSA_SHAKE256X4=1
+CFLAGS_COMM = -W -Wextra -Wshadow -g -O0 -DFNDSA_SHAKE256X4=1
 CFLAGS_AVX2 = $(CFLAGS_COMM) -mavx2 \
 	-mno-avx512f -mno-avx512dq -mno-avx512pf -mno-avx512er -mno-avx512cd -mno-avx512bw -mno-avx512vl -mno-avx512ifma -mno-avx512vbmi -mno-avx512vpopcntdq
 CFLAGS_SSE2 = $(CFLAGS_COMM) -msse2 \

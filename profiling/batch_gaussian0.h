@@ -385,21 +385,21 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
 #    define BATCH_GAUSSIAN0_SIZE (8 * 16)
 #endif
 
-typedef struct batch_store_gaussian0 {
+typedef struct gaussian0_store {
     size_t batch_size;
     /** current_pos==batch_size means the store is empty */
     size_t current_pos;
     sampler_state *ss;
     ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_bimodal;
     ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_square;
-} BATCH_STORE_GAUSSIAN0;
+} GAUSSIAN0_STORE;
 
 /**
  * Fill the store with a call of the gaussian0 function.
  * This function is called when 1) initializing the store, or
  * 2) when the current store is empty.
  */
-static inline void BATCH_STORE_GAUSSIAN0_fill(BATCH_STORE_GAUSSIAN0 *store)
+static inline void GAUSSIAN0_STORE_fill(GAUSSIAN0_STORE *store)
 {
     size_t i;
     size_t num;
@@ -412,28 +412,28 @@ static inline void BATCH_STORE_GAUSSIAN0_fill(BATCH_STORE_GAUSSIAN0 *store)
     store->current_pos = 0;
 };
 
-static inline BATCH_STORE_GAUSSIAN0 *BATCH_STORE_GAUSSIAN0_new(
+static inline GAUSSIAN0_STORE *GAUSSIAN0_STORE_new(
     sampler_state *ss)
 {
-    BATCH_STORE_GAUSSIAN0 *store = NULL;
+    GAUSSIAN0_STORE *store = NULL;
 
     // posix_memalign is used to allocate aligned memory space
     int ret = posix_memalign((void **)&store, 32, sizeof(*store));
     if (ret != 0) {
         fprintf(stderr,
-                "BATCH_STORE_GAUSSIAN0_new Error: Failed to allocate "
+                "GAUSSIAN0_STORE_new Error: Failed to allocate "
                 "memory for store\n");
         return NULL;
     }
     store->batch_size = BATCH_GAUSSIAN0_SIZE;
     store->current_pos = 0;
     store->ss = ss;
-    BATCH_STORE_GAUSSIAN0_fill(store);
+    GAUSSIAN0_STORE_fill(store);
 
     return store;
 }
 
-static inline void BATCH_STORE_GAUSSIAN0_free(BATCH_STORE_GAUSSIAN0 *store)
+static inline void GAUSSIAN0_STORE_free(GAUSSIAN0_STORE *store)
 {
     if (store == NULL) {
         return;
@@ -441,11 +441,11 @@ static inline void BATCH_STORE_GAUSSIAN0_free(BATCH_STORE_GAUSSIAN0 *store)
     free(store);
 }
 
-static inline void BATCH_STORE_GAUSSIAN0_get_next(
-    BATCH_STORE_GAUSSIAN0 *store, int32_t *z_bimodal, int32_t *z_square)
+static inline void GAUSSIAN0_STORE_get_next(
+    GAUSSIAN0_STORE *store, int32_t *z_bimodal, int32_t *z_square)
 {
     if (store->current_pos >= store->batch_size) {
-        BATCH_STORE_GAUSSIAN0_fill(store);
+        GAUSSIAN0_STORE_fill(store);
     }
 #if BATCH_GAUSSIAN0_SSE2 == 1
     /**

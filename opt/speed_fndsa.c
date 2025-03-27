@@ -322,7 +322,7 @@ int main(void)
     printf("%-30s %13.0f\n", "FN-DSA sign:", bench_sign(10, &x));
     printf("%-30s %13.0f\n", "FN-DSA sign_core:", bench_sign_core_1024());
     printf("%-30s %13.0f\n\n", "FN-DSA verify:", bench_verify(10, &x));
-    
+
     // printf("%u\n", x);
     return 0;
 }

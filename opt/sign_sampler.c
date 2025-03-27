@@ -356,7 +356,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
  * This function is called when 1) initializing the store, or
  * 2) when the current store is empty.
  */
-static inline void BATCH_STORE_GAUSSIAN0_fill(BATCH_STORE_GAUSSIAN0 *store)
+static inline void GAUSSIAN0_STORE_fill(GAUSSIAN0_STORE *store)
 {
     size_t i;
     size_t num;
@@ -369,28 +369,27 @@ static inline void BATCH_STORE_GAUSSIAN0_fill(BATCH_STORE_GAUSSIAN0 *store)
     store->current_pos = 0;
 };
 
-static inline BATCH_STORE_GAUSSIAN0 *BATCH_STORE_GAUSSIAN0_new(
-    sampler_state *ss)
+static inline GAUSSIAN0_STORE *GAUSSIAN0_STORE_new(sampler_state *ss)
 {
-    BATCH_STORE_GAUSSIAN0 *store = NULL;
+    GAUSSIAN0_STORE *store = NULL;
 
     // posix_memalign is used to allocate aligned memory space
     int ret = posix_memalign((void **)&store, 32, sizeof(*store));
     if (ret != 0) {
         fprintf(stderr,
-                "BATCH_STORE_GAUSSIAN0_new Error: Failed to allocate "
+                "GAUSSIAN0_STORE_new Error: Failed to allocate "
                 "memory for store\n");
         return NULL;
     }
     store->batch_size = BATCH_GAUSSIAN0_SIZE;
     store->current_pos = 0;
     store->ss = ss;
-    BATCH_STORE_GAUSSIAN0_fill(store);
+    GAUSSIAN0_STORE_fill(store);
 
     return store;
 }
 
-static inline void BATCH_STORE_GAUSSIAN0_free(BATCH_STORE_GAUSSIAN0 *store)
+static inline void GAUSSIAN0_STORE_free(GAUSSIAN0_STORE *store)
 {
     if (store == NULL) {
         return;
@@ -398,11 +397,12 @@ static inline void BATCH_STORE_GAUSSIAN0_free(BATCH_STORE_GAUSSIAN0 *store)
     free(store);
 }
 
-static inline void BATCH_STORE_GAUSSIAN0_get_next(
-    BATCH_STORE_GAUSSIAN0 *store, int32_t *z_bimodal, int32_t *z_square)
+static inline void GAUSSIAN0_STORE_get_next(GAUSSIAN0_STORE *store,
+                                            int32_t *z_bimodal,
+                                            int32_t *z_square)
 {
     if (store->current_pos >= store->batch_size) {
-        BATCH_STORE_GAUSSIAN0_fill(store);
+        GAUSSIAN0_STORE_fill(store);
     }
 #if FNDSA_AVX2 == 0 && FNDSA_SSE2 == 1
     /**
@@ -424,12 +424,12 @@ void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
 {
     prng_init(&ss->pc, seed, seed_len);
     ss->logn = logn;
-    ss->gauss_store = BATCH_STORE_GAUSSIAN0_new(ss);
+    ss->gauss_store = GAUSSIAN0_STORE_new(ss);
 }
 
 void sampler_free(sampler_state *ss)
 {
-    BATCH_STORE_GAUSSIAN0_free(ss->gauss_store);
+    GAUSSIAN0_STORE_free(ss->gauss_store);
 }
 
 #if FNDSA_SSE2
@@ -549,39 +549,17 @@ static inline int ber_exp(sampler_state *ss, __m128d x, __m128d ccs)
         __m128d x;
     } LOG2_u = {{LOG2, LOG2}}, INV_LOG2_u = {{INV_LOG2, INV_LOG2}};
 
-    /* Reduce x modulo log(2): x = s*log(2) + r, with s an integer,
-       and 0 <= r < log(2). We can use a truncating conversion because
-       x >= 0. Moreover, x is small, so we can stick to 32-bit values. */
     int32_t si = _mm_cvttsd_si32(_mm_mul_sd(x, INV_LOG2_u.x));
     __m128d r = _mm_sub_sd(
         x, _mm_mul_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), si), LOG2_u.x));
 
-    /* If s >= 64, sigma = 1.2, r = 0 and b = 1, then we get s >= 64
-       if the half-Gaussian produced z >= 13, which happens with
-       probability about 2^(-32). When s >= 64, ber_exp() will return
-       true with probability less than 2^(-64), so we can simply
-       saturate s at 63 (the bias introduced here is lower than 2^(-96),
-       and would require about 2^192 samplings to be detectable, which
-       is way beyond the formal bound of 2^64 signatures with the
-       same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    // if (s >= 64)
+    //     printf(".");
 
-    /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
-       ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
-       use expm_p63(), which yields a result scaled by 63 bits. We
-       scale it up 1 bit further, then right-shift by s bits.
-
-       We subtract 1 to make sure that the value fits on 64 bits
-       (i.e. if r = 0 then we may get 2^64 and we prefer 2^64-1
-       in that case, to avoid the overflow). The bias is negligible
-       since expm_p63() has precision only 51 bits or so. */
     uint64_t z = fpr_ursh((expm_p63(r, ccs) << 1) - 1, s);
 
-    /* Sample a bit. We lazily compare the value z with a uniform 64-bit
-       integer, consuming only as many bytes as necessary. Since the PRNG
-       is cryptographically strong, we leak no information from the
-       conditional jumps below. */
     for (int i = 56; i >= 0; i -= 8) {
         unsigned w = prng_next_u8(&ss->pc);
         unsigned bz = (unsigned)(z >> i) & 0xFF;
@@ -617,33 +595,7 @@ static int32_t sampler_next_sse2(sampler_state *ss, __m128d mu,
     /* We sample on centre r. */
     for (;;) {
         int32_t z_bimodal, z_square;
-        BATCH_STORE_GAUSSIAN0_get_next(ss->gauss_store, &z_bimodal,
-                                       &z_square);
-
-        /* Rejection sampling. We want a Gaussian centred on r,
-           but we sampled against a bimodal distribution (with
-           "centres" at 0 and 1). However, we know that z is
-           always in the range where our sampling distribution is
-           greater than the Gaussian distribution, so rejection works.
-
-           We got z from distribution:
-              G(z) = exp(-((z-b)^2)/(2*sigma0^2))
-           We target distribution:
-              S(z) = exp(-((z-r)^2)/(2*signa^2))
-           Rejection sampling works by keeping the value z with
-           probability S(z)/G(z), and starting again otherwise.
-           This requires S(z) <= G(z), which is the case here.
-           Thus, we simply need to keep our z with probability:
-              P = exp(-x)
-           where:
-              x = ((z-r)^2)/(2*sigma^2) - ((z-b)^2)/(2*sigma0^2)
-           Here, we scale up the Bernouilli distribution, which
-           makes rejection more probable, but also makes the
-           rejection rate sufficiently decorrelated from the Gaussian
-           centre and standard deviation, so that measurement of the
-           rejection rate does not leak enough usable information
-           to attackers (which is how the implementation can claim
-           to be "constant-time").  */
+        GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bimodal, &z_square);
         __m128d x =
             _mm_sub_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), z_bimodal), r);
         x = _mm_mul_sd(_mm_mul_sd(x, x), dss);
@@ -652,6 +604,216 @@ static int32_t sampler_next_sse2(sampler_state *ss, __m128d mu,
                           INV_2SQRSIGMA0_u.x));
         if (ber_exp(ss, x, ccs)) {
             return s + z_bimodal;
+        }
+    }
+}
+
+/*
+ * Input: 0 <= x < log(2) Output: trunc(x*2^63)
+ */
+static inline void mtwop63_2w(uint64_t *r0, uint64_t *r1, __m128d x)
+{
+    static const union {
+        fpr f[2];
+        __m128d x;
+    } twop63 = {{
+        FPR(4503599627370496, 11),
+        FPR(4503599627370496, 11),
+    }};
+    __m128d t0, t1;
+
+    t0 = _mm_mul_pd(x, twop63.x);
+    t1 = _mm_shuffle_pd(t0, t0, 3);
+    *r0 = (uint64_t)_mm_cvttsd_si64(t0);
+    *r1 = (uint64_t)_mm_cvttsd_si64(t1);
+}
+
+#    define MUL64HI(a, b)                                                \
+        ((uint64_t)(((unsigned __int128)(a) * (unsigned __int128)(b)) >> \
+                    64))
+
+static inline void expm_p63_2w(uint64_t *r0, uint64_t *r1, __m128d x01,
+                               __m128d ccs01)
+{
+    /* The polynomial approximation of exp(-x) is from FACCT:
+    https://eprint.iacr.org/2018/1234
+    Specifically, the values are extracted from the implementation
+    referenced by the FACCT paper, available at:
+    https://github.com/raykzhao/gaussian  */
+    static const uint64_t EXPM_COEFFS[] = {
+        0x00000004741183A3, 0x00000036548CFC06, 0x0000024FDCBF140A,
+        0x0000171D939DE045, 0x0000D00CF58F6F84, 0x000680681CF796E3,
+        0x002D82D8305B0FEA, 0x011111110E066FD0, 0x0555555555070F00,
+        0x155555555581FF00, 0x400000000002B400, 0x7FFFFFFFFFFF4800,
+        0x8000000000000000};
+
+    uint64_t y0 = EXPM_COEFFS[0];
+    uint64_t y1 = EXPM_COEFFS[0];
+    uint64_t z0, z1, w0, w1;
+    mtwop63_2w(&z0, &z1, x01);
+    mtwop63_2w(&w0, &w1, ccs01);
+    z0 <<= 1;
+    z1 <<= 1;
+    w0 <<= 1;
+    w1 <<= 1;
+    for (size_t i = 1; i < (sizeof EXPM_COEFFS) / sizeof(uint64_t); i++) {
+        y0 = EXPM_COEFFS[i] - MUL64HI(z0, y0);
+        y1 = EXPM_COEFFS[i] - MUL64HI(z1, y1);
+    }
+    *r0 = MUL64HI(w0, y0);
+    *r1 = MUL64HI(w1, y1);
+}
+
+/* Sample a bit with probability ccs*exp(-x) (for x >= 0). */
+TARGET_SSE2
+static inline void ber_exp_2w(int *r0, int *r1, sampler_state *ss,
+                              __m128d x, __m128d ccs)
+{
+    static const union {
+        fpr f[2];
+        __m128d x;
+    } LOG2_u = {{LOG2, LOG2}}, INV_LOG2_u = {{INV_LOG2, INV_LOG2}};
+
+    static const union {
+        uint32_t d[4];
+        __m128i x;
+    } CONST_63 = {{63, 0, 63, 0}}, CONST_1 = {{1, 0, 1, 0}};
+
+    static union {
+        uint64_t d[2];
+        __m128i x;
+    } si;
+    uint64_t p63_t0, p63_t1;
+
+    /** _mm_cvttpd_epi32 does not affect the upper 64 bits */
+    si.x = _mm_setzero_si128();
+    si.x = _mm_cvttpd_epi32(_mm_mul_pd(x, INV_LOG2_u.x));
+    __m128d r = _mm_sub_pd(x, _mm_mul_pd(_mm_cvtepi32_pd(si.x), LOG2_u.x));
+    /** [0,0,si_1,si_0] -> [0,si_1,0,si_0], 0x98=0b10011000 */
+    si.x = _mm_shuffle_epi32(si.x, 0x98);
+    __m128i t1 = _mm_sub_epi32(CONST_63.x, si.x);
+    t1 = _mm_srli_epi32(t1, 26);
+    si.x = _mm_or_si128(si.x, t1);
+
+    expm_p63_2w(&p63_t0, &p63_t1, r, ccs);
+    p63_t0 = ((p63_t0 << 1) - 1) >> si.d[0];
+    p63_t1 = ((p63_t1 << 1) - 1) >> si.d[1];
+
+    *r0 = 0;
+    *r1 = 0;
+    for (int i = 56; i >= 0; i -= 8) {
+        unsigned w = prng_next_u8(&ss->pc);
+        unsigned bz = (unsigned)(p63_t0 >> i) & 0xFF;
+        if (w != bz) {
+            *r0 = (w < bz);
+            break;
+        }
+    }
+    for (int i = 56; i >= 0; i -= 8) {
+        unsigned w = prng_next_u8(&ss->pc);
+        unsigned bz = (unsigned)(p63_t1 >> i) & 0xFF;
+        if (w != bz) {
+            *r1 = (w < bz);
+            return;
+        }
+    }
+}
+
+TARGET_SSE2
+static void sampler_next_sse2_2w(int32_t *s0, int32_t *s1,
+                                 sampler_state *ss, __m128d mu,
+                                 __m128d isigma)
+{
+    static union {
+        fpr f[2];
+        __m128d x;
+    } HALF_u = {{FPR(4503599627370496, -53), FPR(4503599627370496, -53)}},
+      INV_2SQRSIGMA0_u = {{INV_2SQRSIGMA0, INV_2SQRSIGMA0}};
+
+    static union {
+        int32_t d[4];
+        __m128i x;
+    } t0, si, z_bi, z_sq;
+
+    static const union {
+        fpr f[2];
+        __m128d x;
+    } SIGMA_MINx2[] = {
+        {FPR_ZERO, FPR_ZERO}, /* unused */
+        {FPR(5028307297130123, -52), FPR(5028307297130123, -52)},
+        {FPR(5098636688852518, -52), FPR(5098636688852518, -52)},
+        {FPR(5168009084304506, -52), FPR(5168009084304506, -52)},
+        {FPR(5270355833453349, -52), FPR(5270355833453349, -52)},
+        {FPR(5370752584786614, -52), FPR(5370752584786614, -52)},
+        {FPR(5469306724145091, -52), FPR(5469306724145091, -52)},
+        {FPR(5566116128735780, -52), FPR(5566116128735780, -52)},
+        {FPR(5661270305715104, -52), FPR(5661270305715104, -52)},
+        {FPR(5754851361258101, -52), FPR(5754851361258101, -52)},
+        {FPR(5846934829975396, -52), FPR(5846934829975396, -52)},
+    };
+
+    /* Split center mu into s + r, for an integer s, and 0 <= r < 1. */
+    si.x = _mm_cvttpd_epi32(mu);
+    __m128d sd = _mm_cvtepi32_pd(si.x);
+    // compare low double
+    t0.d[0] = _mm_comilt_sd(mu, sd);
+    // compare high double
+    t0.d[1] = _mm_comilt_sd(_mm_shuffle_pd(mu, mu, 3),
+                            _mm_shuffle_pd(sd, sd, 3));
+    si.x = _mm_sub_epi32(si.x, t0.x);
+    __m128d r = _mm_sub_pd(mu, _mm_cvtepi32_pd(si.x));
+    /* dss = 1/(2*sigma^2) = 0.5*(isigma^2)  */
+    __m128d dss = _mm_mul_pd(_mm_mul_pd(isigma, isigma), HALF_u.x);
+    /* css = sigma_min / sigma = sigma_min * isigma  */
+    __m128d ccs = _mm_mul_pd(isigma, SIGMA_MINx2[ss->logn].x);
+
+    int r0, r1;
+    int32_t *s_no;
+    int32_t si_t;
+sampler_next_sse2_2w_start:
+    /* We sample on centre r. */
+    GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bi.d[0], &z_sq.d[0]);
+    GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bi.d[1], &z_sq.d[1]);
+    __m128d x = _mm_sub_pd(_mm_cvtepi32_pd(z_bi.x), r);
+    x = _mm_mul_pd(_mm_mul_pd(x, x), dss);
+    x = _mm_sub_pd(
+        x, _mm_mul_pd(_mm_cvtepi32_pd(z_sq.x), INV_2SQRSIGMA0_u.x));
+    ber_exp_2w(&r0, &r1, ss, x, ccs);
+    if (r0 == 0 && r1 == 0) {
+        goto sampler_next_sse2_2w_start;
+    } else {
+        t0.x = _mm_add_epi32(si.x, z_bi.x);
+        if (r0 == 1 && r1 == 1) {
+            *s0 = t0.d[0];
+            *s1 = t0.d[1];
+            return;
+        }
+        if (r0 == 1) {
+            *s0 = t0.d[0];
+            s_no = s1;
+            si_t = si.d[1];
+            r = _mm_shuffle_pd(r, r, 3);
+            // no need to shuffle dss and css, because their two-way values
+            // ​​are the same.
+        } else {
+            // r1 == 1
+            *s1 = t0.d[1];
+            s_no = s0;
+            si_t = si.d[0];
+            r = _mm_shuffle_pd(r, r, 0);
+        }
+    }
+    for (;;) {
+        int32_t z_bimodal, z_square;
+        GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bimodal, &z_square);
+        x = _mm_sub_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), z_bimodal), r);
+        x = _mm_mul_sd(_mm_mul_sd(x, x), dss);
+        x = _mm_sub_sd(
+            x, _mm_mul_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), z_square),
+                          INV_2SQRSIGMA0_u.x));
+        if (ber_exp(ss, x, ccs)) {
+            *s_no = si_t + z_bimodal;
+            return;
         }
     }
 }
@@ -1211,15 +1373,24 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
              - right sub-tree:  d11_re, zero, d11_re
            t1 split is trivial. */
         __m128d w = _mm_loadu_pd((double *)t1);
-        __m128d w0 = w;
-        __m128d w1 = _mm_shuffle_pd(w, w, 3);
+        // __m128d w0 = w;
+        // __m128d w1 = _mm_shuffle_pd(w, w, 3);
         __m128d leaf =
             _mm_mul_sd(_mm_sqrt_sd(_mm_setzero_pd(), d11_re),
                        _mm_load_sd((const double *)INV_SIGMA + ss->logn));
+#    define SAMPLER_1W 0
+#    if (SAMPLER_1W == 1)
         __m128d y0 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                                     sampler_next_sse2(ss, w0, leaf));
         __m128d y1 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                                     sampler_next_sse2(ss, w1, leaf));
+#    else
+        int32_t s0, s1;
+        sampler_next_sse2_2w(&s0, &s1, ss, w,
+                             _mm_shuffle_pd(leaf, leaf, 0));
+        __m128d y0 = _mm_cvtsi32_sd(_mm_setzero_pd(), s0);
+        __m128d y1 = _mm_cvtsi32_sd(_mm_setzero_pd(), s1);
+#    endif
 
         /* Merge is trivial, since logn = 1. */
 
@@ -1229,6 +1400,7 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
              z1 is [y0, y1]
            Compute tb0 = t0 + (t1 - z1)*l10  (into [x0, x1]).
            z1 is moved into t1. */
+        // TODO: 可优化
         __m128d y = _mm_shuffle_pd(y0, y1, 0);
         __m128d a = _mm_sub_pd(w, y);
         __m128d b1 = _mm_mul_pd(a, _mm_xor_pd(cz, l01));
@@ -1246,10 +1418,17 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
         leaf =
             _mm_mul_sd(_mm_sqrt_sd(_mm_setzero_pd(), d00_re),
                        _mm_load_sd((const double *)INV_SIGMA + ss->logn));
+#    if (SAMPLER_1W == 1)
         x0 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                             sampler_next_sse2(ss, x0, leaf));
         x1 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                             sampler_next_sse2(ss, x1, leaf));
+#    else
+        sampler_next_sse2_2w(&s0, &s1, ss, x,
+                             _mm_shuffle_pd(leaf, leaf, 0));
+        x0 = _mm_cvtsi32_sd(_mm_setzero_pd(), s0);
+        x1 = _mm_cvtsi32_sd(_mm_setzero_pd(), s1);
+#    endif
         _mm_store_sd((double *)t0, x0);
         _mm_store_sd((double *)t0 + 1, x1);
 #elif FNDSA_NEON

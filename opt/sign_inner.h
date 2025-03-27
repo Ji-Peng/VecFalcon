@@ -627,16 +627,16 @@ typedef union {
 #endif
 
 struct sampler_state;
-struct batch_store_gaussian0;
+struct gaussian0_store;
 
-typedef struct batch_store_gaussian0 {
+typedef struct gaussian0_store {
     ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_bimodal;
     ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_square;
     size_t batch_size;
     /** current_pos==batch_size means the store is empty */
     size_t current_pos;
     struct sampler_state *ss;
-} BATCH_STORE_GAUSSIAN0;
+} GAUSSIAN0_STORE;
 
 /* ==================================================================== */
 /*
@@ -656,7 +656,7 @@ typedef struct sampler_state {
     shake_context pc;
 #endif
     unsigned logn;
-    struct batch_store_gaussian0 *gauss_store;
+    struct gaussian0_store *gauss_store;
 } sampler_state;
 
 /* Initialize the sampler for a given degree and seed. */
