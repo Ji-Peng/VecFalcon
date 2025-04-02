@@ -64,3 +64,46 @@ FN-DSA sign:                          970168
 FN-DSA sign_core:                     671762
 FN-DSA verify:                         66018
 
+sampler_next_sse2_2w:
+
+SSE2 version:
+n = 512:
+FN-DSA sign:                          566888
+FN-DSA sign_core:                     397238
+FN-DSA verify:                         75780
+n = 1024:
+FN-DSA sign:                         1153186
+FN-DSA sign_core:                     806888
+FN-DSA verify:                        158032
+
+AVX2 version:
+n = 512:
+FN-DSA sign:                          494274
+FN-DSA sign_core:                     323304
+FN-DSA verify:                         34882
+n = 1024:
+FN-DSA sign:                         1061054
+FN-DSA sign_core:                     662014
+FN-DSA verify:                         65504
+
+Fixed shift count saturation:
+
+SSE2 version:
+n = 512:
+FN-DSA sign:                          577594
+FN-DSA sign_core:                     398004
+FN-DSA verify:                         75636
+n = 1024:
+FN-DSA sign:                         1185710
+FN-DSA sign_core:                     815106
+FN-DSA verify:                        157866
+
+AVX2 version:
+n = 512:
+FN-DSA sign:                          486578
+FN-DSA sign_core:                     326688
+FN-DSA verify:                         34512
+n = 1024:
+FN-DSA sign:                         1031452
+FN-DSA sign_core:                     670758
+FN-DSA verify:                         66024

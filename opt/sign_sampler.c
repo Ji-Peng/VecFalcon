@@ -21,43 +21,6 @@ typedef union {
 /* 1/(2*(1.8205^2)) */
 #define INV_2SQRSIGMA0 FPR(5435486223186882, -55)
 
-/* For logn = 1 to 10, n = 2^logn:
-      q = 12289
-      gs_norm = (117/100)*sqrt(q)
-      bitsec = max(2, n/4)
-      eps = 1/sqrt(bitsec*2^64)
-      smoothz2n = sqrt(log(4*n*(1 + 1/eps))/pi)/sqrt(2*pi)
-      sigma = smoothz2n*gs_norm
-      sigma_min = sigma/gs_norm = smoothz2n
-   We store precomputed values for 1/sigma and for sigma_min, indexed
-   by logn. */
-static const fpr_u INV_SIGMA[] = {
-    {FPR_ZERO},                   /* unused */
-    {FPR(7961475618707097, -60)}, /* 0.0069054793295940881528 */
-    {FPR(7851656902127320, -60)}, /* 0.0068102267767177965681 */
-    {FPR(7746260754658859, -60)}, /* 0.0067188101910722700565 */
-    {FPR(7595833604889141, -60)}, /* 0.0065883354370073655600 */
-    {FPR(7453842886538220, -60)}, /* 0.0064651781207602890978 */
-    {FPR(7319528409832599, -60)}, /* 0.0063486788828078985744 */
-    {FPR(7192222552237877, -60)}, /* 0.0062382586529084365056 */
-    {FPR(7071336252758509, -60)}, /* 0.0061334065020930252290 */
-    {FPR(6956347512113097, -60)}, /* 0.0060336696681577231923 */
-    {FPR(6846791885593314, -60)}  /* 0.0059386453095331150985 */
-};
-static const fpr_u SIGMA_MIN[] = {
-    {FPR_ZERO},                   /* unused */
-    {FPR(5028307297130123, -52)}, /* 1.1165085072329102589 */
-    {FPR(5098636688852518, -52)}, /* 1.1321247692325272406 */
-    {FPR(5168009084304506, -52)}, /* 1.1475285353733668685 */
-    {FPR(5270355833453349, -52)}, /* 1.1702540788534828940 */
-    {FPR(5370752584786614, -52)}, /* 1.1925466358390344011 */
-    {FPR(5469306724145091, -52)}, /* 1.2144300507766139921 */
-    {FPR(5566116128735780, -52)}, /* 1.2359260567719808790 */
-    {FPR(5661270305715104, -52)}, /* 1.2570545284063214163 */
-    {FPR(5754851361258101, -52)}, /* 1.2778336969128335860 */
-    {FPR(5846934829975396, -52)}  /* 1.2982803343442918540 */
-};
-
 /* log(2) */
 #define LOG2 FPR(6243314768165359, -53)
 
@@ -88,7 +51,7 @@ static const fpr_u SIGMA_MIN[] = {
 #endif
 
 #if FNDSA_AVX2 == 1
-static const gauss0_32x8 GAUSS0_AVX2[][3] = {
+const gauss0_32x8 GAUSS0_AVX2[][3] = {
     {U32X8(10745844), U32X8(3068844), U32X8(3741698)},
     {U32X8(5559083), U32X8(1580863), U32X8(8248194)},
     {U32X8(2260429), U32X8(13669192), U32X8(2736639)},
@@ -189,7 +152,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     return 16;
 }
 #elif FNDSA_SSE2 == 1
-static const gauss0_32x4 GAUSS0_SSE2[][3] = {
+const gauss0_32x4 GAUSS0_SSE2[][3] = {
     {U32X4(10745844), U32X4(3068844), U32X4(3741698)},
     {U32X4(5559083), U32X4(1580863), U32X4(8248194)},
     {U32X4(2260429), U32X4(13669192), U32X4(2736639)},
@@ -295,24 +258,24 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     return 16;
 }
 #else
-static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
-                                     {5559083, 1580863, 8248194},
-                                     {2260429, 13669192, 2736639},
-                                     {708981, 4421575, 10046180},
-                                     {169348, 7122675, 4136815},
-                                     {30538, 13063405, 7650655},
-                                     {4132, 14505003, 7826148},
-                                     {417, 16768101, 11363290},
-                                     {31, 8444042, 8086568},
-                                     {1, 12844466, 265321},
-                                     {0, 1232676, 13644283},
-                                     {0, 38047, 9111839},
-                                     {0, 870, 6138264},
-                                     {0, 14, 12545723},
-                                     {0, 0, 3104126},
-                                     {0, 0, 28824},
-                                     {0, 0, 198},
-                                     {0, 0, 1}};
+const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
+                              {5559083, 1580863, 8248194},
+                              {2260429, 13669192, 2736639},
+                              {708981, 4421575, 10046180},
+                              {169348, 7122675, 4136815},
+                              {30538, 13063405, 7650655},
+                              {4132, 14505003, 7826148},
+                              {417, 16768101, 11363290},
+                              {31, 8444042, 8086568},
+                              {1, 12844466, 265321},
+                              {0, 1232676, 13644283},
+                              {0, 38047, 9111839},
+                              {0, 870, 6138264},
+                              {0, 14, 12545723},
+                              {0, 0, 3104126},
+                              {0, 0, 28824},
+                              {0, 0, 198},
+                              {0, 0, 1}};
 
 /**
  * Returns the number of samples.
@@ -442,7 +405,7 @@ TARGET_SSE2
 static inline int64_t mtwop63(__m128d x)
 {
 #    if FNDSA_64
-    static const union {
+    const union {
         fpr f[2];
         __m128d x;
     } twop63 = {{
@@ -455,7 +418,7 @@ static inline int64_t mtwop63(__m128d x)
     /* 32-bit x86 does not have an SSE2 opcode to convert floating-point
        values to 64-bit integers, only 32-bit signed integers. We must
        do the conversion in three steps with factor 2^21. */
-    static const union {
+    const union {
         fpr f[2];
         __m128d x;
     } twop21 = {{
@@ -485,7 +448,7 @@ static inline uint64_t expm_p63(__m128d x, __m128d ccs)
        Specifically, the values are extracted from the implementation
        referenced by the FACCT paper, available at:
           https://github.com/raykzhao/gaussian  */
-    static const uint64_t EXPM_COEFFS[] = {
+    const uint64_t EXPM_COEFFS[] = {
         0x00000004741183A3, 0x00000036548CFC06, 0x0000024FDCBF140A,
         0x0000171D939DE045, 0x0000D00CF58F6F84, 0x000680681CF796E3,
         0x002D82D8305B0FEA, 0x011111110E066FD0, 0x0555555555070F00,
@@ -544,7 +507,7 @@ static inline uint64_t expm_p63(__m128d x, __m128d ccs)
 TARGET_SSE2
 static inline int ber_exp(sampler_state *ss, __m128d x, __m128d ccs)
 {
-    static union {
+    const union {
         fpr f[2];
         __m128d x;
     } LOG2_u = {{LOG2, LOG2}}, INV_LOG2_u = {{INV_LOG2, INV_LOG2}};
@@ -555,8 +518,7 @@ static inline int ber_exp(sampler_state *ss, __m128d x, __m128d ccs)
 
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
-    // if (s >= 64)
-    //     printf(".");
+    s &= 63;
 
     uint64_t z = fpr_ursh((expm_p63(r, ccs) << 1) - 1, s);
 
@@ -574,11 +536,25 @@ TARGET_SSE2
 static int32_t sampler_next_sse2(sampler_state *ss, __m128d mu,
                                  __m128d isigma)
 {
-    static union {
+    const union {
         fpr f[2];
         __m128d x;
     } HALF_u = {{FPR(4503599627370496, -53), FPR(4503599627370496, -53)}},
       INV_2SQRSIGMA0_u = {{INV_2SQRSIGMA0, INV_2SQRSIGMA0}};
+
+    const fpr_u SIGMA_MIN[] = {
+        {FPR_ZERO},                   /* unused */
+        {FPR(5028307297130123, -52)}, /* 1.1165085072329102589 */
+        {FPR(5098636688852518, -52)}, /* 1.1321247692325272406 */
+        {FPR(5168009084304506, -52)}, /* 1.1475285353733668685 */
+        {FPR(5270355833453349, -52)}, /* 1.1702540788534828940 */
+        {FPR(5370752584786614, -52)}, /* 1.1925466358390344011 */
+        {FPR(5469306724145091, -52)}, /* 1.2144300507766139921 */
+        {FPR(5566116128735780, -52)}, /* 1.2359260567719808790 */
+        {FPR(5661270305715104, -52)}, /* 1.2570545284063214163 */
+        {FPR(5754851361258101, -52)}, /* 1.2778336969128335860 */
+        {FPR(5846934829975396, -52)}  /* 1.2982803343442918540 */
+    };
 
     /* Split center mu into s + r, for an integer s, and 0 <= r < 1. */
     int32_t s = _mm_cvttsd_si32(mu);
@@ -613,7 +589,7 @@ static int32_t sampler_next_sse2(sampler_state *ss, __m128d mu,
  */
 static inline void mtwop63_2w(uint64_t *r0, uint64_t *r1, __m128d x)
 {
-    static const union {
+    const union {
         fpr f[2];
         __m128d x;
     } twop63 = {{
@@ -640,7 +616,7 @@ static inline void expm_p63_2w(uint64_t *r0, uint64_t *r1, __m128d x01,
     Specifically, the values are extracted from the implementation
     referenced by the FACCT paper, available at:
     https://github.com/raykzhao/gaussian  */
-    static const uint64_t EXPM_COEFFS[] = {
+    const uint64_t EXPM_COEFFS[] = {
         0x00000004741183A3, 0x00000036548CFC06, 0x0000024FDCBF140A,
         0x0000171D939DE045, 0x0000D00CF58F6F84, 0x000680681CF796E3,
         0x002D82D8305B0FEA, 0x011111110E066FD0, 0x0555555555070F00,
@@ -669,17 +645,17 @@ TARGET_SSE2
 static inline void ber_exp_2w(int *r0, int *r1, sampler_state *ss,
                               __m128d x, __m128d ccs)
 {
-    static const union {
+    const union {
         fpr f[2];
         __m128d x;
     } LOG2_u = {{LOG2, LOG2}}, INV_LOG2_u = {{INV_LOG2, INV_LOG2}};
 
-    static const union {
+    const union {
         uint32_t d[4];
         __m128i x;
-    } CONST_63 = {{63, 0, 63, 0}}, CONST_1 = {{1, 0, 1, 0}};
+    } CONST_63 = {{63, 0, 63, 0}};
 
-    static union {
+    union {
         uint64_t d[2];
         __m128i x;
     } si;
@@ -694,6 +670,7 @@ static inline void ber_exp_2w(int *r0, int *r1, sampler_state *ss,
     __m128i t1 = _mm_sub_epi32(CONST_63.x, si.x);
     t1 = _mm_srli_epi32(t1, 26);
     si.x = _mm_or_si128(si.x, t1);
+    si.x = _mm_and_si128(si.x, CONST_63.x);
 
     expm_p63_2w(&p63_t0, &p63_t1, r, ccs);
     p63_t0 = ((p63_t0 << 1) - 1) >> si.d[0];
@@ -724,18 +701,12 @@ static void sampler_next_sse2_2w(int32_t *s0, int32_t *s1,
                                  sampler_state *ss, __m128d mu,
                                  __m128d isigma)
 {
-    static union {
+    const union {
         fpr f[2];
         __m128d x;
     } HALF_u = {{FPR(4503599627370496, -53), FPR(4503599627370496, -53)}},
       INV_2SQRSIGMA0_u = {{INV_2SQRSIGMA0, INV_2SQRSIGMA0}};
-
-    static union {
-        int32_t d[4];
-        __m128i x;
-    } t0, si, z_bi, z_sq;
-
-    static const union {
+    const union {
         fpr f[2];
         __m128d x;
     } SIGMA_MINx2[] = {
@@ -751,68 +722,62 @@ static void sampler_next_sse2_2w(int32_t *s0, int32_t *s1,
         {FPR(5754851361258101, -52), FPR(5754851361258101, -52)},
         {FPR(5846934829975396, -52), FPR(5846934829975396, -52)},
     };
+    union {
+        int32_t d[4];
+        __m128i x;
+    } si, z_bi, z_sq;
 
     /* Split center mu into s + r, for an integer s, and 0 <= r < 1. */
-    si.x = _mm_cvttpd_epi32(mu);
-    __m128d sd = _mm_cvtepi32_pd(si.x);
-    // compare low double
-    t0.d[0] = _mm_comilt_sd(mu, sd);
-    // compare high double
-    t0.d[1] = _mm_comilt_sd(_mm_shuffle_pd(mu, mu, 3),
-                            _mm_shuffle_pd(sd, sd, 3));
-    si.x = _mm_sub_epi32(si.x, t0.x);
-    __m128d r = _mm_sub_pd(mu, _mm_cvtepi32_pd(si.x));
+    __m128d trunc = _mm_cvtepi32_pd(_mm_cvttpd_epi32(mu));
+    __m128d mask = _mm_cmplt_pd(mu, trunc);
+    mask = _mm_and_pd(mask, _mm_set1_pd(1.0));
+    __m128d floor = _mm_sub_pd(trunc, mask);
+    __m128d r = _mm_sub_pd(mu, floor);
+    si.x = _mm_cvttpd_epi32(floor);
     /* dss = 1/(2*sigma^2) = 0.5*(isigma^2)  */
     __m128d dss = _mm_mul_pd(_mm_mul_pd(isigma, isigma), HALF_u.x);
     /* css = sigma_min / sigma = sigma_min * isigma  */
     __m128d ccs = _mm_mul_pd(isigma, SIGMA_MINx2[ss->logn].x);
 
     int r0, r1;
-    int32_t *s_no;
-    int32_t si_t;
-sampler_next_sse2_2w_start:
-    /* We sample on centre r. */
-    GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bi.d[0], &z_sq.d[0]);
-    GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bi.d[1], &z_sq.d[1]);
-    __m128d x = _mm_sub_pd(_mm_cvtepi32_pd(z_bi.x), r);
-    x = _mm_mul_pd(_mm_mul_pd(x, x), dss);
-    x = _mm_sub_pd(
-        x, _mm_mul_pd(_mm_cvtepi32_pd(z_sq.x), INV_2SQRSIGMA0_u.x));
-    ber_exp_2w(&r0, &r1, ss, x, ccs);
-    if (r0 == 0 && r1 == 0) {
-        goto sampler_next_sse2_2w_start;
-    } else {
-        t0.x = _mm_add_epi32(si.x, z_bi.x);
-        if (r0 == 1 && r1 == 1) {
-            *s0 = t0.d[0];
-            *s1 = t0.d[1];
-            return;
-        }
-        if (r0 == 1) {
-            *s0 = t0.d[0];
-            s_no = s1;
-            si_t = si.d[1];
-            r = _mm_shuffle_pd(r, r, 3);
-            // no need to shuffle dss and css, because their two-way values
-            // ​​are the same.
-        } else {
-            // r1 == 1
-            *s1 = t0.d[1];
-            s_no = s0;
-            si_t = si.d[0];
-            r = _mm_shuffle_pd(r, r, 0);
+    int32_t *s_rem_p;
+    int32_t si_rem;
+    for (;;) {
+        GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bi.d[0], &z_sq.d[0]);
+        GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bi.d[1], &z_sq.d[1]);
+        __m128d x = _mm_sub_pd(_mm_cvtepi32_pd(z_bi.x), r);
+        x = _mm_mul_pd(_mm_mul_pd(x, x), dss);
+        x = _mm_sub_pd(
+            x, _mm_mul_pd(_mm_cvtepi32_pd(z_sq.x), INV_2SQRSIGMA0_u.x));
+        ber_exp_2w(&r0, &r1, ss, x, ccs);
+        if (r0 == 1 || r1 == 1) {
+            *s0 = si.d[0] + z_bi.d[0];
+            *s1 = si.d[1] + z_bi.d[1];
+            if (r0 == 1 && r1 == 1) {
+                return;
+            } else if (r0 == 1) {
+                s_rem_p = s1;
+                si_rem = si.d[1];
+                r = _mm_shuffle_pd(r, r, 3);
+            } else {
+                s_rem_p = s0;
+                si_rem = si.d[0];
+                r = _mm_shuffle_pd(r, r, 0);
+            }
+            break;
         }
     }
     for (;;) {
         int32_t z_bimodal, z_square;
         GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bimodal, &z_square);
-        x = _mm_sub_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), z_bimodal), r);
+        __m128d x =
+            _mm_sub_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), z_bimodal), r);
         x = _mm_mul_sd(_mm_mul_sd(x, x), dss);
         x = _mm_sub_sd(
             x, _mm_mul_sd(_mm_cvtsi32_sd(_mm_setzero_pd(), z_square),
                           INV_2SQRSIGMA0_u.x));
         if (ber_exp(ss, x, ccs)) {
-            *s_no = si_t + z_bimodal;
+            *s_rem_p = si_rem + z_bimodal;
             return;
         }
     }
@@ -835,7 +800,7 @@ int32_t sampler_next(sampler_state *ss, fpr mu, fpr isigma)
 TARGET_NEON
 static inline int64_t mtwop63(float64x1_t x)
 {
-    static const fpr_u twop63 = {FPR(4503599627370496, 11)};
+    const fpr_u twop63 = {FPR(4503599627370496, 11)};
     return vget_lane_s64(vcvt_s64_f64(vmul_f64(x, twop63.v)), 0);
 }
 
@@ -850,7 +815,7 @@ static inline uint64_t expm_p63(float64x1_t x, float64x1_t ccs)
        Specifically, the values are extracted from the implementation
        referenced by the FACCT paper, available at:
           https://github.com/raykzhao/gaussian  */
-    static const uint64_t EXPM_COEFFS[] = {
+    const uint64_t EXPM_COEFFS[] = {
         0x00000004741183A3, 0x00000036548CFC06, 0x0000024FDCBF140A,
         0x0000171D939DE045, 0x0000D00CF58F6F84, 0x000680681CF796E3,
         0x002D82D8305B0FEA, 0x011111110E066FD0, 0x0555555555070F00,
@@ -889,8 +854,8 @@ TARGET_NEON
 static inline int ber_exp(sampler_state *ss, float64x1_t x,
                           float64x1_t ccs)
 {
-    static const fpr_u LOG2_u = {LOG2};
-    static const fpr_u INV_LOG2_u = {INV_LOG2};
+    const fpr_u LOG2_u = {LOG2};
+    const fpr_u INV_LOG2_u = {INV_LOG2};
 
     /* Reduce x modulo log(2): x = s*log(2) + r, with s an integer,
        and 0 <= r < log(2). We can use a truncating conversion because
@@ -910,6 +875,7 @@ static inline int ber_exp(sampler_state *ss, float64x1_t x,
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
@@ -940,8 +906,22 @@ TARGET_NEON
 static int32_t sampler_next_neon(sampler_state *ss, float64x1_t mu,
                                  float64x1_t isigma)
 {
-    static const fpr_u HALF_u = {FPR(4503599627370496, -53)};
-    static const fpr_u INV_2SQRSIGMA0_u = {INV_2SQRSIGMA0};
+    const fpr_u HALF_u = {FPR(4503599627370496, -53)};
+    const fpr_u INV_2SQRSIGMA0_u = {INV_2SQRSIGMA0};
+
+    const fpr_u SIGMA_MIN[] = {
+        {FPR_ZERO},                   /* unused */
+        {FPR(5028307297130123, -52)}, /* 1.1165085072329102589 */
+        {FPR(5098636688852518, -52)}, /* 1.1321247692325272406 */
+        {FPR(5168009084304506, -52)}, /* 1.1475285353733668685 */
+        {FPR(5270355833453349, -52)}, /* 1.1702540788534828940 */
+        {FPR(5370752584786614, -52)}, /* 1.1925466358390344011 */
+        {FPR(5469306724145091, -52)}, /* 1.2144300507766139921 */
+        {FPR(5566116128735780, -52)}, /* 1.2359260567719808790 */
+        {FPR(5661270305715104, -52)}, /* 1.2570545284063214163 */
+        {FPR(5754851361258101, -52)}, /* 1.2778336969128335860 */
+        {FPR(5846934829975396, -52)}  /* 1.2982803343442918540 */
+    };
 
     /* Split center mu into s + r, for an integer s, and 0 <= r < 1. */
     int32_t s = (int32_t)vcvtmd_s64_f64(mu);
@@ -1014,7 +994,7 @@ int32_t sampler_next(sampler_state *ss, fpr mu, fpr isigma)
 TARGET_NEON
 static inline int64_t mtwop63(f64 x)
 {
-    static const fpr_u twop63 = {FPR(4503599627370496, 11)};
+    const fpr_u twop63 = {FPR(4503599627370496, 11)};
     return f64_trunc(f64_mul(x, twop63.v));
 }
 
@@ -1025,7 +1005,7 @@ static inline uint64_t expm_p63(f64 x, f64 ccs)
        Specifically, the values are extracted from the implementation
        referenced by the FACCT paper, available at:
           https://github.com/raykzhao/gaussian  */
-    static const uint64_t EXPM_COEFFS[] = {
+    const uint64_t EXPM_COEFFS[] = {
         0x00000004741183A3, 0x00000036548CFC06, 0x0000024FDCBF140A,
         0x0000171D939DE045, 0x0000D00CF58F6F84, 0x000680681CF796E3,
         0x002D82D8305B0FEA, 0x011111110E066FD0, 0x0555555555070F00,
@@ -1050,8 +1030,8 @@ static inline uint64_t expm_p63(f64 x, f64 ccs)
 /* Sample a bit with probability ccs*exp(-x) (for x >= 0). */
 static inline int ber_exp(sampler_state *ss, f64 x, f64 ccs)
 {
-    static const fpr_u LOG2_u = {LOG2};
-    static const fpr_u INV_LOG2_u = {INV_LOG2};
+    const fpr_u LOG2_u = {LOG2};
+    const fpr_u INV_LOG2_u = {INV_LOG2};
 
     /* Reduce x modulo log(2): x = s*log(2) + r, with s an integer,
        and 0 <= r < log(2). We can use f64_trunc() because x >= 0. */
@@ -1068,6 +1048,7 @@ static inline int ber_exp(sampler_state *ss, f64 x, f64 ccs)
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
@@ -1096,7 +1077,20 @@ static inline int ber_exp(sampler_state *ss, f64 x, f64 ccs)
 
 static int32_t sampler_next_rv64d(sampler_state *ss, f64 mu, f64 isigma)
 {
-    static const fpr_u INV_2SQRSIGMA0_u = {INV_2SQRSIGMA0};
+    const fpr_u INV_2SQRSIGMA0_u = {INV_2SQRSIGMA0};
+    const fpr_u SIGMA_MIN[] = {
+        {FPR_ZERO},                   /* unused */
+        {FPR(5028307297130123, -52)}, /* 1.1165085072329102589 */
+        {FPR(5098636688852518, -52)}, /* 1.1321247692325272406 */
+        {FPR(5168009084304506, -52)}, /* 1.1475285353733668685 */
+        {FPR(5270355833453349, -52)}, /* 1.1702540788534828940 */
+        {FPR(5370752584786614, -52)}, /* 1.1925466358390344011 */
+        {FPR(5469306724145091, -52)}, /* 1.2144300507766139921 */
+        {FPR(5566116128735780, -52)}, /* 1.2359260567719808790 */
+        {FPR(5661270305715104, -52)}, /* 1.2570545284063214163 */
+        {FPR(5754851361258101, -52)}, /* 1.2778336969128335860 */
+        {FPR(5846934829975396, -52)}  /* 1.2982803343442918540 */
+    };
 
     /* Split center mu into s + r, for an integer s, and 0 <= r < 1. */
     int64_t s = f64_floor(mu);
@@ -1167,7 +1161,7 @@ static inline uint64_t expm_p63(fpr x, fpr ccs)
        Specifically, the values are extracted from the implementation
        referenced by the FACCT paper, available at:
           https://github.com/raykzhao/gaussian  */
-    static const uint64_t EXPM_COEFFS[] = {
+    const uint64_t EXPM_COEFFS[] = {
         0x00000004741183A3, 0x00000036548CFC06, 0x0000024FDCBF140A,
         0x0000171D939DE045, 0x0000D00CF58F6F84, 0x000680681CF796E3,
         0x002D82D8305B0FEA, 0x011111110E066FD0, 0x0555555555070F00,
@@ -1253,6 +1247,7 @@ static inline int ber_exp(sampler_state *ss, fpr x, fpr ccs)
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
@@ -1282,6 +1277,20 @@ static inline int ber_exp(sampler_state *ss, fpr x, fpr ccs)
 /* see sign_inner.h */
 int32_t sampler_next(sampler_state *ss, fpr mu, fpr isigma)
 {
+    const fpr_u SIGMA_MIN[] = {
+        {FPR_ZERO},                   /* unused */
+        {FPR(5028307297130123, -52)}, /* 1.1165085072329102589 */
+        {FPR(5098636688852518, -52)}, /* 1.1321247692325272406 */
+        {FPR(5168009084304506, -52)}, /* 1.1475285353733668685 */
+        {FPR(5270355833453349, -52)}, /* 1.1702540788534828940 */
+        {FPR(5370752584786614, -52)}, /* 1.1925466358390344011 */
+        {FPR(5469306724145091, -52)}, /* 1.2144300507766139921 */
+        {FPR(5566116128735780, -52)}, /* 1.2359260567719808790 */
+        {FPR(5661270305715104, -52)}, /* 1.2570545284063214163 */
+        {FPR(5754851361258101, -52)}, /* 1.2778336969128335860 */
+        {FPR(5846934829975396, -52)}  /* 1.2982803343442918540 */
+    };
+
     /* Split center mu into s + r, for an integer s, and 0 <= r < 1. */
     int64_t s = fpr_floor(mu);
     fpr r = fpr_sub(mu, fpr_of(s));
@@ -1341,10 +1350,23 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
                                                      fpr *g00, fpr *g01,
                                                      fpr *g11, fpr *tmp)
 {
+    const fpr_u INV_SIGMA[] = {
+        {FPR_ZERO},                   /* unused */
+        {FPR(7961475618707097, -60)}, /* 0.0069054793295940881528 */
+        {FPR(7851656902127320, -60)}, /* 0.0068102267767177965681 */
+        {FPR(7746260754658859, -60)}, /* 0.0067188101910722700565 */
+        {FPR(7595833604889141, -60)}, /* 0.0065883354370073655600 */
+        {FPR(7453842886538220, -60)}, /* 0.0064651781207602890978 */
+        {FPR(7319528409832599, -60)}, /* 0.0063486788828078985744 */
+        {FPR(7192222552237877, -60)}, /* 0.0062382586529084365056 */
+        {FPR(7071336252758509, -60)}, /* 0.0061334065020930252290 */
+        {FPR(6956347512113097, -60)}, /* 0.0060336696681577231923 */
+        {FPR(6846791885593314, -60)}  /* 0.0059386453095331150985 */
+    };
     /* When logn = 1, arrays have length 2; we unroll the last steps. */
     if (logn == 1) {
 #if FNDSA_SSE2
-        static const union {
+        const union {
             fpr f[2];
             __m128d x;
         } one_u = {{FPR_ONE, FPR_ONE}};
@@ -1373,23 +1395,26 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
              - right sub-tree:  d11_re, zero, d11_re
            t1 split is trivial. */
         __m128d w = _mm_loadu_pd((double *)t1);
-        // __m128d w0 = w;
-        // __m128d w1 = _mm_shuffle_pd(w, w, 3);
         __m128d leaf =
             _mm_mul_sd(_mm_sqrt_sd(_mm_setzero_pd(), d11_re),
                        _mm_load_sd((const double *)INV_SIGMA + ss->logn));
 #    define SAMPLER_1W 0
 #    if (SAMPLER_1W == 1)
+        __m128d w0 = w;
+        __m128d w1 = _mm_shuffle_pd(w, w, 3);
         __m128d y0 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                                     sampler_next_sse2(ss, w0, leaf));
         __m128d y1 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                                     sampler_next_sse2(ss, w1, leaf));
+        __m128d y = _mm_shuffle_pd(y0, y1, 0);
 #    else
-        int32_t s0, s1;
-        sampler_next_sse2_2w(&s0, &s1, ss, w,
+        union {
+            int32_t d[4];
+            __m128i x;
+        } s32x4;
+        sampler_next_sse2_2w(&s32x4.d[0], &s32x4.d[1], ss, w,
                              _mm_shuffle_pd(leaf, leaf, 0));
-        __m128d y0 = _mm_cvtsi32_sd(_mm_setzero_pd(), s0);
-        __m128d y1 = _mm_cvtsi32_sd(_mm_setzero_pd(), s1);
+        __m128d y = _mm_cvtepi32_pd(s32x4.x);
 #    endif
 
         /* Merge is trivial, since logn = 1. */
@@ -1400,8 +1425,6 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
              z1 is [y0, y1]
            Compute tb0 = t0 + (t1 - z1)*l10  (into [x0, x1]).
            z1 is moved into t1. */
-        // TODO: 可优化
-        __m128d y = _mm_shuffle_pd(y0, y1, 0);
         __m128d a = _mm_sub_pd(w, y);
         __m128d b1 = _mm_mul_pd(a, _mm_xor_pd(cz, l01));
         __m128d b2 = _mm_mul_pd(a, _mm_shuffle_pd(l01, l01, 1));
@@ -1413,27 +1436,28 @@ TARGET_SSE2 TARGET_NEON static void ffsamp_fft_inner(sampler_state *ss,
         /* Second recursive invocation, on the split tb0, using
            the left sub-tree. tb0 is [x0, x1], and the split is
            trivial since logn = 1. */
+#    if (SAMPLER_1W == 1)
         __m128d x0 = x;
         __m128d x1 = _mm_shuffle_pd(x, x, 3);
         leaf =
             _mm_mul_sd(_mm_sqrt_sd(_mm_setzero_pd(), d00_re),
                        _mm_load_sd((const double *)INV_SIGMA + ss->logn));
-#    if (SAMPLER_1W == 1)
         x0 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                             sampler_next_sse2(ss, x0, leaf));
         x1 = _mm_cvtsi32_sd(_mm_setzero_pd(),
                             sampler_next_sse2(ss, x1, leaf));
-#    else
-        sampler_next_sse2_2w(&s0, &s1, ss, x,
-                             _mm_shuffle_pd(leaf, leaf, 0));
-        x0 = _mm_cvtsi32_sd(_mm_setzero_pd(), s0);
-        x1 = _mm_cvtsi32_sd(_mm_setzero_pd(), s1);
-#    endif
         _mm_store_sd((double *)t0, x0);
         _mm_store_sd((double *)t0 + 1, x1);
+#    else
+        sampler_next_sse2_2w(&s32x4.d[0], &s32x4.d[1], ss, x,
+                             _mm_shuffle_pd(leaf, leaf, 0));
+        x = _mm_cvtepi32_pd(s32x4.x);
+        _mm_store_pd((double *)t0, x);
+#    endif
+
 #elif FNDSA_NEON
-        static const fpr_u one_u = {FPR_ONE};
-        static const union {
+        const fpr_u one_u = {FPR_ONE};
+        const union {
             fpr f[2];
             float64x2_t x;
         } cz = {{FPR_ZERO, FPR_NZERO}};

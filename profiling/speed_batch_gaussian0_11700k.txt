@@ -1,3 +1,5 @@
+We work on SHAKE256X4 variant.
+
 batch_gaussian0_ref with SHAKE256X4-AVX2 and gaussian0_ref:
 gaussian0                      cycles/insts/CPI/1-wayCC=1748/8032/0.22/109
 GAUSSIAN0_STORE_get_next cycles/insts/CPI=122/509/0.24

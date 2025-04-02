@@ -343,12 +343,13 @@ static void ber_exp_2w_z(uint64_t *z0, uint64_t *z1, __m128d x,
     static const union {
         uint32_t d[4];
         __m128i x;
-    } CONST_63 = {{63, 0, 63, 0}}, CONST_1 = {{1, 0, 1, 0}};
+    } CONST_63 = {{63, 0, 63, 0}};
 
     static union {
         uint64_t d[2];
         __m128i x;
-    } t0, si;
+    } si;
+    uint64_t p63_t0, p63_t1;
 
     /** _mm_cvttpd_epi32 does not affect the upper 64 bits */
     si.x = _mm_setzero_si128();
@@ -360,13 +361,9 @@ static void ber_exp_2w_z(uint64_t *z0, uint64_t *z1, __m128d x,
     t1 = _mm_srli_epi32(t1, 26);
     si.x = _mm_or_si128(si.x, t1);
 
-    expm_p63_2w(&t0.d[0], &t0.d[1], r, ccs);
-    t0.x = _mm_slli_epi64(t0.x, 1);
-    t0.x = _mm_sub_epi64(t0.x, CONST_1.x);
-    t0.d[0] >>= si.d[0];
-    t0.d[1] >>= si.d[1];
-    *z0 = t0.d[0];
-    *z1 = t0.d[1];
+    expm_p63_2w(&p63_t0, &p63_t1, r, ccs);
+    *z0 = ((p63_t0 << 1) - 1) >> si.d[0];
+    *z1 = ((p63_t1 << 1) - 1) >> si.d[1];
 }
 
 #define WARMUP_N 1000
@@ -396,6 +393,23 @@ void speed_expm_p63()
     PERF_N(expm_p63_4w(&r0, &r1, &r2, &r3, x01, ccs01, x23, ccs23),
            expm_p63_4w, , WARMUP_N, TESTS_N, 4);
     r = r + r0 + r1 + r2 + r3;
+}
+
+void speed_ber_exp_z()
+{
+    __m128d x, ccs;
+    uint64_t z0, z1;
+    volatile uint64_t z;
+
+    x = _mm_set1_pd(0.4931471805599453);
+    ccs = _mm_set1_pd(0.5931471805599453);
+
+    init_perf_counters();
+    PERF(ber_exp_z(&z0, x, ccs), ber_exp_z, , WARMUP_N, TESTS_N);
+    PERF_N(ber_exp_2w_z(&z0, &z1, x, ccs), ber_exp_2w_z, , WARMUP_N,
+           TESTS_N, 2);
+
+    z = z0 + z1;
 }
 
 #include <stdio.h>
@@ -682,7 +696,7 @@ void test_corr_sampler_next_sse2()
 
     for (int i = 0; i < 1; i++) {
         random_num = ((double)rand() / RAND_MAX) * 100.0 - 50.0;
-        mu = _mm_set1_pd(random_num);
+        mu = _mm_set1_pd(-1.3);
         random_num = (double)rand() / RAND_MAX;
         isigma = _mm_set1_pd(random_num);
         sampler_next_sse2_ref(mu, isigma);
@@ -697,7 +711,8 @@ int main()
     // speed_expm_p63();
     // test_sampler_next_sse2();
     // test_expm_p63();
-    // test_corr_sampler_next_sse2();
-    test_ber_exp();
+    test_corr_sampler_next_sse2();
+    // test_ber_exp();
+    // speed_ber_exp_z();
     return 0;
 }

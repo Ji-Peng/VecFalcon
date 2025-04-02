@@ -275,6 +275,7 @@ static inline int ber_exp(sampler_state *ss, __m128d x, __m128d ccs)
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
@@ -460,6 +461,7 @@ static inline int ber_exp(sampler_state *ss, float64x1_t x,
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
@@ -618,6 +620,7 @@ static inline int ber_exp(sampler_state *ss, f64 x, f64 ccs)
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
@@ -803,6 +806,7 @@ static inline int ber_exp(sampler_state *ss, fpr x, fpr ccs)
        same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
+    s &= 63;
 
     /* Compute ccs*exp(-x). Since x = s*log(2) + r, we compute
        ccs*exp(-r)/2^s. We know that 0 <= r < log(2), so we can
