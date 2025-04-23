@@ -257,6 +257,123 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     return 16;
 }
+#elif RV64 == 1 && RVV == 1 && RVV_VLEN256 == 1
+extern void gaussian0_rvv_bisq(int32_t *z_bimodal, int32_t *z_square,
+                               uint32_t *prn, uint32_t *bs, size_t n);
+#    if BATCH_GAUSSIAN0_SIZE % 64 == 0
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    ALIGNED_INT32(64) b_64bs;
+    prn_24x3_8w prn[8];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+
+    for (int j = 0; j < 8; j++)
+        for (int i = 0; i < 8; i++) {
+            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
+        }
+    uint64_t b_64b = prng_next_u64(&ss->pc);
+    for (int i = 0; i < 64; i += 2) {
+        b_64bs.coeffs[i] = (b_64b >> i) & 1;
+        b_64bs.coeffs[i + 1] = (b_64b >> (i + 1)) & 1;
+    }
+    gaussian0_rvv_bisq(z_bimodal, z_square, &prn[0].u32[0][0],
+                       b_64bs.coeffs, 8);
+    return 64;
+}
+#    else
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    ALIGNED_INT32(16) b_16bs;
+    prn_24x3_8w prn[2];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 8; i++) {
+            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
+        }
+    uint16_t b_16b = prng_next_u16(&ss->pc);
+    for (int i = 0; i < 16; i += 2) {
+        b_16bs.coeffs[i] = (b_16b >> i) & 1;
+        b_16bs.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+    }
+    gaussian0_rvv_bisq(z_bimodal, z_square, &prn[0].u32[0][0],
+                       b_16bs.coeffs, 2);
+    return 16;
+}
+#    endif
+#elif FNDSA_RV64D == 1
+extern void gaussian0_rv64im_nw(int32_t *r, uint64_t *prn, size_t n_way);
+#    if BATCH_GAUSSIAN0_SIZE % 64 == 0
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    uint64_t prn[64][2];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+    int32_t z[64];
+
+    for (int j = 0; j < 64; j++) {
+        prn[j][0] = prng_next_u64(&ss->pc);
+        prn[j][1] = prng_next_u8(&ss->pc);
+    }
+    gaussian0_rv64im_nw(z, &prn[0][0], 64);
+    uint64_t b_64b = prng_next_u64(&ss->pc);
+    for (size_t j = 0; j < 64; j += 2) {
+        int32_t b0 = (b_64b >> j) & 1;
+        int32_t b1 = (b_64b >> (j + 1)) & 1;
+        int32_t m0 = (b0 << 1);
+        int32_t m1 = (b1 << 1);
+        m0 = m0 - 1;
+        m1 = m1 - 1;
+        m0 = m0 * z[j];
+        m1 = m1 * z[j + 1];
+        _z_bi[j] = b0 + m0;
+        _z_bi[j + 1] = b1 + m1;
+        _z_sq[j] = z[j] * z[j];
+        _z_sq[j + 1] = z[j + 1] * z[j + 1];
+    }
+    return 64;
+}
+#    else
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    uint64_t prn[16][2];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+    int32_t z[16];
+
+    for (int j = 0; j < 16; j++) {
+        prn[j][0] = prng_next_u64(&ss->pc);
+        prn[j][1] = prng_next_u8(&ss->pc);
+    }
+    gaussian0_rv64im_nw(z, &prn[0][0], 16);
+    uint16_t b_16b = prng_next_u16(&ss->pc);
+    for (size_t j = 0; j < 16; j += 2) {
+        int32_t b0 = (b_16b >> j) & 1;
+        int32_t b1 = (b_16b >> (j + 1)) & 1;
+        int32_t m0 = (b0 << 1);
+        int32_t m1 = (b1 << 1);
+        m0 = m0 - 1;
+        m1 = m1 - 1;
+        m0 = m0 * z[j];
+        m1 = m1 * z[j + 1];
+        _z_bi[j] = b0 + m0;
+        _z_bi[j + 1] = b1 + m1;
+        _z_sq[j] = z[j] * z[j];
+        _z_sq[j + 1] = z[j + 1] * z[j + 1];
+    }
+    return 16;
+}
+#    endif
 #else
 const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
                               {5559083, 1580863, 8248194},
@@ -986,7 +1103,8 @@ int32_t sampler_next(sampler_state *ss, fpr mu, fpr isigma)
 }
 
 #elif FNDSA_RV64D
-/* ========================= RISC-V IMPLEMENTATION =======================
+/* ========================= RISC-V IMPLEMENTATION
+ * =======================
  */
 
 /* Input: 0 <= x < log(2)
@@ -1042,10 +1160,10 @@ static inline int ber_exp(sampler_state *ss, f64 x, f64 ccs)
        if the half-Gaussian produced z >= 13, which happens with
        probability about 2^(-32). When s >= 64, ber_exp() will return
        true with probability less than 2^(-64), so we can simply
-       saturate s at 63 (the bias introduced here is lower than 2^(-96),
-       and would require about 2^192 samplings to be detectable, which
-       is way beyond the formal bound of 2^64 signatures with the
-       same key. */
+       saturate s at 63 (the bias introduced here is lower than
+       2^(-96), and would require about 2^192 samplings to be
+       detectable, which is way beyond the formal bound of 2^64
+       signatures with the same key. */
     uint32_t s = (uint32_t)si;
     s |= (uint32_t)(63 - s) >> 26;
     s &= 63;
@@ -1061,10 +1179,10 @@ static inline int ber_exp(sampler_state *ss, f64 x, f64 ccs)
        since expm_p63() has precision only 51 bits or so. */
     uint64_t z = fpr_ursh((expm_p63(r, ccs) << 1) - 1, s);
 
-    /* Sample a bit. We lazily compare the value z with a uniform 64-bit
-       integer, consuming only as many bytes as necessary. Since the PRNG
-       is cryptographically strong, we leak no information from the
-       conditional jumps below. */
+    /* Sample a bit. We lazily compare the value z with a uniform
+       64-bit integer, consuming only as many bytes as necessary. Since
+       the PRNG is cryptographically strong, we leak no information
+       from the conditional jumps below. */
     for (int i = 56; i >= 0; i -= 8) {
         unsigned w = prng_next_u8(&ss->pc);
         unsigned bz = (unsigned)(z >> i) & 0xFF;
@@ -1104,42 +1222,12 @@ static int32_t sampler_next_rv64d(sampler_state *ss, f64 mu, f64 isigma)
 
     /* We sample on centre r. */
     for (;;) {
-        /* Sample z for a Gaussian distribution (non-negative only),
-           then get a random bit b to turn the sampling into a
-           bimodal distribution (we use z+1 if b = 1, or -z
-           otherwise). */
-        int32_t z0 = gaussian0(ss);
-        int32_t b = prng_next_u8(&ss->pc) & 1;
-        int32_t z = b + ((b << 1) - 1) * z0;
-
-        /* Rejection sampling. We want a Gaussian centred on r,
-           but we sampled against a bimodal distribution (with
-           "centres" at 0 and 1). However, we know that z is
-           always in the range where our sampling distribution is
-           greater than the Gaussian distribution, so rejection works.
-
-           We got z from distribution:
-              G(z) = exp(-((z-b)^2)/(2*sigma0^2))
-           We target distribution:
-              S(z) = exp(-((z-r)^2)/(2*signa^2))
-           Rejection sampling works by keeping the value z with
-           probability S(z)/G(z), and starting again otherwise.
-           This requires S(z) <= G(z), which is the case here.
-           Thus, we simply need to keep our z with probability:
-              P = exp(-x)
-           where:
-              x = ((z-r)^2)/(2*sigma^2) - ((z-b)^2)/(2*sigma0^2)
-           Here, we scale up the Bernouilli distribution, which
-           makes rejection more probable, but also makes the
-           rejection rate sufficiently decorrelated from the Gaussian
-           centre and standard deviation, so that measurement of the
-           rejection rate does not leak enough usable information
-           to attackers (which is how the implementation can claim
-           to be "constant-time").  */
-        f64 x = f64_mul(f64_sqr(f64_sub(f64_of(z), r)), dss);
-        x = f64_sub(x, f64_mul(f64_of(z0 * z0), INV_2SQRSIGMA0_u.v));
+        int32_t z_bimodal, z_square;
+        GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bimodal, &z_square);
+        f64 x = f64_mul(f64_sqr(f64_sub(f64_of(z_bimodal), r)), dss);
+        x = f64_sub(x, f64_mul(f64_of(z_square), INV_2SQRSIGMA0_u.v));
         if (ber_exp(ss, x, ccs)) {
-            return (int32_t)s + z;
+            return (int32_t)s + z_bimodal;
         }
     }
 }

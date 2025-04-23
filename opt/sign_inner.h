@@ -610,6 +610,16 @@ typedef union {
             int32_t coeffs[N];        \
             __m128i vec[(N + 3) / 4]; \
         }
+#elif RV64 == 1 && RVV == 1 && RVV_VLEN256 == 1
+typedef union {
+    uint32_t u32[3][8] __attribute__((aligned(32)));
+} prn_24x3_8w;
+
+#    define ALIGNED_INT32(N)                                \
+        union {                                             \
+            int32_t coeffs[N] __attribute__((aligned(32))); \
+        }
+
 #else
 #    define ALIGNED_INT32(N)   \
         union {                \
@@ -624,6 +634,10 @@ typedef union {
  */
 #ifndef BATCH_GAUSSIAN0_SIZE
 #    define BATCH_GAUSSIAN0_SIZE (8 * 16)
+#endif
+
+#if BATCH_GAUSSIAN0_SIZE % 16 != 0
+#    error "BATCH_GAUSSIAN0_SIZE must be a multiple of 16"
 #endif
 
 struct sampler_state;
