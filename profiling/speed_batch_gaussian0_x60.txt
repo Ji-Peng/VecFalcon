@@ -1,0 +1,29 @@
+perf stat ./out/gaussian0_rv64
+Including prng_next_* subroutines
+gaussian0_ref                  cycles/insts/CPI=352/566/0.62
+gaussian0_1w                   cycles/insts/CPI=284/187/1.52
+gaussian0_16w                  cycles/insts/CPI/1-wayCC=3228/2901/1.11/201
+gaussian0_16w_rvv              cycles/insts/CPI/1-wayCC=3133/2413/1.30/195
+gaussian0_16w_bisq_rvv         cycles/insts/CPI/1-wayCC=3006/2489/1.21/187
+
+Excluding prng_next_* subroutines and bimodal/square calculations
+gaussian0_rv64im               cycles/insts/CPI=76/0/inf
+gaussian0_rv64im_16w           cycles/insts/CPI/1-wayCC=487/491/0.99/30
+gaussian0_rvv                  cycles/insts/CPI/1-wayCC=2039/727/2.80/15
+
+Excluding prng_next_* subroutines; including bimodal/square calculations
+gaussian0_ref_core             cycles/insts/CPI=109/131/0.83
+gaussian0_16w_core             cycles/insts/CPI/1-wayCC=602/561/1.07/37
+gaussian0_64w_core             cycles/insts/CPI/1-wayCC=2336/2075/1.13/36
+gaussian0_16w_rvv_core         cycles/insts/CPI/1-wayCC=307/141/2.18/19
+gaussian0_64w_rvv_core         cycles/insts/CPI/1-wayCC=1093/406/2.69/17
+
+Some optimization ideas:
+gaussian0_rvv_64b_p0_x2        cycles/insts/CPI/1-wayCC=1507/226/6.65/753
+gaussian0_rvv_64b_p0_x3        cycles/insts/CPI/1-wayCC=2273/374/6.07/757
+gaussian0_rvv_64b_p1_x3        cycles/insts/CPI/1-wayCC=2503/525/4.77/834
+gaussian0_rvv_64b_p1_x3_v2     cycles/insts/CPI/1-wayCC=1372/478/2.87/457
+gaussian0_rvv_24b_p0_x2        cycles/insts/CPI/1-wayCC=2118/347/6.10/1059
+gaussian0_rvv_24b_p0_x3        cycles/insts/CPI/1-wayCC=3377/541/6.23/1125
+gaussian0_rvv_24b_p1_x3        cycles/insts/CPI/1-wayCC=2749/741/3.71/916
+gaussian0_rvv_24b_p1_x3_v2     cycles/insts/CPI/1-wayCC=1941/742/2.61/647

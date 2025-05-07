@@ -125,8 +125,8 @@ void gaussian0_ref(sampler_state *ss, int32_t *z_bimodal,
 void gaussian0_ref_16w(sampler_state *ss, int32_t *z_bimodal,
                        int32_t *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
     int32_t z[16] = {0};
 
     for (size_t j = 0; j < 16; j++) {
@@ -147,8 +147,8 @@ void gaussian0_ref_16w(sampler_state *ss, int32_t *z_bimodal,
     uint16_t b_16b = prng_next_u16(&ss->pc);
     for (size_t j = 0; j < 16; j++) {
         int32_t b = (b_16b >> j) & 1;
-        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
-        *(_z_square + j) = z[j] * z[j];
+        *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_sq + j) = z[j] * z[j];
     }
 }
 
@@ -156,8 +156,8 @@ void gaussian0_ref_16w(sampler_state *ss, int32_t *z_bimodal,
 void gaussian0_ref_16w_u24(sampler_state *ss, int32_t *z_bimodal,
                            int32_t *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
     int32_t z[16] = {0};
 
     for (size_t j = 0; j < 16; j++) {
@@ -176,8 +176,8 @@ void gaussian0_ref_16w_u24(sampler_state *ss, int32_t *z_bimodal,
     uint16_t b_16b = prng_next_u16(&ss->pc);
     for (size_t j = 0; j < 16; j++) {
         int32_t b = (b_16b >> j) & 1;
-        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
-        *(_z_square + j) = z[j] * z[j];
+        *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_sq + j) = z[j] * z[j];
     }
 }
 
@@ -185,8 +185,8 @@ void gaussian0_ref_16w_u24(sampler_state *ss, int32_t *z_bimodal,
 void gaussian0_ref_64w(sampler_state *ss, int32_t *z_bimodal,
                        int32_t *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
     int32_t z[64] = {0};
 
     for (size_t j = 0; j < 64; j++) {
@@ -207,8 +207,8 @@ void gaussian0_ref_64w(sampler_state *ss, int32_t *z_bimodal,
     uint64_t b_64b = prng_next_u64(&ss->pc);
     for (size_t j = 0; j < 64; j++) {
         int32_t b = (b_64b >> j) & 1;
-        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
-        *(_z_square + j) = z[j] * z[j];
+        *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_sq + j) = z[j] * z[j];
     }
 }
 
@@ -384,7 +384,7 @@ void gaussian0_16w_bisq_rvv(sampler_state *ss, int32_t *z_bimodal,
         b_16bs[i] = (b_16b >> i) & 1;
         b_16bs[i + 1] = (b_16b >> (i + 1)) & 1;
     }
-    gaussian0_rvv_bisq(z_bimodal, z_square, &prn[0].u32[0][0], b_16bs, 2);
+    gaussian0_rvv_bisq(_z_bi, _z_sq, &prn[0].u32[0][0], b_16bs, 2);
 }
 
 /**
@@ -399,10 +399,10 @@ void gaussian0_nw_core(int32_t *z_bimodal, int32_t *z_square, size_t n)
 
     gaussian0_rv64im_nw(&z[0], (int64_t *)z_bimodal, n);
 
-    uint16_t b_16b = z[0];
+    uint64_t b_64b = (uint64_t)z[0] << 32 + z[0];
     for (size_t j = 0; j < n; j += 2) {
-        int32_t b0 = (b_16b >> j) & 1;
-        int32_t b1 = (b_16b >> (j + 1)) & 1;
+        int32_t b0 = (b_64b >> j) & 1;
+        int32_t b1 = (b_64b >> (j + 1)) & 1;
         int32_t m0 = (b0 << 1);
         int32_t m1 = (b1 << 1);
         m0 = m0 - 1;
@@ -414,6 +414,19 @@ void gaussian0_nw_core(int32_t *z_bimodal, int32_t *z_square, size_t n)
         _z_sq[j] = z[j] * z[j];
         _z_sq[j + 1] = z[j + 1] * z[j + 1];
     }
+}
+
+/**
+ * Only used to test the performance of core calculations, excluding the
+ * overhead caused by obtaining random numbers.
+ */
+void gaussian0_nw_rvv_core(int32_t *z_bimodal, int32_t *z_square, size_t n)
+{
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
+    uint32_t t[128] __attribute__((aligned(32)));
+
+    gaussian0_rvv_bisq(_z_bi, _z_sq, t, t, n >> 3);
 }
 
 #define WARMUP_N 1000
@@ -584,6 +597,12 @@ void speed_gaussian0()
     PERF_N(gaussian0_nw_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 64),
            gaussian0_64w_core, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
            TESTS_N, 64);
+    PERF_N(gaussian0_nw_rvv_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 16),
+           gaussian0_16w_rvv_core, sampler_init(&ss0, 9, seed, 32),
+           WARMUP_N, TESTS_N, 16);
+    PERF_N(gaussian0_nw_rvv_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 64),
+           gaussian0_64w_rvv_core, sampler_init(&ss0, 9, seed, 32),
+           WARMUP_N, TESTS_N, 64);
 
     printf("\nSome optimization ideas:\n");
     init_vector_e64();

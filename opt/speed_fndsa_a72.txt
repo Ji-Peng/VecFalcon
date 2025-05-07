@@ -1,0 +1,11 @@
+We work on the SHAKE256X4 variant.
+
+NEON version:
+n = 512:
+FN-DSA sign:                         1385982
+FN-DSA sign_core:                    1136547
+FN-DSA verify:                        133180
+n = 1024:
+FN-DSA sign:                         2864408
+FN-DSA sign_core:                    2355889
+FN-DSA verify:                        275814

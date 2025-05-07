@@ -253,8 +253,8 @@ void gaussian0_ref(sampler_state *ss, int32_t *z_bimodal,
  */
 void gaussian0_ref_u24(sampler_state *ss, void *z_bimodal, void *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
     /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
     uint32_t v0 = prng_next_u24(&ss->pc);
     uint32_t v1 = prng_next_u24(&ss->pc);
@@ -272,16 +272,16 @@ void gaussian0_ref_u24(sampler_state *ss, void *z_bimodal, void *z_square)
     }
     // Get a random bit b to turn the sampling into a bimodal distribution.
     int32_t b = prng_next_u8(&ss->pc) & 1;
-    *_z_bimodal = b + ((b << 1) - 1) * z;
-    *_z_square = z * z;
+    *_z_bi = b + ((b << 1) - 1) * z;
+    *_z_sq = z * z;
 }
 
 // used for test correctness of gaussian0_sse2_8w
 void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
                           void *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
 
     int32_t z[8] = {0};
     for (size_t j = 0; j < 8; j++) {
@@ -304,8 +304,8 @@ void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
         // Get a random bit b to turn the sampling into a bimodal
         // distribution.
         int32_t b = prng_next_u8(&ss->pc) & 1;
-        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
-        *(_z_square + j) = z[j] * z[j];
+        *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_sq + j) = z[j] * z[j];
     }
 }
 
@@ -313,8 +313,8 @@ void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
 void gaussian0_ref_u24_16w(sampler_state *ss, void *z_bimodal,
                            void *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
 
     int32_t z[16] = {0};
     for (size_t j = 0; j < 16; j++) {
@@ -337,8 +337,8 @@ void gaussian0_ref_u24_16w(sampler_state *ss, void *z_bimodal,
         // Get a random bit b to turn the sampling into a bimodal
         // distribution.
         int32_t b = prng_next_u8(&ss->pc) & 1;
-        *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
-        *(_z_square + j) = z[j] * z[j];
+        *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
+        *(_z_sq + j) = z[j] * z[j];
     }
 }
 
@@ -356,8 +356,8 @@ typedef union {
 void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[1];
-    __m256i *_z_bimodal = (__m256i *)z_bimodal;
-    __m256i *_z_square = (__m256i *)z_square;
+    __m256i *_z_bi = (__m256i *)z_bimodal;
+    __m256i *_z_sq = (__m256i *)z_square;
 
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int i = 0; i < 8; i++) {
@@ -400,19 +400,19 @@ void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
     t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
     t2 = _mm256_mullo_epi32(t1, z0);
     t2 = _mm256_add_epi32(t2, t0);
-    _mm256_store_si256(_z_bimodal, t2);
+    _mm256_store_si256(_z_bi, t2);
     /**
      * Each sample is in the range [0,18], so we can use the 16-bit
      * multiplication instruction.
      */
-    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_sq, _mm256_mullo_epi16(z0, z0));
 }
 
 void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[2];
-    __m256i *_z_bimodal = (__m256i *)z_bimodal;
-    __m256i *_z_square = (__m256i *)z_square;
+    __m256i *_z_bi = (__m256i *)z_bimodal;
+    __m256i *_z_sq = (__m256i *)z_square;
 
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
@@ -470,14 +470,14 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
     t5 = _mm256_mullo_epi32(t4, z1);
     t2 = _mm256_add_epi32(t2, t0);
     t5 = _mm256_add_epi32(t5, t3);
-    _mm256_store_si256(_z_bimodal, t2);
-    _mm256_store_si256(_z_bimodal + 1, t5);
+    _mm256_store_si256(_z_bi, t2);
+    _mm256_store_si256(_z_bi + 1, t5);
     /**
      * Each sample is in the range [0,18], so we can use the 16-bit
      * multiplication instruction.
      */
-    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
-    _mm256_store_si256(_z_square + 1, _mm256_mullo_epi16(z1, z1));
+    _mm256_store_si256(_z_sq, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_sq + 1, _mm256_mullo_epi16(z1, z1));
 }
 
 #define SAMPLES_N (8 * (1 << 5))

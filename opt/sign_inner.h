@@ -620,6 +620,16 @@ typedef union {
             int32_t coeffs[N] __attribute__((aligned(32))); \
         }
 
+#elif FNDSA_NEON == 1
+typedef union {
+    uint32_t u32[3][4] __attribute__((aligned(16)));
+} prn_24x3_4w;
+
+#    define ALIGNED_INT32(N)                                \
+        union {                                             \
+            int32_t coeffs[N] __attribute__((aligned(16))); \
+        }
+
 #else
 #    define ALIGNED_INT32(N)   \
         union {                \
@@ -644,8 +654,8 @@ struct sampler_state;
 struct gaussian0_store;
 
 typedef struct gaussian0_store {
-    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_bimodal;
-    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_square;
+    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_bi;
+    ALIGNED_INT32(BATCH_GAUSSIAN0_SIZE) _z_sq;
     size_t batch_size;
     /** current_pos==batch_size means the store is empty */
     size_t current_pos;

@@ -80,8 +80,8 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
     prn_24x3_8w prn[2];
-    __m256i *_z_bimodal = (__m256i *)z_bimodal;
-    __m256i *_z_square = (__m256i *)z_square;
+    __m256i *_z_bi = (__m256i *)z_bimodal;
+    __m256i *_z_sq = (__m256i *)z_square;
 
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
@@ -141,14 +141,14 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     t5 = _mm256_mullo_epi32(t4, z1);
     t2 = _mm256_add_epi32(t2, t0);
     t5 = _mm256_add_epi32(t5, t3);
-    _mm256_store_si256(_z_bimodal, t2);
-    _mm256_store_si256(_z_bimodal + 1, t5);
+    _mm256_store_si256(_z_bi, t2);
+    _mm256_store_si256(_z_bi + 1, t5);
     /**
      * Each sample is in the range [0,18], so we can use the 16-bit
      * multiplication instruction.
      */
-    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
-    _mm256_store_si256(_z_square + 1, _mm256_mullo_epi16(z1, z1));
+    _mm256_store_si256(_z_sq, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_sq + 1, _mm256_mullo_epi16(z1, z1));
     return 16;
 }
 #elif FNDSA_SSE2 == 1
@@ -182,8 +182,8 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
     prn_24x3_4w prn[2];
-    __m128i *_z_bimodal = (__m128i *)z_bimodal;
-    __m128i *_z_square = (__m128i *)z_square;
+    __m128i *_z_bi = (__m128i *)z_bimodal;
+    __m128i *_z_sq = (__m128i *)z_square;
     __m128i z0[2], z1[2];
     __m128i cc0, cc1;
     __m128i t0, t1, t2, t3, t4, t5;
@@ -250,10 +250,10 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         t5 = _mm_mullo_epi16(t4, z1[j]);
         t2 = _mm_add_epi32(t2, t0);
         t5 = _mm_add_epi32(t5, t3);
-        _mm_store_si128(_z_bimodal++, t2);
-        _mm_store_si128(_z_bimodal++, t5);
-        _mm_store_si128(_z_square++, _mm_mullo_epi16(z0[j], z0[j]));
-        _mm_store_si128(_z_square++, _mm_mullo_epi16(z1[j], z1[j]));
+        _mm_store_si128(_z_bi++, t2);
+        _mm_store_si128(_z_bi++, t5);
+        _mm_store_si128(_z_sq++, _mm_mullo_epi16(z0[j], z0[j]));
+        _mm_store_si128(_z_sq++, _mm_mullo_epi16(z1[j], z1[j]));
     }
     return 16;
 }
@@ -374,6 +374,63 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     return 16;
 }
 #    endif
+#elif FNDSA_NEON == 1
+extern void gaussian0_neon_bisq(int32_t *z_bi, int32_t *z_sq,
+                                uint32_t *prn, uint32_t *prn_bisq,
+                                size_t n_way);
+#    if BATCH_GAUSSIAN0_SIZE % 64 == 0
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    ALIGNED_INT32(64) b_64bs;
+    prn_24x3_4w prn[16];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+
+    for (int j = 0; j < 16; j++)
+        for (int i = 0; i < 4; i++) {
+            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
+        }
+    uint64_t b_64b = prng_next_u64(&ss->pc);
+    for (int i = 0; i < 64; i += 4) {
+        b_64bs.coeffs[i] = (b_64b >> i) & 1;
+        b_64bs.coeffs[i + 1] = (b_64b >> (i + 1)) & 1;
+        b_64bs.coeffs[i + 2] = (b_64b >> (i + 2)) & 1;
+        b_64bs.coeffs[i + 3] = (b_64b >> (i + 3)) & 1;
+    }
+    gaussian0_neon_bisq(_z_bi, _z_sq, &prn[0].u32[0][0],
+                        (uint32_t *)b_64bs.coeffs, 16);
+    return 64;
+}
+#    else
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    ALIGNED_INT32(16) b_16bs;
+    prn_24x3_4w prn[4];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+
+    for (int j = 0; j < 4; j++)
+        for (int i = 0; i < 4; i++) {
+            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
+        }
+    uint16_t b_16b = prng_next_u16(&ss->pc);
+    for (int i = 0; i < 16; i += 4) {
+        b_16bs.coeffs[i] = (b_16b >> i) & 1;
+        b_16bs.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b_16bs.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b_16bs.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
+    }
+    gaussian0_neon_bisq(_z_bi, _z_sq, &prn[0].u32[0][0], b_16bs.coeffs, 4);
+    return 16;
+}
+
+#    endif
 #else
 const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
                               {5559083, 1580863, 8248194},
@@ -400,8 +457,8 @@ const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
 static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
 
     int32_t z[16] = {0};
     for (size_t j = 0; j < 16; j++) {
@@ -424,8 +481,8 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         // Get a random bit b to turn the sampling into a bimodal
         // distribution.
         int32_t b = (b_16b >> j) & 1;
-        *_z_bimodal++ = b + ((b << 1) - 1) * z[j];
-        *_z_square++ = z[j] * z[j];
+        *_z_bi++ = b + ((b << 1) - 1) * z[j];
+        *_z_sq++ = z[j] * z[j];
     }
     return 16;
 }
@@ -442,8 +499,8 @@ static inline void GAUSSIAN0_STORE_fill(GAUSSIAN0_STORE *store)
     size_t num;
 
     for (i = 0; i < store->batch_size; i += num) {
-        num = gaussian0(store->ss, &store->_z_bimodal.coeffs[i],
-                        &store->_z_square.coeffs[i]);
+        num = gaussian0(store->ss, &store->_z_bi.coeffs[i],
+                        &store->_z_sq.coeffs[i]);
     }
     /** The store is full */
     store->current_pos = 0;
@@ -489,12 +546,11 @@ static inline void GAUSSIAN0_STORE_get_next(GAUSSIAN0_STORE *store,
      * For SSE2, we must use _mm_mullo_epi16 to turn into bimodal
      * distribution, so the following type conversion is necessary.
      */
-    *z_bimodal =
-        (int32_t)(int16_t)store->_z_bimodal.coeffs[store->current_pos];
+    *z_bimodal = (int32_t)(int16_t)store->_z_bi.coeffs[store->current_pos];
 #else
-    *z_bimodal = store->_z_bimodal.coeffs[store->current_pos];
+    *z_bimodal = store->_z_bi.coeffs[store->current_pos];
 #endif
-    *z_square = store->_z_square.coeffs[store->current_pos];
+    *z_square = store->_z_sq.coeffs[store->current_pos];
     store->current_pos++;
 }
 
@@ -1052,44 +1108,14 @@ static int32_t sampler_next_neon(sampler_state *ss, float64x1_t mu,
 
     /* We sample on centre r. */
     for (;;) {
-        /* Sample z for a Gaussian distribution (non-negative only),
-           then get a random bit b to turn the sampling into a
-           bimodal distribution (we use z+1 if b = 1, or -z
-           otherwise). */
-        int32_t z0 = gaussian0(ss);
-        int32_t b = prng_next_u8(&ss->pc) & 1;
-        int32_t z = b + ((b << 1) - 1) * z0;
-
-        /* Rejection sampling. We want a Gaussian centred on r,
-           but we sampled against a bimodal distribution (with
-           "centres" at 0 and 1). However, we know that z is
-           always in the range where our sampling distribution is
-           greater than the Gaussian distribution, so rejection works.
-
-           We got z from distribution:
-              G(z) = exp(-((z-b)^2)/(2*sigma0^2))
-           We target distribution:
-              S(z) = exp(-((z-r)^2)/(2*signa^2))
-           Rejection sampling works by keeping the value z with
-           probability S(z)/G(z), and starting again otherwise.
-           This requires S(z) <= G(z), which is the case here.
-           Thus, we simply need to keep our z with probability:
-              P = exp(-x)
-           where:
-              x = ((z-r)^2)/(2*sigma^2) - ((z-b)^2)/(2*sigma0^2)
-           Here, we scale up the Bernouilli distribution, which
-           makes rejection more probable, but also makes the
-           rejection rate sufficiently decorrelated from the Gaussian
-           centre and standard deviation, so that measurement of the
-           rejection rate does not leak enough usable information
-           to attackers (which is how the implementation can claim
-           to be "constant-time").  */
-        float64x1_t x = vsub_f64(vcvt_f64_s64(vcreate_s64(z)), r);
+        int32_t z_bimodal, z_square;
+        GAUSSIAN0_STORE_get_next(ss->gauss_store, &z_bimodal, &z_square);
+        float64x1_t x = vsub_f64(vcvt_f64_s64(vcreate_s64(z_bimodal)), r);
         x = vmul_f64(vmul_f64(x, x), dss);
-        x = vsub_f64(x, vmul_f64(vcvt_f64_s64(vcreate_s64(z0 * z0)),
+        x = vsub_f64(x, vmul_f64(vcvt_f64_s64(vcreate_s64(z_square)),
                                  INV_2SQRSIGMA0_u.v));
         if (ber_exp(ss, x, ccs)) {
-            return s + z;
+            return s + z_bimodal;
         }
     }
 }
