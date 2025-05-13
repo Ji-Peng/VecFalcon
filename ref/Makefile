@@ -117,30 +117,31 @@ run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
 clean:
 	-rm -rf out/
 
-out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-
-out/speed_fndsa_sse2: $(OBJS_SSE2) $(OBJS_SPEED_SSE2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-
-out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
-
-out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-
-out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-
-out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
-
-out/%_sse2.o: %.c
+out:
 	@mkdir -p out
+
+out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+out/speed_fndsa_sse2: $(OBJS_SSE2) $(OBJS_SPEED_SSE2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+
+out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+
+out/%_sse2.o: %.c | out
 	$(CC) $(CFLAGS_SSE2) $(DEPFLAGS) -c $< -o $@
 
-out/%_avx2.o: %.c
-	@mkdir -p out
+out/%_avx2.o: %.c | out
 	$(CC) $(CFLAGS_AVX2) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)

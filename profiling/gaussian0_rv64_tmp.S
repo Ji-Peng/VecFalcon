@@ -80,7 +80,7 @@ GAUSS_LO64:
     .size \name, .-\name
 .endm
 
-.if RVV == 1
+.if RVV_VLEN256 == 1
 
 FUNC init_vector_e16
     vsetivli a0, 16, e16, m1, tu, mu

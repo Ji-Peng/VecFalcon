@@ -142,6 +142,14 @@
 #    endif
 #endif
 
+/* RV64 is set to 1 to use assembly optimized keccak, i.e. fips202_rv64im.S
+ * or fips202_rv64imb.S. RVV_VLEN256 is set to 1 to use RISC-V vector
+ * assembly optimized gaussian0. */
+#ifndef RV64
+#    define RV64 0
+#    define RVV_VLEN256 0
+#endif
+
 /* If FNDSA_DIV_EMU is 1, then floating-point division will use the
    emulated code with only integer operations, instead of the hardware
    abilities. This option impacts only architecture which otherwise use

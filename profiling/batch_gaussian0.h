@@ -78,7 +78,7 @@ static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
 /**
  * Returns the number of samples.
  */
-#    if (RV64 == 1 && RVV == 1 && RVV_VLEN256 == 1) || (FNDSA_NEON == 1)
+#    if (RV64 == 1 && RVV_VLEN256 == 1) || (FNDSA_NEON == 1)
 static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
@@ -425,7 +425,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     return 16;
 }
-#    elif RV64 == 1 && RVV == 1 && RVV_VLEN256 == 1
+#    elif RV64 == 1 && RVV_VLEN256 == 1
 typedef union {
     uint32_t u32[3][8] __attribute__((aligned(32)));
 } prn_24x3_8w;

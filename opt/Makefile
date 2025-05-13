@@ -114,7 +114,7 @@ all: \
 	out/speed_fndsa_sse2 out/speed_fndsa_avx2 \
 	out/test_fndsa_sse2  out/test_fndsa_avx2 out/prof_sampler_next_sse2_2w
 
-run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
+run_speed: all
 	echo "We work on the SHAKE256X4 variant.\n" >> speed_fndsa_11700k.txt
 	echo "SSE2 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_sse2 >> speed_fndsa_11700k.txt
@@ -124,34 +124,35 @@ run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
 clean:
 	-rm -rf out/
 
-out/prof_sampler_next_sse2_2w: $(SRCS_DEBUG) sha3.c ../profiling/cpucycles.c
+out:
+	@mkdir -p out
+
+out/prof_sampler_next_sse2_2w: $(SRCS_DEBUG) sha3.c ../profiling/cpucycles.c | out
 	$(CC) $(CFLAGS_SSE2) $^ -o $@ $(LIBS)
 	objdump -S $@ > $@_S.SS
 
-out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2)
+out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/speed_fndsa_sse2: $(OBJS_SSE2) $(OBJS_SPEED_SSE2)
+out/speed_fndsa_sse2: $(OBJS_SSE2) $(OBJS_SPEED_SSE2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-# out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2)
+# out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2) | out
 # 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
-out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2)
+out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2)
+out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-# out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2)
+# out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2) | out
 # 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
-out/%_sse2.o: %.c
-	@mkdir -p out
+out/%_sse2.o: %.c | out
 	$(CC) $(CFLAGS_SSE2) $(DEPFLAGS) -c $< -o $@
 
-out/%_avx2.o: %.c
-	@mkdir -p out
+out/%_avx2.o: %.c | out
 	$(CC) $(CFLAGS_AVX2) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)

@@ -1202,6 +1202,18 @@ static void process_block_x2(uint64_t *A)
 }
 #endif
 
+#if !defined(FNDSA_NEON_HYBRID_SHA3)
+#    define FNDSA_NEON_HYBRID_SHA3 0
+#endif
+
+#if FNDSA_NEON_HYBRID_SHA3
+extern void keccak_f1600_x4_hybrid_asm_v3p(uint64_t state[4 * 25]);
+static void process_block_x4(uint64_t *A)
+{
+    keccak_f1600_x4_hybrid_asm_v3p(A);
+}
+#endif
+
 /* see inner.h */
 void shake_init(shake_context *sc, unsigned size)
 {
@@ -1384,7 +1396,42 @@ void shake256x4_init(shake256x4_context *sc, const void *seed,
     }
 #    endif
 
-#    if FNDSA_SSE2 || FNDSA_NEON_SHA3
+#    if FNDSA_NEON_HYBRID_SHA3
+    /* The keccak_f1600_x4_hybrid_asm_v3p implementation interleaves the
+       four SHAKE256 states. */
+    for (size_t i = 0; i < rlen; i += 8) {
+        uint64_t x = dec64le(sbuf + i);
+        sc->state[((i >> 3) << 2) + 0] = x;
+        sc->state[((i >> 3) << 2) + 1] = x;
+        sc->state[((i >> 3) << 2) + 2] = x;
+        sc->state[((i >> 3) << 2) + 3] = x;
+    }
+    uint64_t x = 0;
+    for (size_t j = 0; j < elen; j++) {
+        x |= (uint64_t)sbuf[rlen + j] << (j << 3);
+    }
+    if (elen < 7) {
+        x |= (uint64_t)0x1F << ((elen + 1) << 3);
+        sc->state[(k << 2) + 0] = x;
+        sc->state[(k << 2) + 1] = x | ((uint64_t)0x01 << (elen << 3));
+        sc->state[(k << 2) + 2] = x | ((uint64_t)0x02 << (elen << 3));
+        sc->state[(k << 2) + 3] = x | ((uint64_t)0x03 << (elen << 3));
+    } else {
+        sc->state[(k << 2) + 0] = x;
+        sc->state[(k << 2) + 1] = x | ((uint64_t)0x01 << 56);
+        sc->state[(k << 2) + 2] = x | ((uint64_t)0x02 << 56);
+        sc->state[(k << 2) + 3] = x | ((uint64_t)0x03 << 56);
+        sc->state[(k << 2) + 4] = 0x1F;
+        sc->state[(k << 2) + 5] = 0x1F;
+        sc->state[(k << 2) + 6] = 0x1F;
+        sc->state[(k << 2) + 7] = 0x1F;
+    }
+    sc->state[64] ^= (uint64_t)0x80 << 56;
+    sc->state[65] ^= (uint64_t)0x80 << 56;
+    sc->state[66] ^= (uint64_t)0x80 << 56;
+    sc->state[67] ^= (uint64_t)0x80 << 56;
+    return;
+#    elif FNDSA_SSE2 || FNDSA_NEON_SHA3
     /* The SSE2 and NEON implementations interleave the four
        SHAKE256 states. */
     for (size_t i = 0; i < rlen; i += 8) {
@@ -1468,6 +1515,11 @@ void shake256x4_refill(shake256x4_context *sc)
         memcpy(sc->buf, sc->state, sizeof sc->buf);
         return;
     }
+#    endif
+#    if FNDSA_NEON_HYBRID_SHA3
+    process_block_x4(sc->state);
+    memcpy(sc->buf, sc->state, sizeof sc->buf);
+    return;
 #    endif
 #    if FNDSA_SSE2 || FNDSA_NEON_SHA3
     process_block_x2(sc->state);

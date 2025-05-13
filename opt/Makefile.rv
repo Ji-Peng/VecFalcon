@@ -17,13 +17,13 @@ DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 CFLAGS_COMMON = -W -Wextra -Wundef -Wshadow -O2 -g $(PG) $(X4) \
 	-DWARMUP_N=500 -DTESTS_N=2000
 CFLAGS_RV64GC	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=0 -DRVV_VLEN256=0 -DRVB=0
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=0
 CFLAGS_RV64GCV	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVV_VLEN256=1 -DRVB=0
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
 CFLAGS_RV64GCB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc_zba_zbb 	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=0 -DRVV_VLEN256=0 -DRVB=1
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=0
 CFLAGS_RV64GCVB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv_zba_zbb	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVV_VLEN256=1 -DRVB=1
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
 	
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c
@@ -82,63 +82,58 @@ run_speed: \
 clean:
 	-rm -rf out/
 
-out/test_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_TEST_RV64GC)
+out:
+	@mkdir -p out
+
+out/test_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_TEST_RV64GC)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/speed_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_SPEED_RV64GC)
+out/speed_fndsa_rv64gc: $(OBJS_RV64GC) $(OBJS_SPEED_RV64GC)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/test_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_TEST_RV64GCV)
+out/test_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_TEST_RV64GCV)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/speed_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_SPEED_RV64GCV)
+out/speed_fndsa_rv64gcv: $(OBJS_RV64GCV) $(OBJS_SPEED_RV64GCV)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/test_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_TEST_RV64GCB)
+out/test_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_TEST_RV64GCB)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/speed_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_SPEED_RV64GCB)
+out/speed_fndsa_rv64gcb: $(OBJS_RV64GCB) $(OBJS_SPEED_RV64GCB)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/test_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_TEST_RV64GCVB)
+out/test_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_TEST_RV64GCVB)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-out/speed_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_SPEED_RV64GCVB)
+out/speed_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_SPEED_RV64GCVB)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-# out/test_gperf_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_GPERF_RV64GCVB)
+# out/test_gperf_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_GPERF_RV64GCVB)| out
 # 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
-out/%_rv64gc.o: %.c
-	@mkdir -p out
+out/%_rv64gc.o: %.c | out
 	$(CC) $(CFLAGS_RV64GC) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gcv.o: %.c
-	@mkdir -p out
+out/%_rv64gcv.o: %.c | out
 	$(CC) $(CFLAGS_RV64GCV) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gcb.o: %.c
-	@mkdir -p out
+out/%_rv64gcb.o: %.c | out
 	$(CC) $(CFLAGS_RV64GCB) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gcvb.o: %.c
-	@mkdir -p out
+out/%_rv64gcvb.o: %.c | out
 	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gc.o: %.S
-	@mkdir -p out
+out/%_rv64gc.o: %.S | out
 	$(CC) $(CFLAGS_RV64GC) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gcv.o: %.S
-	@mkdir -p out
+out/%_rv64gcv.o: %.S | out
 	$(CC) $(CFLAGS_RV64GCV) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gcb.o: %.S
-	@mkdir -p out
+out/%_rv64gcb.o: %.S | out
 	$(CC) $(CFLAGS_RV64GCB) $(DEPFLAGS) -c $< -o $@
 
-out/%_rv64gcvb.o: %.S
-	@mkdir -p out
+out/%_rv64gcvb.o: %.S | out
 	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)

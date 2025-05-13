@@ -105,7 +105,7 @@ static const union {
 #endif
 
 #if FNDSA_AVX2 == 1
-static const gauss0_32x8 GAUSS0_AVX2[][3] = {
+const gauss0_32x8 GAUSS0_AVX2[][3] = {
     {U32X8(10745844), U32X8(3068844), U32X8(3741698)},
     {U32X8(5559083), U32X8(1580863), U32X8(8248194)},
     {U32X8(2260429), U32X8(13669192), U32X8(2736639)},
@@ -134,8 +134,8 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
     prn_24x3_8w prn[2];
-    __m256i *_z_bimodal = (__m256i *)z_bimodal;
-    __m256i *_z_square = (__m256i *)z_square;
+    __m256i *_z_bi = (__m256i *)z_bimodal;
+    __m256i *_z_sq = (__m256i *)z_square;
 
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
@@ -147,11 +147,6 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2, t3, t4, t5;
-    /**
-     * Through decompilation, we found that the following loop only uses
-     * at least 12 ymm registers.
-     * The number of AVX2 instructions in the loop is 23.
-     */
     for (size_t i = 0; i < (sizeof GAUSS0_AVX2) / sizeof(GAUSS0_AVX2[0]);
          i++) {
         // load pre-computed table
@@ -182,8 +177,11 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     ALIGNED_INT32(16) b;
     unsigned b_16b = prng_next_u16(&ss->pc);
-    for (size_t i = 0; i < 16; i++) {
+    for (size_t i = 0; i < 16; i += 4) {
         b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t3 = _mm256_load_si256(&b.vec[1]);
@@ -195,18 +193,18 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     t5 = _mm256_mullo_epi32(t4, z1);
     t2 = _mm256_add_epi32(t2, t0);
     t5 = _mm256_add_epi32(t5, t3);
-    _mm256_store_si256(_z_bimodal, t2);
-    _mm256_store_si256(_z_bimodal + 1, t5);
+    _mm256_store_si256(_z_bi, t2);
+    _mm256_store_si256(_z_bi + 1, t5);
     /**
      * Each sample is in the range [0,18], so we can use the 16-bit
      * multiplication instruction.
      */
-    _mm256_store_si256(_z_square, _mm256_mullo_epi16(z0, z0));
-    _mm256_store_si256(_z_square + 1, _mm256_mullo_epi16(z1, z1));
+    _mm256_store_si256(_z_sq, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_sq + 1, _mm256_mullo_epi16(z1, z1));
     return 16;
 }
 #elif FNDSA_SSE2 == 1
-static const gauss0_32x4 GAUSS0_SSE2[][3] = {
+const gauss0_32x4 GAUSS0_SSE2[][3] = {
     {U32X4(10745844), U32X4(3068844), U32X4(3741698)},
     {U32X4(5559083), U32X4(1580863), U32X4(8248194)},
     {U32X4(2260429), U32X4(13669192), U32X4(2736639)},
@@ -236,8 +234,8 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
     prn_24x3_4w prn[2];
-    __m128i *_z_bimodal = (__m128i *)z_bimodal;
-    __m128i *_z_square = (__m128i *)z_square;
+    __m128i *_z_bi = (__m128i *)z_bimodal;
+    __m128i *_z_sq = (__m128i *)z_square;
     __m128i z0[2], z1[2];
     __m128i cc0, cc1;
     __m128i t0, t1, t2, t3, t4, t5;
@@ -283,8 +281,11 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     ALIGNED_INT32(8) b;
     unsigned b_16b = prng_next_u16(&ss->pc);
     for (size_t j = 0; j < 2; j++, b_16b >>= 8) {
-        for (size_t i = 0; i < 8; i++) {
-            b.coeffs[i] = (b_16b >> i) & 1;
+        for (size_t i = 0; i < 8; i += 4) {
+            b.coeffs[i] = (b_16b >> (i)) & 1;
+            b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+            b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+            b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
         }
         /**
          * Each sample is in the range [0,18], so we can use the 16-bit
@@ -304,32 +305,32 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         t5 = _mm_mullo_epi16(t4, z1[j]);
         t2 = _mm_add_epi32(t2, t0);
         t5 = _mm_add_epi32(t5, t3);
-        _mm_store_si128(_z_bimodal++, t2);
-        _mm_store_si128(_z_bimodal++, t5);
-        _mm_store_si128(_z_square++, _mm_mullo_epi16(z0[j], z0[j]));
-        _mm_store_si128(_z_square++, _mm_mullo_epi16(z1[j], z1[j]));
+        _mm_store_si128(_z_bi++, t2);
+        _mm_store_si128(_z_bi++, t5);
+        _mm_store_si128(_z_sq++, _mm_mullo_epi16(z0[j], z0[j]));
+        _mm_store_si128(_z_sq++, _mm_mullo_epi16(z1[j], z1[j]));
     }
     return 16;
 }
 #else
-static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
-                                     {5559083, 1580863, 8248194},
-                                     {2260429, 13669192, 2736639},
-                                     {708981, 4421575, 10046180},
-                                     {169348, 7122675, 4136815},
-                                     {30538, 13063405, 7650655},
-                                     {4132, 14505003, 7826148},
-                                     {417, 16768101, 11363290},
-                                     {31, 8444042, 8086568},
-                                     {1, 12844466, 265321},
-                                     {0, 1232676, 13644283},
-                                     {0, 38047, 9111839},
-                                     {0, 870, 6138264},
-                                     {0, 14, 12545723},
-                                     {0, 0, 3104126},
-                                     {0, 0, 28824},
-                                     {0, 0, 198},
-                                     {0, 0, 1}};
+const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
+                              {5559083, 1580863, 8248194},
+                              {2260429, 13669192, 2736639},
+                              {708981, 4421575, 10046180},
+                              {169348, 7122675, 4136815},
+                              {30538, 13063405, 7650655},
+                              {4132, 14505003, 7826148},
+                              {417, 16768101, 11363290},
+                              {31, 8444042, 8086568},
+                              {1, 12844466, 265321},
+                              {0, 1232676, 13644283},
+                              {0, 38047, 9111839},
+                              {0, 870, 6138264},
+                              {0, 14, 12545723},
+                              {0, 0, 3104126},
+                              {0, 0, 28824},
+                              {0, 0, 198},
+                              {0, 0, 1}};
 
 /**
  * Returns the number of samples.
@@ -337,8 +338,8 @@ static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
 static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
-    int32_t *_z_bimodal = z_bimodal;
-    int32_t *_z_square = z_square;
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
 
     int32_t z[16] = {0};
     for (size_t j = 0; j < 16; j++) {
@@ -347,7 +348,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         uint32_t v1 = prng_next_u24(&ss->pc);
         uint32_t v2 = prng_next_u24(&ss->pc);
         /* Sampled value is z such that v0..v2 is lower than the first
-           z elements of the table. */
+        z elements of the table. */
         for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
             uint32_t cc;
             cc = (v0 - GAUSS0[i][2]) >> 31;
@@ -361,8 +362,8 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         // Get a random bit b to turn the sampling into a bimodal
         // distribution.
         int32_t b = (b_16b >> j) & 1;
-        *_z_bimodal++ = b + ((b << 1) - 1) * z[j];
-        *_z_square++ = z[j] * z[j];
+        *_z_bi++ = b + ((b << 1) - 1) * z[j];
+        *_z_sq++ = z[j] * z[j];
     }
     return 16;
 }
@@ -379,8 +380,8 @@ static inline void GAUSSIAN0_STORE_fill(GAUSSIAN0_STORE *store)
     size_t num;
 
     for (i = 0; i < store->batch_size; i += num) {
-        num = gaussian0(store->ss, &store->_z_bimodal.coeffs[i],
-                        &store->_z_square.coeffs[i]);
+        num = gaussian0(store->ss, &store->_z_bi.coeffs[i],
+                        &store->_z_sq.coeffs[i]);
     }
     /** The store is full */
     store->current_pos = 0;
@@ -419,9 +420,6 @@ static inline void GAUSSIAN0_STORE_get_next(GAUSSIAN0_STORE *store,
                                             int32_t *z_square)
 {
     if (store->current_pos >= store->batch_size) {
-        // printf(
-        //     "GAUSSIAN0_STORE_fill will be called in "
-        //     "GAUSSIAN0_STORE_get_next\n");
         GAUSSIAN0_STORE_fill(store);
     }
 #if FNDSA_AVX2 == 0 && FNDSA_SSE2 == 1
@@ -429,12 +427,11 @@ static inline void GAUSSIAN0_STORE_get_next(GAUSSIAN0_STORE *store,
      * For SSE2, we must use _mm_mullo_epi16 to turn into bimodal
      * distribution, so the following type conversion is necessary.
      */
-    *z_bimodal =
-        (int32_t)(int16_t)store->_z_bimodal.coeffs[store->current_pos];
+    *z_bimodal = (int32_t)(int16_t)store->_z_bi.coeffs[store->current_pos];
 #else
-    *z_bimodal = store->_z_bimodal.coeffs[store->current_pos];
+    *z_bimodal = store->_z_bi.coeffs[store->current_pos];
 #endif
-    *z_square = store->_z_square.coeffs[store->current_pos];
+    *z_square = store->_z_sq.coeffs[store->current_pos];
     store->current_pos++;
 }
 
@@ -1079,8 +1076,8 @@ static void sampler_next_sse2_2w_part_v1_inorder(int32_t *s0, int32_t *s1,
 }
 
 static void sampler_next_sse2_2w_part_v2(int32_t *s0, int32_t *s1,
-                                    sampler_state *ss, __m128d mu,
-                                    __m128d isigma)
+                                         sampler_state *ss, __m128d mu,
+                                         __m128d isigma)
 {
     const union {
         fpr f[2];

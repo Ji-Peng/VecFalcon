@@ -93,11 +93,6 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2, t3, t4, t5;
-    /**
-     * Through decompilation, we found that the following loop only uses
-     * at least 12 ymm registers.
-     * The number of AVX2 instructions in the loop is 23.
-     */
     for (size_t i = 0; i < (sizeof GAUSS0_AVX2) / sizeof(GAUSS0_AVX2[0]);
          i++) {
         // load pre-computed table
@@ -128,8 +123,11 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     ALIGNED_INT32(16) b;
     unsigned b_16b = prng_next_u16(&ss->pc);
-    for (size_t i = 0; i < 16; i++) {
+    for (size_t i = 0; i < 16; i += 4) {
         b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t3 = _mm256_load_si256(&b.vec[1]);
@@ -229,8 +227,11 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     ALIGNED_INT32(8) b;
     unsigned b_16b = prng_next_u16(&ss->pc);
     for (size_t j = 0; j < 2; j++, b_16b >>= 8) {
-        for (size_t i = 0; i < 8; i++) {
-            b.coeffs[i] = (b_16b >> i) & 1;
+        for (size_t i = 0; i < 8; i += 4) {
+            b.coeffs[i] = (b_16b >> (i)) & 1;
+            b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+            b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+            b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
         }
         /**
          * Each sample is in the range [0,18], so we can use the 16-bit
@@ -257,7 +258,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     return 16;
 }
-#elif RV64 == 1 && RVV == 1 && RVV_VLEN256 == 1
+#elif RV64 == 1 && RVV_VLEN256 == 1
 extern void gaussian0_rvv_bisq(int32_t *z_bimodal, int32_t *z_square,
                                uint32_t *prn, uint32_t *bs, size_t n);
 #    if BATCH_GAUSSIAN0_SIZE % 64 == 0
@@ -276,12 +277,13 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
             prn[j].u32[2][i] = prng_next_u24(&ss->pc);
         }
     uint64_t b_64b = prng_next_u64(&ss->pc);
-    for (int i = 0; i < 64; i += 2) {
+    for (int i = 0; i < 64; i += 4) {
         b_64bs.coeffs[i] = (b_64b >> i) & 1;
         b_64bs.coeffs[i + 1] = (b_64b >> (i + 1)) & 1;
+        b_64bs.coeffs[i + 2] = (b_64b >> (i + 2)) & 1;
+        b_64bs.coeffs[i + 3] = (b_64b >> (i + 3)) & 1;
     }
-    gaussian0_rvv_bisq(z_bimodal, z_square, &prn[0].u32[0][0],
-                       b_64bs.coeffs, 8);
+    gaussian0_rvv_bisq(_z_bi, _z_sq, &prn[0].u32[0][0], b_64bs.coeffs, 8);
     return 64;
 }
 #    else
@@ -300,12 +302,13 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
             prn[j].u32[2][i] = prng_next_u24(&ss->pc);
         }
     uint16_t b_16b = prng_next_u16(&ss->pc);
-    for (int i = 0; i < 16; i += 2) {
+    for (int i = 0; i < 16; i += 4) {
         b_16bs.coeffs[i] = (b_16b >> i) & 1;
         b_16bs.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b_16bs.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b_16bs.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
-    gaussian0_rvv_bisq(z_bimodal, z_square, &prn[0].u32[0][0],
-                       b_16bs.coeffs, 2);
+    gaussian0_rvv_bisq(_z_bi, _z_sq, &prn[0].u32[0][0], b_16bs.coeffs, 2);
     return 16;
 }
 #    endif
@@ -326,19 +329,31 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     gaussian0_rv64im_nw(z, &prn[0][0], 64);
     uint64_t b_64b = prng_next_u64(&ss->pc);
-    for (size_t j = 0; j < 64; j += 2) {
+    for (size_t j = 0; j < 64; j += 4) {
         int32_t b0 = (b_64b >> j) & 1;
         int32_t b1 = (b_64b >> (j + 1)) & 1;
+        int32_t b2 = (b_64b >> (j + 2)) & 1;
+        int32_t b3 = (b_64b >> (j + 3)) & 1;
         int32_t m0 = (b0 << 1);
         int32_t m1 = (b1 << 1);
+        int32_t m2 = (b2 << 1);
+        int32_t m3 = (b3 << 1);
         m0 = m0 - 1;
         m1 = m1 - 1;
+        m2 = m2 - 1;
+        m3 = m3 - 1;
         m0 = m0 * z[j];
         m1 = m1 * z[j + 1];
+        m2 = m2 * z[j + 2];
+        m3 = m3 * z[j + 3];
         _z_bi[j] = b0 + m0;
         _z_bi[j + 1] = b1 + m1;
+        _z_bi[j + 2] = b2 + m2;
+        _z_bi[j + 3] = b3 + m3;
         _z_sq[j] = z[j] * z[j];
         _z_sq[j + 1] = z[j + 1] * z[j + 1];
+        _z_sq[j + 2] = z[j + 2] * z[j + 2];
+        _z_sq[j + 3] = z[j + 3] * z[j + 3];
     }
     return 64;
 }
@@ -357,19 +372,31 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     gaussian0_rv64im_nw(z, &prn[0][0], 16);
     uint16_t b_16b = prng_next_u16(&ss->pc);
-    for (size_t j = 0; j < 16; j += 2) {
-        int32_t b0 = (b_16b >> j) & 1;
-        int32_t b1 = (b_16b >> (j + 1)) & 1;
+    for (size_t j = 0; j < 16; j += 4) {
+        int32_t b0 = (b_64b >> j) & 1;
+        int32_t b1 = (b_64b >> (j + 1)) & 1;
+        int32_t b2 = (b_64b >> (j + 2)) & 1;
+        int32_t b3 = (b_64b >> (j + 3)) & 1;
         int32_t m0 = (b0 << 1);
         int32_t m1 = (b1 << 1);
+        int32_t m2 = (b2 << 1);
+        int32_t m3 = (b3 << 1);
         m0 = m0 - 1;
         m1 = m1 - 1;
+        m2 = m2 - 1;
+        m3 = m3 - 1;
         m0 = m0 * z[j];
         m1 = m1 * z[j + 1];
+        m2 = m2 * z[j + 2];
+        m3 = m3 * z[j + 3];
         _z_bi[j] = b0 + m0;
         _z_bi[j + 1] = b1 + m1;
+        _z_bi[j + 2] = b2 + m2;
+        _z_bi[j + 3] = b3 + m3;
         _z_sq[j] = z[j] * z[j];
         _z_sq[j + 1] = z[j + 1] * z[j + 1];
+        _z_sq[j + 2] = z[j + 2] * z[j + 2];
+        _z_sq[j + 3] = z[j + 3] * z[j + 3];
     }
     return 16;
 }

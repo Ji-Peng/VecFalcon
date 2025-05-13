@@ -256,7 +256,7 @@ GAUSS0_RVV:
     .size \name, .-\name
 .endm
 
-.if RVV == 1 && RVV_VLEN256 == 1
+.if RVV_VLEN256 == 1
 # register usage:
 # a0: pointer to output (z_bimodal)
 # a1: pointer to output (z_square)

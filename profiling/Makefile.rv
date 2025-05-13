@@ -18,13 +18,13 @@ SRC_COMM = cpucycles.c sha3.c
 
 CFLAGS_COMM = -W -Wextra -Wshadow -O2 -g $(PG) $(X4)
 CFLAGS_RV64GC	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gc	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=0 -DRVV_VLEN256=0 -DRVB=0
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=0
 CFLAGS_RV64GCV	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gcv	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVV_VLEN256=1 -DRVB=0
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
 CFLAGS_RV64GCB	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gc_zba_zbb 	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=0 -DRVV_VLEN256=0 -DRVB=1
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=0
 CFLAGS_RV64GCVB	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gcv_zba_zbb	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVV_VLEN256=1 -DRVB=1
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
 
 all: \
 	out/gaussian0_rv64 out/gaussian0_rv64_opt_sha3 out/batch_gaussian0_rv64imb out/batch_gaussian0_rv64imbv out/batch_gaussian0_ref_rv64imb out/batch_gaussian0_ref_rv64imbv

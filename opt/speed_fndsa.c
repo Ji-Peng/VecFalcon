@@ -209,6 +209,7 @@ static double bench_sign(unsigned logn, unsigned *x)
 
 static double bench_verify(unsigned logn, unsigned *x)
 {
+    (void)x;
     uint64_t z = core_cycles();
     uint8_t seed[8];
     for (int i = 0; i < 8; i++) {

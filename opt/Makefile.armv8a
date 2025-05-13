@@ -77,45 +77,52 @@ DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 
 CFLAGS_COMM = -W -Wextra -Wundef -Wshadow -O2 $(PG) $(X4) \
 	-DWARMUP_N=2000 -DTESTS_N=10000 -g
-CFLAGS = $(CFLAGS_COMM) -DFNDSA_NEON=1
+CFLAGS = $(CFLAGS_COMM) -DFNDSA_NEON=1 -DFNDSA_NEON_HYBRID_SHA3=1
 
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c
 SRCS_SIGN = sign.c sign_core.c sign_fpoly.c sign_fpr.c sign_sampler.c
 SRCS_VRFY = vrfy.c
 SRCS = $(SRCS_COMM) $(SRCS_KGEN) $(SRCS_SIGN) $(SRCS_VRFY)
-SRCS_TEST = test_fndsa.c test_sampler.c test_sign.c
+SRCS_TEST = test_fndsa.c
 SRCS_SPEED = speed_fndsa.c
 SRCS_GPERF = test_gperf.c test_sampler.c
 
-OBJS		= $(addprefix out/, $(SRCS:.c=.o))
+ASMS = keccak_f1600_x4_hybrid_asm_v3p.S gaussian0_neon.S
+
+OBJS		= $(addprefix out/, $(SRCS:.c=.o)) $(addprefix out/, $(ASMS:.S=.o))
 OBJS_TEST	= $(addprefix out/, $(SRCS_TEST:.c=.o))
 OBJS_SPEED	= $(addprefix out/, $(SRCS_SPEED:.c=.o))
-OBJS_GPERF	= $(addprefix out/, $(SRCS_GPERF:.c=.o))
+# OBJS_GPERF	= $(addprefix out/, $(SRCS_GPERF:.c=.o))
 
+# out/test_gperf
 all: \
 	out/test_fndsa out/speed_fndsa
-# out/test_gperf
 
 run_speed: out/speed_fndsa
-	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_a72.txt
-	echo "NEON version:" >> speed_fndsa_a72.txt
-	./out/speed_fndsa >> speed_fndsa_a72.txt
+	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_cortex_a72.txt
+	echo "NEON version:" >> speed_fndsa_cortex_a72.txt
+	./out/speed_fndsa >> speed_fndsa_cortex_a72.txt
 
 clean:
 	-rm -rf out/
 
-out/test_fndsa: $(OBJS) $(OBJS_TEST)
+out:
+	@mkdir -p out
+
+out/test_fndsa: $(OBJS) $(OBJS_TEST) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-out/speed_fndsa: $(OBJS) $(OBJS_SPEED)
+out/speed_fndsa: $(OBJS) $(OBJS_SPEED) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-# out/test_gperf: $(OBJS) $(OBJS_GPERF)
+# out/test_gperf: $(OBJS) $(OBJS_GPERF) | out
 # 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
-out/%.o: %.c
-	@mkdir -p out
+out/%.o: %.c | out
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+
+out/%.o: %.S | out
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)

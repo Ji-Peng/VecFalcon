@@ -395,7 +395,7 @@ gaussian0_rv64im_nw_loop:
     addi sp, sp, 15*8
 FUNC_END gaussian0_rv64im_nw
 
-.if RVV == 1
+.if RVV_VLEN256 == 1
 # register usage:
 # a0: pointer to output
 # a1: pointer to input
