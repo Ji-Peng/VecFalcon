@@ -604,6 +604,7 @@ void speed_gaussian0()
            gaussian0_64w_rvv_core, sampler_init(&ss0, 9, seed, 32),
            WARMUP_N, TESTS_N, 64);
 
+#if REF_SHA3 == 0
     printf("\nSome optimization ideas:\n");
     init_vector_e64();
     PERF_N(gaussian0_rvv_64b_p0_x2(), gaussian0_rvv_64b_p0_x2, , WARMUP_N,
@@ -624,6 +625,7 @@ void speed_gaussian0()
            TESTS_N, 3);
     PERF_N(gaussian0_rvv_24b_p1_x3_v2(), gaussian0_rvv_24b_p1_x3_v2, ,
            WARMUP_N, TESTS_N, 3);
+#endif
 }
 
 int main(void)

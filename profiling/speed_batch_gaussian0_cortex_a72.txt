@@ -1,0 +1,8 @@
+We work on the SHAKE256X4 variant.
+batch_gaussian0_ref with SHAKE256-ref and gaussian0_ref:
+gaussian0                      cycles/insts/CPI/1-wayCC=2814/5349/0.53/175
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=178/341/0.52
+
+batch_gaussian0_neon with SHAKE256X4-hybrid-neon and gaussian0_neon:
+gaussian0                      cycles/insts/CPI/1-wayCC=8806/15519/0.57/137
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=141/249/0.56

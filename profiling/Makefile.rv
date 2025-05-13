@@ -1,0 +1,76 @@
+# Makefile for SpacemiT X60
+
+CC = gcc
+LD = gcc
+# PG = -pg
+# We work on the SHAKE256X4 variant
+X4 = -DFNDSA_SHAKE256X4=1
+LDFLAGS = $(PG)
+LIBS =
+LIBS_GPERF = -Wl,-rpath -Wl,/usr/local/lib -lprofiler
+# -MT $@: Set the target name in the dependency file to the current rule's target ($@).
+# -MMD: Generate a dependency file, excluding system headers.
+# -MP: Add empty phony targets for each dependency to prevent errors if headers are missing.
+# -MF out/$*.d: Output the dependency file to the specified path (out/$*.d).
+DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
+
+SRC_COMM = cpucycles.c sha3.c
+
+CFLAGS_COMM = -W -Wextra -Wshadow -O2 -g $(PG) $(X4)
+CFLAGS_RV64GC	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gc	\
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=0 -DRVV_VLEN256=0 -DRVB=0
+CFLAGS_RV64GCV	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gcv	\
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVV_VLEN256=1 -DRVB=0
+CFLAGS_RV64GCB	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gc_zba_zbb 	\
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=0 -DRVV_VLEN256=0 -DRVB=1
+CFLAGS_RV64GCVB	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gcv_zba_zbb	\
+	-DFNDSA_RV64D=1 -DRV64=1 -DRVV=1 -DRVV_VLEN256=1 -DRVB=1
+
+all: \
+	out/gaussian0_rv64 out/gaussian0_rv64_opt_sha3 out/batch_gaussian0_rv64imb out/batch_gaussian0_rv64imbv out/batch_gaussian0_ref_rv64imb out/batch_gaussian0_ref_rv64imbv
+
+clean:
+	rm -rf out
+
+run_speed: all
+	echo "We work on the SHAKE256X4 variant\nbatch_gaussian0_ref with SHAKE256-ref and gaussian0_ref; -march=rv64gcv_zba_zbb:" > speed_batch_gaussian0_x60.txt
+	./out/batch_gaussian0_ref_rv64imbv speed >> speed_batch_gaussian0_x60.txt
+	echo "\nbatch_gaussian0_rv64imb with SHAKE256-ASM and optimized gaussian0 on RV64IMB; -march=rv64gc_zba_zbb:" >> speed_batch_gaussian0_x60.txt
+	./out/batch_gaussian0_rv64imb speed >> speed_batch_gaussian0_x60.txt
+	echo "\nbatch_gaussian0_rv64imbv with SHAKE256-ASM and optimized gaussian0 on RVV; -march=rv64gcv_zba_zbb:" >> speed_batch_gaussian0_x60.txt
+	./out/batch_gaussian0_rv64imbv speed >> speed_batch_gaussian0_x60.txt
+	echo "We work on the SHAKE256X4 variant.\nWith SHAKE256-ref; -march=rv64gcv_zba_zbb:" > speed_gaussian0_x60.txt
+	./out/gaussian0_rv64 >> speed_gaussian0_x60.txt
+	echo "\nWith SHAKE256-ASM; -march=rv64gcv_zba_zbb:" >> speed_gaussian0_x60.txt
+	./out/gaussian0_rv64_opt_sha3 >> speed_gaussian0_x60.txt
+
+run_test: all
+	./out/batch_gaussian0_ref_rv64imb test > ./out/batch_gaussian0_ref_rv64imb.txt
+	./out/batch_gaussian0_rv64imb test > ./out/batch_gaussian0_rv64imb.txt
+	diff ./out/batch_gaussian0_ref_rv64imb.txt ./out/batch_gaussian0_rv64imb.txt
+	./out/batch_gaussian0_ref_rv64imbv test > ./out/batch_gaussian0_ref_rv64imbv.txt
+	./out/batch_gaussian0_rv64imbv test > ./out/batch_gaussian0_rv64imbv.txt
+	diff ./out/batch_gaussian0_ref_rv64imbv.txt ./out/batch_gaussian0_rv64imbv.txt
+
+out:
+	@mkdir -p out
+
+out/gaussian0_rv64: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S | out
+	$(CC) $(CFLAGS_RV64GCVB) -DREF_SHA3=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/gaussian0_rv64_opt_sha3: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S fips202_rv64imb.S | out
+	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/batch_gaussian0_rv64imb: $(SRC_COMM) test_batch_gaussian0.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S | out
+	$(CC) $(CFLAGS_RV64GCB) $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/batch_gaussian0_rv64imbv: $(SRC_COMM) test_batch_gaussian0.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S | out
+	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/batch_gaussian0_ref_rv64imb: $(SRC_COMM) test_batch_gaussian0.c | out
+	$(CC) $(CFLAGS_RV64GCB) -DREF_SHA3=1 -DGAUSSIAN0_REF=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/batch_gaussian0_ref_rv64imbv: $(SRC_COMM) test_batch_gaussian0.c | out
+	$(CC) $(CFLAGS_RV64GCVB) -DREF_SHA3=1 -DGAUSSIAN0_REF=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+-include $(wildcard out/*.d)

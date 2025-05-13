@@ -1,0 +1,56 @@
+# Makefile for SpacemiT X60
+
+CC = clang
+LD = clang
+# We work on the SHAKE256X4 variant
+X4 = -DFNDSA_SHAKE256X4=1
+LIBS =
+# -MT $@: Set the target name in the dependency file to the current rule's target ($@).
+# -MMD: Generate a dependency file, excluding system headers.
+# -MP: Add empty phony targets for each dependency to prevent errors if headers are missing.
+# -MF out/$*.d: Output the dependency file to the specified path (out/$*.d).
+DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
+
+SRC_COMM = cpucycles.c sha3.c
+
+CFLAGS_COMM = -W -Wextra -Wshadow -O2 -g $(X4)
+CFLAGS = $(CFLAGS_COMM) -DFNDSA_NEON=1
+
+all: \
+	out/gaussian0_neon out/gaussian0_neon_hybrid_sha3 out/batch_gaussian0_neon out/batch_gaussian0_ref
+
+run_speed: all
+	echo "We work on the SHAKE256X4 variant.\nbatch_gaussian0_ref with SHAKE256-ref and gaussian0_ref:" > speed_batch_gaussian0_cortex_a72.txt
+	./out/batch_gaussian0_ref speed >> speed_batch_gaussian0_cortex_a72.txt
+	echo "\nbatch_gaussian0_neon with SHAKE256X4-hybrid-neon and gaussian0_neon:" >> speed_batch_gaussian0_cortex_a72.txt
+	./out/batch_gaussian0_neon speed >> speed_batch_gaussian0_cortex_a72.txt
+	echo "We work on the SHAKE256X4 variant.\nWith SHAKE256-ref:" > speed_gaussian0_cortex_a72.txt
+	./out/gaussian0_neon >> speed_gaussian0_cortex_a72.txt
+	echo "\nWith SHAKE256X4-hybrid-neon:" >> speed_gaussian0_cortex_a72.txt
+	./out/gaussian0_neon_hybrid_sha3 >> speed_gaussian0_cortex_a72.txt
+
+run_test: all
+	./out/batch_gaussian0_ref test > ./out/batch_gaussian0_ref.txt
+	./out/batch_gaussian0_neon test > ./out/batch_gaussian0_neon.txt
+	diff ./out/batch_gaussian0_ref.txt ./out/batch_gaussian0_neon.txt
+
+clean:
+	rm -rf out
+
+out:
+	@mkdir -p out
+
+out/gaussian0_neon: $(SRC_COMM) gaussian0_neon.c gaussian0_neon.S | out
+	$(CC) $(CFLAGS) $(DEPFLAGS) $^ $(LIBS) -o $@
+	# objdump -S $@ > $@.SS
+
+out/gaussian0_neon_hybrid_sha3: $(SRC_COMM) gaussian0_neon.c gaussian0_neon.S keccak_f1600_x4_hybrid_asm_v3p.S | out
+	$(CC) $(CFLAGS) -DFNDSA_NEON_HYBRID_SHA3=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/batch_gaussian0_neon: $(SRC_COMM) test_batch_gaussian0.c gaussian0_neon.S keccak_f1600_x4_hybrid_asm_v3p.S | out
+	$(CC) $(CFLAGS) -DFNDSA_NEON_HYBRID_SHA3=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/batch_gaussian0_ref: $(SRC_COMM) test_batch_gaussian0.c | out
+	$(CC) $(CFLAGS) -DGAUSSIAN0_REF=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+-include $(wildcard out/*.d)

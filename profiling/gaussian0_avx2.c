@@ -22,6 +22,7 @@ typedef struct {
 #    if FNDSA_SHAKE256X4
 #        define prng_init shake256x4_init
 #        define prng_next_u8 shake256x4_next_u8
+#        define prng_next_u16 shake256x4_next_u16
 #        define prng_next_u24 shake256x4_next_u24
 #        define prng_next_u64 shake256x4_next_u64
 #    else
@@ -32,6 +33,7 @@ typedef struct {
                 shake_flip(pc);                   \
             } while (0)
 #        define prng_next_u8 shake_next_u8
+#        define prng_next_u16 shake_next_u16
 #        define prng_next_u24 shake_next_u24
 #        define prng_next_u64 shake_next_u64
 #    endif
@@ -58,13 +60,13 @@ int32_t gaussian0_avx2(sampler_state *ss)
     /*
      * High words.
      */
-    static const union {
+    const union {
         uint16_t u16[16];
         __m256i ymm[1];
     } rhi15 = {{0x51FB, 0x2A69, 0x113E, 0x0568, 0x014A, 0x003B, 0x0008,
                 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
                 0x0000, 0x0000}};
-    static const union {
+    const union {
         uint64_t u64[20];
         __m256i ymm[5];
     } rlo57 = {{0x1F42ED3AC391802, 0x12B181F3F7DDB82, 0x1CDD0934829C1FF,
@@ -154,24 +156,24 @@ int32_t gaussian0_avx2(sampler_state *ss)
     return r;
 }
 
-static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
-                                     {5559083, 1580863, 8248194},
-                                     {2260429, 13669192, 2736639},
-                                     {708981, 4421575, 10046180},
-                                     {169348, 7122675, 4136815},
-                                     {30538, 13063405, 7650655},
-                                     {4132, 14505003, 7826148},
-                                     {417, 16768101, 11363290},
-                                     {31, 8444042, 8086568},
-                                     {1, 12844466, 265321},
-                                     {0, 1232676, 13644283},
-                                     {0, 38047, 9111839},
-                                     {0, 870, 6138264},
-                                     {0, 14, 12545723},
-                                     {0, 0, 3104126},
-                                     {0, 0, 28824},
-                                     {0, 0, 198},
-                                     {0, 0, 1}};
+const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
+                              {5559083, 1580863, 8248194},
+                              {2260429, 13669192, 2736639},
+                              {708981, 4421575, 10046180},
+                              {169348, 7122675, 4136815},
+                              {30538, 13063405, 7650655},
+                              {4132, 14505003, 7826148},
+                              {417, 16768101, 11363290},
+                              {31, 8444042, 8086568},
+                              {1, 12844466, 265321},
+                              {0, 1232676, 13644283},
+                              {0, 38047, 9111839},
+                              {0, 870, 6138264},
+                              {0, 14, 12545723},
+                              {0, 0, 3104126},
+                              {0, 0, 28824},
+                              {0, 0, 198},
+                              {0, 0, 1}};
 
 #define U32X8(W)                   \
     {                              \
@@ -185,7 +187,7 @@ typedef union {
     __m256i ymm;
 } gauss0_32x8;
 
-static const gauss0_32x8 GAUSS0_AVX2[][3] = {
+const gauss0_32x8 GAUSS0_AVX2[][3] = {
     {U32X8(10745844), U32X8(3068844), U32X8(3741698)},
     {U32X8(5559083), U32X8(1580863), U32X8(8248194)},
     {U32X8(2260429), U32X8(13669192), U32X8(2736639)},
@@ -300,16 +302,15 @@ void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
         }
     }
 
+    uint16_t b_16b = prng_next_u8(&ss->pc);
     for (size_t j = 0; j < 8; j++) {
-        // Get a random bit b to turn the sampling into a bimodal
-        // distribution.
-        int32_t b = prng_next_u8(&ss->pc) & 1;
+        int32_t b = (b_16b >> j) & 1;
         *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
         *(_z_sq + j) = z[j] * z[j];
     }
 }
 
-// used for test correctness of gaussian0_sse2_8w
+// used for test correctness of gaussian0_sse2_16w
 void gaussian0_ref_u24_16w(sampler_state *ss, void *z_bimodal,
                            void *z_square)
 {
@@ -333,13 +334,40 @@ void gaussian0_ref_u24_16w(sampler_state *ss, void *z_bimodal,
         }
     }
 
+    uint16_t b_16b = prng_next_u16(&ss->pc);
     for (size_t j = 0; j < 16; j++) {
-        // Get a random bit b to turn the sampling into a bimodal
-        // distribution.
-        int32_t b = prng_next_u8(&ss->pc) & 1;
+        int32_t b = (b_16b >> j) & 1;
         *(_z_bi + j) = b + ((b << 1) - 1) * z[j];
         *(_z_sq + j) = z[j] * z[j];
     }
+}
+
+/**
+ * Only used to test the performance of core calculations, excluding the
+ * overhead caused by obtaining random numbers.
+ */
+void gaussian0_ref_core(int32_t *z_bimodal, int32_t *z_square)
+{
+    /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
+    uint64_t lo = *z_bimodal << 32 + *z_bimodal;
+    uint32_t hi = *z_square;
+    uint32_t v0 = (uint32_t)lo & 0xFFFFFF;
+    uint32_t v1 = (uint32_t)(lo >> 24) & 0xFFFFFF;
+    uint32_t v2 = (uint32_t)(lo >> 48) | (hi << 16);
+
+    /* Sampled value is z such that v0..v2 is lower than the first
+    z elements of the table. */
+    int32_t z = 0;
+    for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+        uint32_t cc;
+        cc = (v0 - GAUSS0[i][2]) >> 31;
+        cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+        cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+        z += (int32_t)cc;
+    }
+    unsigned b = *z_bimodal & 1;
+    *z_bimodal = b + ((b << 1) - 1) * z;
+    *z_square = z * z;
 }
 
 typedef union {
@@ -378,11 +406,10 @@ void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
         t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
         t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
         t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
-        // cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc0 = _mm256_sub_epi32(prn[0].ymm[0], t2);
-        cc0 = _mm256_srli_epi32(cc0, 31);
+        // if v0 < GAUSS0_AVX2[i][2] then -1 else 0
+        cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc0 = _mm256_sub_epi32(prn[0].ymm[1], cc0);
+        cc0 = _mm256_add_epi32(cc0, prn[0].ymm[1]);
         cc0 = _mm256_sub_epi32(cc0, t1);
         cc0 = _mm256_srli_epi32(cc0, 31);
         // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
@@ -392,8 +419,72 @@ void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
         z0 = _mm256_add_epi32(z0, cc0);
     }
     ALIGNED_INT32(8) b;
-    for (size_t i = 0; i < 8; i++) {
-        b.coeffs[i] = prng_next_u8(&ss->pc) & 1;
+    uint16_t b_16b = prng_next_u8(&ss->pc);
+    for (size_t i = 0; i < 8; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
+    }
+    t0 = _mm256_load_si256(&b.vec[0]);
+    t1 = _mm256_add_epi32(t0, t0);
+    t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
+    t2 = _mm256_mullo_epi32(t1, z0);
+    t2 = _mm256_add_epi32(t2, t0);
+    _mm256_store_si256(_z_bi, t2);
+    /**
+     * Each sample is in the range [0,18], so we can use the 16-bit
+     * multiplication instruction.
+     */
+    _mm256_store_si256(_z_sq, _mm256_mullo_epi16(z0, z0));
+}
+
+void gaussian0_avx2_8w_core(void *z_bimodal, void *z_square)
+{
+    prn_24x3_8w prn[1];
+    __m256i *_z_bi = (__m256i *)z_bimodal;
+    __m256i *_z_sq = (__m256i *)z_square;
+    uint32_t *_z_bi_u32 = (uint32_t *)z_bimodal;
+    uint32_t *_z_sq_u32 = (uint32_t *)z_square;
+
+    /* Get random 72-bit values, with 3x24-bit form. */
+    for (int i = 0; i < 8; i++) {
+        prn[0].u32[0][i] = *(_z_bi_u32 + i);
+        prn[0].u32[1][i] = *(_z_bi_u32 + 4 + i);
+        prn[0].u32[2][i] = *(_z_bi_u32 + 8 + i);
+    }
+    __m256i z0 = _mm256_setzero_si256();
+    __m256i cc0;
+    __m256i t0, t1, t2;
+    /**
+     * Through decompilation, we found that the following loop only uses
+     * six ymm registers.
+     * The number of AVX2 instructions in the loop is 13.
+     */
+    for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+        // load pre-computed table
+        t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
+        t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
+        t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
+        // if v0 < GAUSS0_AVX2[i][2] then -1 else 0
+        cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
+        // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+        cc0 = _mm256_add_epi32(cc0, prn[0].ymm[1]);
+        cc0 = _mm256_sub_epi32(cc0, t1);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+        cc0 = _mm256_sub_epi32(prn[0].ymm[2], cc0);
+        cc0 = _mm256_sub_epi32(cc0, t0);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        z0 = _mm256_add_epi32(z0, cc0);
+    }
+    ALIGNED_INT32(8) b;
+    uint16_t b_16b = *(_z_bi_u32);
+    for (size_t i = 0; i < 8; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t1 = _mm256_add_epi32(t0, t0);
@@ -424,24 +515,17 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2, t3, t4, t5;
-    /**
-     * Through decompilation, we found that the following loop only uses
-     * at least 12 ymm registers.
-     * The number of AVX2 instructions in the loop is 23.
-     */
     for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
         // load pre-computed table
         t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
         t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
         t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
-        // cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc0 = _mm256_sub_epi32(prn[0].ymm[0], t2);
-        cc1 = _mm256_sub_epi32(prn[1].ymm[0], t2);
-        cc0 = _mm256_srli_epi32(cc0, 31);
-        cc1 = _mm256_srli_epi32(cc1, 31);
+        // if v0 < GAUSS0_AVX2[i][2] then -1 else 0
+        cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
+        cc1 = _mm256_cmpgt_epi32(t2, prn[1].ymm[0]);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc0 = _mm256_sub_epi32(prn[0].ymm[1], cc0);
-        cc1 = _mm256_sub_epi32(prn[1].ymm[1], cc1);
+        cc0 = _mm256_add_epi32(cc0, prn[0].ymm[1]);
+        cc1 = _mm256_add_epi32(cc1, prn[1].ymm[1]);
         cc0 = _mm256_sub_epi32(cc0, t1);
         cc1 = _mm256_sub_epi32(cc1, t1);
         cc0 = _mm256_srli_epi32(cc0, 31);
@@ -457,8 +541,83 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
         z1 = _mm256_add_epi32(z1, cc1);
     }
     ALIGNED_INT32(16) b;
-    for (size_t i = 0; i < 16; i++) {
-        b.coeffs[i] = prng_next_u8(&ss->pc) & 1;
+    uint16_t b_16b = prng_next_u16(&ss->pc);
+    for (size_t i = 0; i < 16; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
+    }
+    t0 = _mm256_load_si256(&b.vec[0]);
+    t3 = _mm256_load_si256(&b.vec[1]);
+    t1 = _mm256_add_epi32(t0, t0);
+    t4 = _mm256_add_epi32(t3, t3);
+    t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
+    t4 = _mm256_sub_epi32(t4, _mm256_set1_epi32(1));
+    t2 = _mm256_mullo_epi32(t1, z0);
+    t5 = _mm256_mullo_epi32(t4, z1);
+    t2 = _mm256_add_epi32(t2, t0);
+    t5 = _mm256_add_epi32(t5, t3);
+    _mm256_store_si256(_z_bi, t2);
+    _mm256_store_si256(_z_bi + 1, t5);
+    /**
+     * Each sample is in the range [0,18], so we can use the 16-bit
+     * multiplication instruction.
+     */
+    _mm256_store_si256(_z_sq, _mm256_mullo_epi16(z0, z0));
+    _mm256_store_si256(_z_sq + 1, _mm256_mullo_epi16(z1, z1));
+}
+
+void gaussian0_avx2_16w_core(void *z_bimodal, void *z_square)
+{
+    prn_24x3_8w prn[2];
+    __m256i *_z_bi = (__m256i *)z_bimodal;
+    __m256i *_z_sq = (__m256i *)z_square;
+    uint32_t *_z_bi_u32 = (uint32_t *)z_bimodal;
+    uint32_t *_z_sq_u32 = (uint32_t *)z_square;
+
+    /* Get random 72-bit values, with 3x24-bit form. */
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 8; i++) {
+            prn[j].u32[0][i] = *(_z_bi_u32 + i);
+            prn[j].u32[1][i] = *(_z_bi_u32 + 4 + i);
+            prn[j].u32[2][i] = *(_z_bi_u32 + 8 + i);
+        }
+    __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
+    __m256i cc0, cc1;
+    __m256i t0, t1, t2, t3, t4, t5;
+    for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+        // load pre-computed table
+        t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
+        t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
+        t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
+        // if v0 < GAUSS0_AVX2[i][2] then -1 else 0
+        cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
+        cc1 = _mm256_cmpgt_epi32(t2, prn[1].ymm[0]);
+        // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+        cc0 = _mm256_add_epi32(cc0, prn[0].ymm[1]);
+        cc1 = _mm256_add_epi32(cc1, prn[1].ymm[1]);
+        cc0 = _mm256_sub_epi32(cc0, t1);
+        cc1 = _mm256_sub_epi32(cc1, t1);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        cc1 = _mm256_srli_epi32(cc1, 31);
+        // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+        cc0 = _mm256_sub_epi32(prn[0].ymm[2], cc0);
+        cc1 = _mm256_sub_epi32(prn[1].ymm[2], cc1);
+        cc0 = _mm256_sub_epi32(cc0, t0);
+        cc1 = _mm256_sub_epi32(cc1, t0);
+        cc0 = _mm256_srli_epi32(cc0, 31);
+        cc1 = _mm256_srli_epi32(cc1, 31);
+        z0 = _mm256_add_epi32(z0, cc0);
+        z1 = _mm256_add_epi32(z1, cc1);
+    }
+    ALIGNED_INT32(16) b;
+    uint16_t b_16b = *(_z_bi_u32);
+    for (size_t i = 0; i < 16; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t3 = _mm256_load_si256(&b.vec[1]);
@@ -549,6 +708,7 @@ void speed_gaussian0()
 
     init_perf_counters();
 
+    printf("Including prng_next_* subroutines\n");
     PERF(gaussian0_ref(&ss0, &z0_bimodal.coeffs[0], &z0_square.coeffs[0]),
          gaussian0_ref, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
          TESTS_N);
@@ -565,6 +725,21 @@ void speed_gaussian0()
                               &z0_square.coeffs[0]),
            gaussian0_avx2_16w, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
            TESTS_N, 16);
+
+    printf(
+        "\nExcluding prng_next_* subroutines; including bimodal/square "
+        "calculations\n");
+    PERF(gaussian0_ref_core(&z0_bimodal.coeffs[0], &z0_square.coeffs[0]),
+         gaussian0_ref_core, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+         TESTS_N);
+    PERF_N(gaussian0_avx2_8w_core(&z0_bimodal.coeffs[0],
+                                  &z0_square.coeffs[0]),
+           gaussian0_avx2_8w_core, sampler_init(&ss0, 9, seed, 32),
+           WARMUP_N, TESTS_N, 8);
+    PERF_N(gaussian0_avx2_16w_core(&z0_bimodal.coeffs[0],
+                                   &z0_square.coeffs[0]),
+           gaussian0_avx2_16w_core, sampler_init(&ss0, 9, seed, 32),
+           WARMUP_N, TESTS_N, 16);
 }
 
 int main(void)

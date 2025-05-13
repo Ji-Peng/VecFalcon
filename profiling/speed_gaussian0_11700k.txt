@@ -1,44 +1,24 @@
-On Rocket Lake, i7-11700K with Turbo Boost and hyper thread disable
+We work on the SHAKE256X4 variant.
 
--march=native -mtune=native
+Including prng_next_* subroutines
+gaussian0_ref                  cycles/insts/CPI=152/757/0.20
+gaussian0_ref_u24              cycles/insts/CPI=154/754/0.21
+gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=393/1797/0.22/98
+gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=725/3432/0.21/90
+gaussian0_sse2_16w             cycles/insts/CPI/1-wayCC=1489/6843/0.22/93
 
-all of them using SHAKE256X4
+Excluding prng_next_* subroutines; including bimodal/square calculations
+gaussian0_ref_core             cycles/insts/CPI=75/364/0.21
+gaussian0_sse2_4w_core         cycles/insts/CPI/1-wayCC=85/357/0.24/21
+gaussian0_sse2_8w_core         cycles/insts/CPI/1-wayCC=119/451/0.26/14
+gaussian0_sse2_16w_core        cycles/insts/CPI/1-wayCC=255/880/0.29/15
+Including prng_next_* subroutines
+gaussian0_ref                  cycles/insts/CPI=119/548/0.22
+gaussian0_ref_u24              cycles/insts/CPI=122/546/0.22
+gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=423/1629/0.26/52
+gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=796/3178/0.25/49
 
-taskset -c 0 ./out/gaussian0_avx2
-gaussian0_ref                  cycles/insts/CPI=103/470/0.22
-gaussian0_ref_u24              cycles/insts/CPI=97/464/0.21
-gaussian0_avx2                 cycles/insts/CPI=48/167/0.29
-gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=337/1270/0.27/42
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=619/2353/0.26/38
-gaussian0_avx2_16w_no_order    cycles/insts/CPI/1-wayCC=616/2342/0.26/38
-
-After disabling more advanced ISE
-
-taskset -c 0 ./out/gaussian0_avx2
-gaussian0_ref                  cycles/insts/CPI=117/517/0.23
-gaussian0_ref_u24              cycles/insts/CPI=108/511/0.21
-gaussian0_avx2                 cycles/insts/CPI=59/215/0.28
-gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=422/1589/0.27/52
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=778/3046/0.26/48
-gaussian0_avx2_16w_opt_tail    cycles/insts/CPI/1-wayCC=778/3119/0.25/48
-gaussian0_avx2_16w_no_order    cycles/insts/CPI/1-wayCC=784/3035/0.26/49
-
-taskset -c 0 ./out/gaussian0_sse2
-gaussian0_ref                  cycles/insts/CPI=156/705/0.22
-gaussian0_ref_u24              cycles/insts/CPI=138/698/0.20
-gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=382/1754/0.22/95
-gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=725/3381/0.21/90
-
-Including the computation of "turning into bimodal" and "z0*z0"
-
-taskset -c 0 ./out/gaussian0_avx2
-gaussian0_ref                  cycles/insts/CPI=118/548/0.22
-gaussian0_ref_u24              cycles/insts/CPI=120/546/0.22
-gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=472/1790/0.26/59
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=872/3436/0.25/54
-
-taskset -c 0 ./out/gaussian0_sse2
-gaussian0_ref                  cycles/insts/CPI=159/757/0.21
-gaussian0_ref_u24              cycles/insts/CPI=156/754/0.21
-gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=425/1947/0.22/106
-gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=786/3757/0.21/98
+Excluding prng_next_* subroutines; including bimodal/square calculations
+gaussian0_ref_core             cycles/insts/CPI=74/364/0.21
+gaussian0_avx2_8w_core         cycles/insts/CPI/1-wayCC=138/347/0.40/17
+gaussian0_avx2_16w_core        cycles/insts/CPI/1-wayCC=243/611/0.40/15

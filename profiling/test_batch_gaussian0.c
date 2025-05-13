@@ -44,7 +44,7 @@ void speed_gaussian0()
     store = GAUSSIAN0_STORE_new(&ss);
 
     PERF_N(
-        gaussian0(&ss, store->_z_bimodal.coeffs, store->_z_square.coeffs),
+        n_way = gaussian0(&ss, store->_z_bi.coeffs, store->_z_sq.coeffs),
         gaussian0, sampler_init(&ss, 9, seed, 32), WARMUP_N, TESTS_N,
         n_way);
 
