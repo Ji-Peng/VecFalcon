@@ -26,7 +26,9 @@ run_speed: all
 	echo "\nbatch_gaussian0_avx2 with SHAKE256X4-AVX2 and gaussian0_avx2:" >> speed_batch_gaussian0_11700k.txt
 	taskset -c 0 ./out/batch_gaussian0_avx2 speed >> speed_batch_gaussian0_11700k.txt
 	echo "We work on the SHAKE256X4 variant.\n" > speed_gaussian0_11700k.txt
+	echo "SSE2 version:"
 	taskset -c 0 ./out/gaussian0_sse2 speed >> speed_gaussian0_11700k.txt
+	echo "\nAVX2 version:"
 	taskset -c 0 ./out/gaussian0_avx2 speed >> speed_gaussian0_11700k.txt
 
 run_test: all

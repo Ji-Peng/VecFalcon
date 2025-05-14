@@ -243,14 +243,12 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
         t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
         t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
-        // cc = (v0 - GAUSS0[i][2]) >> 31;
-        cc0 = _mm256_sub_epi32(prn[0].ymm[0], t2);
-        cc1 = _mm256_sub_epi32(prn[1].ymm[0], t2);
-        cc0 = _mm256_srli_epi32(cc0, 31);
-        cc1 = _mm256_srli_epi32(cc1, 31);
+        // if v0 < GAUSS0[i][2] then -1 else 0
+        cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
+        cc1 = _mm256_cmpgt_epi32(t2, prn[1].ymm[0]);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-        cc0 = _mm256_sub_epi32(prn[0].ymm[1], cc0);
-        cc1 = _mm256_sub_epi32(prn[1].ymm[1], cc1);
+        cc0 = _mm256_add_epi32(cc0, prn[0].ymm[1]);
+        cc1 = _mm256_add_epi32(cc1, prn[1].ymm[1]);
         cc0 = _mm256_sub_epi32(cc0, t1);
         cc1 = _mm256_sub_epi32(cc1, t1);
         cc0 = _mm256_srli_epi32(cc0, 31);
@@ -368,14 +366,12 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
             t2 = _mm_loadu_si128(&GAUSS0_SSE2[i][2].xmm);
             t1 = _mm_loadu_si128(&GAUSS0_SSE2[i][1].xmm);
             t0 = _mm_loadu_si128(&GAUSS0_SSE2[i][0].xmm);
-            // cc = (v0 - GAUSS0[i][2]) >> 31;
-            cc0 = _mm_sub_epi32(prn[0].xmm[0], t2);
-            cc1 = _mm_sub_epi32(prn[1].xmm[0], t2);
-            cc0 = _mm_srli_epi32(cc0, 31);
-            cc1 = _mm_srli_epi32(cc1, 31);
+            // if v0 < GAUSS0[i][2] then -1 else 0
+            cc0 = _mm_cmpgt_epi32(t2, prn[0].xmm[0]);
+            cc1 = _mm_cmpgt_epi32(t2, prn[1].xmm[0]);
             // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
-            cc0 = _mm_sub_epi32(prn[0].xmm[1], cc0);
-            cc1 = _mm_sub_epi32(prn[1].xmm[1], cc1);
+            cc0 = _mm_add_epi32(cc0, prn[0].xmm[1]);
+            cc1 = _mm_add_epi32(cc1, prn[1].xmm[1]);
             cc0 = _mm_sub_epi32(cc0, t1);
             cc1 = _mm_sub_epi32(cc1, t1);
             cc0 = _mm_srli_epi32(cc0, 31);

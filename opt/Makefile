@@ -115,7 +115,7 @@ all: \
 	out/test_fndsa_sse2  out/test_fndsa_avx2 out/prof_sampler_next_sse2_2w
 
 run_speed: all
-	echo "We work on the SHAKE256X4 variant.\n" >> speed_fndsa_11700k.txt
+	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_11700k.txt
 	echo "SSE2 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_sse2 >> speed_fndsa_11700k.txt
 	echo "AVX2 version:" >> speed_fndsa_11700k.txt

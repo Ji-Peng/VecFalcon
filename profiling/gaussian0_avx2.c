@@ -466,7 +466,7 @@ void gaussian0_avx2_8w_core(void *z_bimodal, void *z_square)
         t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
         t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
         t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
-        // if v0 < GAUSS0_AVX2[i][2] then -1 else 0
+        // if v0 < GAUSS0[i][2] then -1 else 0
         cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
         cc0 = _mm256_add_epi32(cc0, prn[0].ymm[1]);
@@ -520,7 +520,7 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
         t2 = _mm256_loadu_si256(&GAUSS0_AVX2[i][2].ymm);
         t1 = _mm256_loadu_si256(&GAUSS0_AVX2[i][1].ymm);
         t0 = _mm256_loadu_si256(&GAUSS0_AVX2[i][0].ymm);
-        // if v0 < GAUSS0_AVX2[i][2] then -1 else 0
+        // if v0 < GAUSS0[i][2] then -1 else 0
         cc0 = _mm256_cmpgt_epi32(t2, prn[0].ymm[0]);
         cc1 = _mm256_cmpgt_epi32(t2, prn[1].ymm[0]);
         // cc = (v1 - GAUSS0[i][1] - cc) >> 31;

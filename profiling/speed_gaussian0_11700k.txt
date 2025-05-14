@@ -1,5 +1,6 @@
 We work on the SHAKE256X4 variant.
 
+SSE2 version:
 Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=152/757/0.20
 gaussian0_ref_u24              cycles/insts/CPI=154/754/0.21
@@ -12,6 +13,8 @@ gaussian0_ref_core             cycles/insts/CPI=75/364/0.21
 gaussian0_sse2_4w_core         cycles/insts/CPI/1-wayCC=85/357/0.24/21
 gaussian0_sse2_8w_core         cycles/insts/CPI/1-wayCC=119/451/0.26/14
 gaussian0_sse2_16w_core        cycles/insts/CPI/1-wayCC=255/880/0.29/15
+
+AVX2 version:
 Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=119/548/0.22
 gaussian0_ref_u24              cycles/insts/CPI=122/546/0.22
