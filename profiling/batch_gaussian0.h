@@ -10,7 +10,9 @@
 
 // from sign_inner.h
 typedef struct sampler_state {
-#if FNDSA_SHAKE256X4
+#if FNDSA_SHAKE256X8
+    shake256x8_context pc;
+#elif FNDSA_SHAKE256X4
     shake256x4_context pc;
 #else
     shake_context pc;
@@ -22,7 +24,14 @@ typedef struct sampler_state {
 /* We access the PRNG through macros so that they can be overridden by some
    compatiblity tests with the original Falcon implementation. */
 #ifndef prng_init
-#    if FNDSA_SHAKE256X4
+#    if FNDSA_SHAKE256X8
+#        define prng_init shake256x8_init
+#        define prng_next_u8 shake256x8_next_u8
+#        define prng_next_u16 shake256x8_next_u16
+#        define prng_next_u24 shake256x8_next_u24
+#        define prng_next_u32 shake256x8_next_u32
+#        define prng_next_u64 shake256x8_next_u64
+#    elif FNDSA_SHAKE256X4
 #        define prng_init shake256x4_init
 #        define prng_next_u8 shake256x4_next_u8
 #        define prng_next_u16 shake256x4_next_u16
@@ -56,24 +65,24 @@ void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
         union {                \
             int32_t coeffs[N]; \
         }
-static const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
-                                     {5559083, 1580863, 8248194},
-                                     {2260429, 13669192, 2736639},
-                                     {708981, 4421575, 10046180},
-                                     {169348, 7122675, 4136815},
-                                     {30538, 13063405, 7650655},
-                                     {4132, 14505003, 7826148},
-                                     {417, 16768101, 11363290},
-                                     {31, 8444042, 8086568},
-                                     {1, 12844466, 265321},
-                                     {0, 1232676, 13644283},
-                                     {0, 38047, 9111839},
-                                     {0, 870, 6138264},
-                                     {0, 14, 12545723},
-                                     {0, 0, 3104126},
-                                     {0, 0, 28824},
-                                     {0, 0, 198},
-                                     {0, 0, 1}};
+const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
+                              {5559083, 1580863, 8248194},
+                              {2260429, 13669192, 2736639},
+                              {708981, 4421575, 10046180},
+                              {169348, 7122675, 4136815},
+                              {30538, 13063405, 7650655},
+                              {4132, 14505003, 7826148},
+                              {417, 16768101, 11363290},
+                              {31, 8444042, 8086568},
+                              {1, 12844466, 265321},
+                              {0, 1232676, 13644283},
+                              {0, 38047, 9111839},
+                              {0, 870, 6138264},
+                              {0, 14, 12545723},
+                              {0, 0, 3104126},
+                              {0, 0, 28824},
+                              {0, 0, 198},
+                              {0, 0, 1}};
 
 /**
  * Returns the number of samples.
@@ -138,7 +147,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     return 64;
 }
-#    else
+#    elif FNDSA_AVX2 == 1 || FNDSA_SSE2 == 1
 static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
@@ -167,11 +176,159 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
     }
     return 16;
 }
+#    elif FNDSA_AVX512F == 1
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    int32_t *_z_bi = z_bimodal;
+    int32_t *_z_sq = z_square;
+
+    int32_t z[32] = {0};
+    for (size_t j = 0; j < 32; j++) {
+        /* Get a random 72-bit value, into three 24-bit limbs (v0..v2). */
+        uint32_t v0 = prng_next_u24(&ss->pc);
+        uint32_t v1 = prng_next_u24(&ss->pc);
+        uint32_t v2 = prng_next_u24(&ss->pc);
+        for (size_t i = 0; i < (sizeof GAUSS0) / sizeof(GAUSS0[0]); i++) {
+            uint32_t cc;
+            cc = (v0 - GAUSS0[i][2]) >> 31;
+            cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+            cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+            z[j] += (int32_t)cc;
+        }
+    }
+    uint32_t b_32b = prng_next_u32(&ss->pc);
+    for (size_t j = 0; j < 32; j++) {
+        int32_t b = (b_32b >> j) & 1;
+        *_z_bi++ = b + ((b << 1) - 1) * z[j];
+        *_z_sq++ = z[j] * z[j];
+    }
+    return 32;
+}
 #    endif
 
 #else
 
-#    if FNDSA_AVX2 == 1
+#    if FNDSA_AVX512F == 1
+#        define U32X16(W)                                          \
+            {                                                      \
+                {                                                  \
+                    W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W \
+                }                                                  \
+            }
+
+typedef union {
+    uint32_t u32[16];
+    __m512i zmm;
+} gauss0_32x16;
+
+typedef union {
+    uint32_t u32[3][16];
+    __m512i zmm[3];
+} prn_24x3_16w;
+
+#        define ALIGNED_INT32(N)            \
+            union {                         \
+                int32_t coeffs[N];          \
+                __m512i vec[(N + 15) / 16]; \
+            }
+
+const gauss0_32x16 GAUSS0_AVX512[][3] = {
+    {U32X16(10745844), U32X16(3068844), U32X16(3741698)},
+    {U32X16(5559083), U32X16(1580863), U32X16(8248194)},
+    {U32X16(2260429), U32X16(13669192), U32X16(2736639)},
+    {U32X16(708981), U32X16(4421575), U32X16(10046180)},
+    {U32X16(169348), U32X16(7122675), U32X16(4136815)},
+    {U32X16(30538), U32X16(13063405), U32X16(7650655)},
+    {U32X16(4132), U32X16(14505003), U32X16(7826148)},
+    {U32X16(417), U32X16(16768101), U32X16(11363290)},
+    {U32X16(31), U32X16(8444042), U32X16(8086568)},
+    {U32X16(1), U32X16(12844466), U32X16(265321)},
+    {U32X16(0), U32X16(1232676), U32X16(13644283)},
+    {U32X16(0), U32X16(38047), U32X16(9111839)},
+    {U32X16(0), U32X16(870), U32X16(6138264)},
+    {U32X16(0), U32X16(14), U32X16(12545723)},
+    {U32X16(0), U32X16(0), U32X16(3104126)},
+    {U32X16(0), U32X16(0), U32X16(28824)},
+    {U32X16(0), U32X16(0), U32X16(198)},
+    {U32X16(0), U32X16(0), U32X16(1)}};
+
+static inline int gaussian0(sampler_state *ss, void *z_bimodal,
+                            void *z_square)
+{
+    prn_24x3_16w prn[2];
+    ALIGNED_INT32(32) b;
+    __m512i *_z_bi = (__m512i *)z_bimodal;
+    __m512i *_z_sq = (__m512i *)z_square;
+
+    /* Get random 72-bit values, with 3x24-bit form. */
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 16; i++) {
+            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
+        }
+    uint32_t b_32b = prng_next_u32(&ss->pc);
+    for (size_t i = 0; i < 32; i += 4) {
+        b.coeffs[i] = (b_32b >> i) & 1;
+        b.coeffs[i + 1] = (b_32b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_32b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_32b >> (i + 3)) & 1;
+    }
+    __m512i z0 = _mm512_setzero_si512(), z1 = _mm512_setzero_si512();
+    __m512i cc0, cc1;
+    __m512i t0, t1, t2, t3, t4, t5;
+    for (size_t i = 0;
+         i < (sizeof GAUSS0_AVX512) / sizeof(GAUSS0_AVX512[0]); i++) {
+        // load pre-computed table
+        t2 = _mm512_loadu_si512(&GAUSS0_AVX512[i][2].zmm);
+        t1 = _mm512_loadu_si512(&GAUSS0_AVX512[i][1].zmm);
+        t0 = _mm512_loadu_si512(&GAUSS0_AVX512[i][0].zmm);
+        // cc = (v0 - GAUSS0[i][2]) >> 31;
+        cc0 = _mm512_sub_epi32(prn[0].zmm[0], t2);
+        cc1 = _mm512_sub_epi32(prn[1].zmm[0], t2);
+        cc0 = _mm512_srli_epi32(cc0, 31);
+        cc1 = _mm512_srli_epi32(cc1, 31);
+        // cc = (v1 - GAUSS0[i][1] - cc) >> 31;
+        cc0 = _mm512_sub_epi32(prn[0].zmm[1], cc0);
+        cc1 = _mm512_sub_epi32(prn[1].zmm[1], cc1);
+        cc0 = _mm512_sub_epi32(cc0, t1);
+        cc1 = _mm512_sub_epi32(cc1, t1);
+        cc0 = _mm512_srli_epi32(cc0, 31);
+        cc1 = _mm512_srli_epi32(cc1, 31);
+        // cc = (v2 - GAUSS0[i][0] - cc) >> 31;
+        cc0 = _mm512_sub_epi32(prn[0].zmm[2], cc0);
+        cc1 = _mm512_sub_epi32(prn[1].zmm[2], cc1);
+        cc0 = _mm512_sub_epi32(cc0, t0);
+        cc1 = _mm512_sub_epi32(cc1, t0);
+        cc0 = _mm512_srli_epi32(cc0, 31);
+        cc1 = _mm512_srli_epi32(cc1, 31);
+        z0 = _mm512_add_epi32(z0, cc0);
+        z1 = _mm512_add_epi32(z1, cc1);
+    }
+    t0 = _mm512_load_si512(&b.vec[0]);
+    t3 = _mm512_load_si512(&b.vec[1]);
+    t1 = _mm512_add_epi32(t0, t0);
+    t4 = _mm512_add_epi32(t3, t3);
+    t1 = _mm512_sub_epi32(t1, _mm512_set1_epi32(1));
+    t4 = _mm512_sub_epi32(t4, _mm512_set1_epi32(1));
+    t2 = _mm512_mullo_epi32(t1, z0);
+    t5 = _mm512_mullo_epi32(t4, z1);
+    t2 = _mm512_add_epi32(t2, t0);
+    t5 = _mm512_add_epi32(t5, t3);
+    _mm512_store_si512(_z_bi, t2);
+    _mm512_store_si512(_z_bi + 1, t5);
+    /**
+     * Each sample is in the range [0,18], so we can use the 16-bit
+     * multiplication instruction. However, _mm512_mullo_epi16 relies on
+     * the BW extension, so we still use 32-bit multiplication.
+     */
+    _mm512_store_si512(_z_sq, _mm512_mullo_epi32(z0, z0));
+    _mm512_store_si512(_z_sq + 1, _mm512_mullo_epi32(z1, z1));
+    return 32;
+}
+
+#    elif FNDSA_AVX2 == 1
 #        define U32X8(W)                   \
             {                              \
                 {                          \
@@ -189,7 +346,7 @@ typedef union {
     __m256i ymm[3];
 } prn_24x3_8w;
 
-static const gauss0_32x8 GAUSS0_AVX2[][3] = {
+const gauss0_32x8 GAUSS0_AVX2[][3] = {
     {U32X8(10745844), U32X8(3068844), U32X8(3741698)},
     {U32X8(5559083), U32X8(1580863), U32X8(8248194)},
     {U32X8(2260429), U32X8(13669192), U32X8(2736639)},
@@ -224,6 +381,7 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
                             void *z_square)
 {
     prn_24x3_8w prn[2];
+    ALIGNED_INT32(16) b;
     __m256i *_z_bi = (__m256i *)z_bimodal;
     __m256i *_z_sq = (__m256i *)z_square;
 
@@ -234,6 +392,13 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
             prn[j].u32[1][i] = prng_next_u24(&ss->pc);
             prn[j].u32[2][i] = prng_next_u24(&ss->pc);
         }
+    unsigned b_16b = prng_next_u16(&ss->pc);
+    for (size_t i = 0; i < 16; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
+    }
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2, t3, t4, t5;
@@ -262,14 +427,6 @@ static inline int gaussian0(sampler_state *ss, void *z_bimodal,
         cc1 = _mm256_srli_epi32(cc1, 31);
         z0 = _mm256_add_epi32(z0, cc0);
         z1 = _mm256_add_epi32(z1, cc1);
-    }
-    ALIGNED_INT32(16) b;
-    unsigned b_16b = prng_next_u16(&ss->pc);
-    for (size_t i = 0; i < 16; i += 4) {
-        b.coeffs[i] = (b_16b >> i) & 1;
-        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
-        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
-        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t3 = _mm256_load_si256(&b.vec[1]);
@@ -309,7 +466,7 @@ typedef union {
     __m128i xmm[3];
 } prn_24x3_4w;
 
-static const gauss0_32x4 GAUSS0_SSE2[][3] = {
+const gauss0_32x4 GAUSS0_SSE2[][3] = {
     {U32X4(10745844), U32X4(3068844), U32X4(3741698)},
     {U32X4(5559083), U32X4(1580863), U32X4(8248194)},
     {U32X4(2260429), U32X4(13669192), U32X4(2736639)},

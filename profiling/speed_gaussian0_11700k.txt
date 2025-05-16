@@ -3,25 +3,35 @@ We work on the SHAKE256X4 variant.
 SSE2 version:
 Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=152/757/0.20
-gaussian0_ref_u24              cycles/insts/CPI=154/754/0.21
-gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=393/1797/0.22/98
-gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=725/3432/0.21/90
-gaussian0_sse2_16w             cycles/insts/CPI/1-wayCC=1489/6843/0.22/93
+gaussian0_ref_u24              cycles/insts/CPI=155/754/0.21
+gaussian0_sse2_4w              cycles/insts/CPI/1-wayCC=389/1797/0.22/97
+gaussian0_sse2_8w              cycles/insts/CPI/1-wayCC=723/3432/0.21/90
+gaussian0_sse2_16w             cycles/insts/CPI/1-wayCC=1530/6843/0.22/95
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
-gaussian0_ref_core             cycles/insts/CPI=75/364/0.21
+gaussian0_ref_core             cycles/insts/CPI=74/364/0.20
 gaussian0_sse2_4w_core         cycles/insts/CPI/1-wayCC=85/357/0.24/21
-gaussian0_sse2_8w_core         cycles/insts/CPI/1-wayCC=119/451/0.26/14
-gaussian0_sse2_16w_core        cycles/insts/CPI/1-wayCC=255/880/0.29/15
+gaussian0_sse2_8w_core         cycles/insts/CPI/1-wayCC=119/451/0.27/14
+gaussian0_sse2_16w_core        cycles/insts/CPI/1-wayCC=265/880/0.30/16
 
 AVX2 version:
 Including prng_next_* subroutines
-gaussian0_ref                  cycles/insts/CPI=119/548/0.22
-gaussian0_ref_u24              cycles/insts/CPI=122/546/0.22
-gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=423/1629/0.26/52
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=796/3178/0.25/49
+gaussian0_ref                  cycles/insts/CPI=123/548/0.23
+gaussian0_ref_u24              cycles/insts/CPI=129/546/0.24
+gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=424/1629/0.26/53
+gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=786/3179/0.25/49
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=74/364/0.21
-gaussian0_avx2_8w_core         cycles/insts/CPI/1-wayCC=138/347/0.40/17
-gaussian0_avx2_16w_core        cycles/insts/CPI/1-wayCC=243/611/0.40/15
+gaussian0_avx2_8w_core         cycles/insts/CPI/1-wayCC=116/348/0.34/14
+gaussian0_avx2_16w_core        cycles/insts/CPI/1-wayCC=142/617/0.23/8
+
+AVX-512F with SHAKE256X8 version:
+Including prng_next_* subroutines
+gaussian0_ref                  cycles/insts/CPI=99/451/0.22
+gaussian0_ref_u24              cycles/insts/CPI=99/450/0.22
+gaussian0_avx512f_32w          cycles/insts/CPI/1-wayCC=872/3069/0.28/27
+
+Excluding prng_next_* subroutines; including bimodal/square calculations
+gaussian0_ref_core             cycles/insts/CPI=75/362/0.21
+gaussian0_avx512f_32w_core     cycles/insts/CPI/1-wayCC=216/791/0.27/6

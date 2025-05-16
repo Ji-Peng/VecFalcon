@@ -278,7 +278,7 @@ void gaussian0_ref_u24(sampler_state *ss, void *z_bimodal, void *z_square)
     *_z_sq = z * z;
 }
 
-// used for test correctness of gaussian0_sse2_8w
+// used for test correctness of gaussian0_avx2_8w
 void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
                           void *z_square)
 {
@@ -310,7 +310,7 @@ void gaussian0_ref_u24_8w(sampler_state *ss, void *z_bimodal,
     }
 }
 
-// used for test correctness of gaussian0_sse2_16w
+// used for test correctness of gaussian0_avx2_16w
 void gaussian0_ref_u24_16w(sampler_state *ss, void *z_bimodal,
                            void *z_square)
 {
@@ -384,6 +384,7 @@ typedef union {
 void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[1];
+    ALIGNED_INT32(8) b;
     __m256i *_z_bi = (__m256i *)z_bimodal;
     __m256i *_z_sq = (__m256i *)z_square;
 
@@ -392,6 +393,13 @@ void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
         prn[0].u32[0][i] = prng_next_u24(&ss->pc);
         prn[0].u32[1][i] = prng_next_u24(&ss->pc);
         prn[0].u32[2][i] = prng_next_u24(&ss->pc);
+    }
+    uint16_t b_16b = prng_next_u8(&ss->pc);
+    for (size_t i = 0; i < 8; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     __m256i z0 = _mm256_setzero_si256();
     __m256i cc0;
@@ -418,14 +426,6 @@ void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
         cc0 = _mm256_srli_epi32(cc0, 31);
         z0 = _mm256_add_epi32(z0, cc0);
     }
-    ALIGNED_INT32(8) b;
-    uint16_t b_16b = prng_next_u8(&ss->pc);
-    for (size_t i = 0; i < 8; i += 4) {
-        b.coeffs[i] = (b_16b >> i) & 1;
-        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
-        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
-        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
-    }
     t0 = _mm256_load_si256(&b.vec[0]);
     t1 = _mm256_add_epi32(t0, t0);
     t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
@@ -442,6 +442,7 @@ void gaussian0_avx2_8w(sampler_state *ss, void *z_bimodal, void *z_square)
 void gaussian0_avx2_8w_core(void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[1];
+    ALIGNED_INT32(8) b;
     __m256i *_z_bi = (__m256i *)z_bimodal;
     __m256i *_z_sq = (__m256i *)z_square;
     uint32_t *_z_bi_u32 = (uint32_t *)z_bimodal;
@@ -450,8 +451,15 @@ void gaussian0_avx2_8w_core(void *z_bimodal, void *z_square)
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int i = 0; i < 8; i++) {
         prn[0].u32[0][i] = *(_z_bi_u32 + i);
-        prn[0].u32[1][i] = *(_z_bi_u32 + 4 + i);
-        prn[0].u32[2][i] = *(_z_bi_u32 + 8 + i);
+        prn[0].u32[1][i] = *(_z_bi_u32 + 8 + i);
+        prn[0].u32[2][i] = *(_z_bi_u32 + 16 + i);
+    }
+    uint16_t b_16b = *(_z_bi_u32 + 24);
+    for (size_t i = 0; i < 8; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     __m256i z0 = _mm256_setzero_si256();
     __m256i cc0;
@@ -478,14 +486,6 @@ void gaussian0_avx2_8w_core(void *z_bimodal, void *z_square)
         cc0 = _mm256_srli_epi32(cc0, 31);
         z0 = _mm256_add_epi32(z0, cc0);
     }
-    ALIGNED_INT32(8) b;
-    uint16_t b_16b = *(_z_bi_u32);
-    for (size_t i = 0; i < 8; i += 4) {
-        b.coeffs[i] = (b_16b >> i) & 1;
-        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
-        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
-        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
-    }
     t0 = _mm256_load_si256(&b.vec[0]);
     t1 = _mm256_add_epi32(t0, t0);
     t1 = _mm256_sub_epi32(t1, _mm256_set1_epi32(1));
@@ -502,6 +502,7 @@ void gaussian0_avx2_8w_core(void *z_bimodal, void *z_square)
 void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[2];
+    ALIGNED_INT32(16) b;
     __m256i *_z_bi = (__m256i *)z_bimodal;
     __m256i *_z_sq = (__m256i *)z_square;
 
@@ -512,6 +513,13 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
             prn[j].u32[1][i] = prng_next_u24(&ss->pc);
             prn[j].u32[2][i] = prng_next_u24(&ss->pc);
         }
+    uint16_t b_16b = prng_next_u16(&ss->pc);
+    for (size_t i = 0; i < 16; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
+    }
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2, t3, t4, t5;
@@ -539,14 +547,6 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
         cc1 = _mm256_srli_epi32(cc1, 31);
         z0 = _mm256_add_epi32(z0, cc0);
         z1 = _mm256_add_epi32(z1, cc1);
-    }
-    ALIGNED_INT32(16) b;
-    uint16_t b_16b = prng_next_u16(&ss->pc);
-    for (size_t i = 0; i < 16; i += 4) {
-        b.coeffs[i] = (b_16b >> i) & 1;
-        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
-        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
-        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t3 = _mm256_load_si256(&b.vec[1]);
@@ -571,6 +571,7 @@ void gaussian0_avx2_16w(sampler_state *ss, void *z_bimodal, void *z_square)
 void gaussian0_avx2_16w_core(void *z_bimodal, void *z_square)
 {
     prn_24x3_8w prn[2];
+    ALIGNED_INT32(16) b;
     __m256i *_z_bi = (__m256i *)z_bimodal;
     __m256i *_z_sq = (__m256i *)z_square;
     uint32_t *_z_bi_u32 = (uint32_t *)z_bimodal;
@@ -579,10 +580,17 @@ void gaussian0_avx2_16w_core(void *z_bimodal, void *z_square)
     /* Get random 72-bit values, with 3x24-bit form. */
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < 8; i++) {
-            prn[j].u32[0][i] = *(_z_bi_u32 + i);
-            prn[j].u32[1][i] = *(_z_bi_u32 + 4 + i);
-            prn[j].u32[2][i] = *(_z_bi_u32 + 8 + i);
+            prn[j].u32[0][i] = *(_z_bi_u32 + i + 24 * j);
+            prn[j].u32[1][i] = *(_z_bi_u32 + 8 + i + 24 * j);
+            prn[j].u32[2][i] = *(_z_bi_u32 + 16 + i + 24 * j);
         }
+    uint16_t b_16b = *(_z_bi_u32 + 48);
+    for (size_t i = 0; i < 16; i += 4) {
+        b.coeffs[i] = (b_16b >> i) & 1;
+        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
+        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
+        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
+    }
     __m256i z0 = _mm256_setzero_si256(), z1 = _mm256_setzero_si256();
     __m256i cc0, cc1;
     __m256i t0, t1, t2, t3, t4, t5;
@@ -610,14 +618,6 @@ void gaussian0_avx2_16w_core(void *z_bimodal, void *z_square)
         cc1 = _mm256_srli_epi32(cc1, 31);
         z0 = _mm256_add_epi32(z0, cc0);
         z1 = _mm256_add_epi32(z1, cc1);
-    }
-    ALIGNED_INT32(16) b;
-    uint16_t b_16b = *(_z_bi_u32);
-    for (size_t i = 0; i < 16; i += 4) {
-        b.coeffs[i] = (b_16b >> i) & 1;
-        b.coeffs[i + 1] = (b_16b >> (i + 1)) & 1;
-        b.coeffs[i + 2] = (b_16b >> (i + 2)) & 1;
-        b.coeffs[i + 3] = (b_16b >> (i + 3)) & 1;
     }
     t0 = _mm256_load_si256(&b.vec[0]);
     t3 = _mm256_load_si256(&b.vec[1]);

@@ -20,3 +20,12 @@ FN-DSA sign:                          982406
 FN-DSA sign_core:                     657922
 FN-DSA verify:                         65764
 
+AVX-512F with SHAKE256X8 version:
+n = 512:
+FN-DSA sign:                          460264
+FN-DSA sign_core:                     289976
+FN-DSA verify:                         35480
+n = 1024:
+FN-DSA sign:                          945100
+FN-DSA sign_core:                     602850
+FN-DSA verify:                         69342

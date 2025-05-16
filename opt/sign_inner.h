@@ -564,7 +564,30 @@ void fpoly_gram_fft(unsigned logn, fpr *b00, fpr *b01, fpr *b10,
 void fpoly_apply_basis(unsigned logn, fpr *t0, fpr *t1, const fpr *b01,
                        const fpr *b11, const uint16_t *hm);
 
-#if FNDSA_AVX2 == 1
+#if FNDSA_AVX512F == 1
+#    define U32X16(W)                                          \
+        {                                                      \
+            {                                                  \
+                W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W \
+            }                                                  \
+        }
+
+typedef union {
+    uint32_t u32[16];
+    __m512i zmm;
+} gauss0_32x16;
+
+typedef union {
+    uint32_t u32[3][16];
+    __m512i zmm[3];
+} prn_24x3_16w;
+
+#    define ALIGNED_INT32(N)            \
+        union {                         \
+            int32_t coeffs[N];          \
+            __m512i vec[(N + 15) / 16]; \
+        }
+#elif FNDSA_AVX2 == 1
 #    define U32X8(W)                   \
         {                              \
             {                          \
@@ -674,7 +697,9 @@ typedef struct gaussian0_store {
  */
 
 typedef struct sampler_state {
-#if FNDSA_SHAKE256X4
+#if FNDSA_SHAKE256X8
+    shake256x8_context pc;
+#elif FNDSA_SHAKE256X4
     shake256x4_context pc;
 #else
     shake_context pc;

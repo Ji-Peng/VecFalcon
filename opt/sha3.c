@@ -457,6 +457,14 @@ void process_block(uint64_t *A, unsigned r)
 }
 #endif
 
+#if FNDSA_AVX512F
+extern void KeccakP1600times8_PermuteAll_24rounds(void *states);
+static void process_block_x8(uint64_t *A)
+{
+    KeccakP1600times8_PermuteAll_24rounds(A);
+}
+#endif
+
 #if FNDSA_AVX2
 /* Four SHAKE256 instances in parallel. The provided array contains the
    four states, which are interleaved (this is not the same layout as
@@ -1537,6 +1545,240 @@ void shake256x4_refill(shake256x4_context *sc)
         enc64le(&sc->buf[(i << 5) + 8], sc->state[25 + i]);
         enc64le(&sc->buf[(i << 5) + 16], sc->state[50 + i]);
         enc64le(&sc->buf[(i << 5) + 24], sc->state[75 + i]);
+    }
+#    endif
+}
+#endif
+
+#if FNDSA_SHAKE256X8
+void shake256x8_init(shake256x8_context *sc, const void *seed,
+                     size_t seed_len)
+{
+    memset(sc->state, 0, sizeof sc->state);
+    const uint8_t *sbuf = (const uint8_t *)seed;
+    size_t rlen = seed_len & ~(size_t)7;
+    size_t elen = seed_len - rlen;
+    size_t k = rlen >> 3;
+    sc->ptr = sizeof sc->buf;
+
+#    if FNDSA_AVX512F
+    for (size_t i = 0; i < rlen; i += 8) {
+        uint64_t x = dec64le(sbuf + i);
+        sc->state[i + 0] = x;
+        sc->state[i + 1] = x;
+        sc->state[i + 2] = x;
+        sc->state[i + 3] = x;
+        sc->state[i + 4] = x;
+        sc->state[i + 5] = x;
+        sc->state[i + 6] = x;
+        sc->state[i + 7] = x;
+    }
+    uint64_t x = 0;
+    for (size_t j = 0; j < elen; j++) {
+        x |= (uint64_t)sbuf[rlen + j] << (j << 3);
+    }
+    if (elen < 7) {
+        x |= (uint64_t)0x1F << ((elen + 1) << 3);
+        sc->state[(k << 3) + 0] = x;
+        sc->state[(k << 3) + 1] = x | ((uint64_t)0x01 << (elen << 3));
+        sc->state[(k << 3) + 2] = x | ((uint64_t)0x02 << (elen << 3));
+        sc->state[(k << 3) + 3] = x | ((uint64_t)0x03 << (elen << 3));
+        sc->state[(k << 3) + 4] = x | ((uint64_t)0x04 << (elen << 3));
+        sc->state[(k << 3) + 5] = x | ((uint64_t)0x05 << (elen << 3));
+        sc->state[(k << 3) + 6] = x | ((uint64_t)0x06 << (elen << 3));
+        sc->state[(k << 3) + 7] = x | ((uint64_t)0x07 << (elen << 3));
+    } else {
+        sc->state[(k << 3) + 0] = x;
+        sc->state[(k << 3) + 1] = x | ((uint64_t)0x01 << 56);
+        sc->state[(k << 3) + 2] = x | ((uint64_t)0x02 << 56);
+        sc->state[(k << 3) + 3] = x | ((uint64_t)0x03 << 56);
+        sc->state[(k << 3) + 4] = x | ((uint64_t)0x04 << 56);
+        sc->state[(k << 3) + 5] = x | ((uint64_t)0x05 << 56);
+        sc->state[(k << 3) + 6] = x | ((uint64_t)0x06 << 56);
+        sc->state[(k << 3) + 7] = x | ((uint64_t)0x07 << 56);
+        sc->state[(k << 3) + 8 + 0] = 0x1F;
+        sc->state[(k << 3) + 8 + 1] = 0x1F;
+        sc->state[(k << 3) + 8 + 2] = 0x1F;
+        sc->state[(k << 3) + 8 + 3] = 0x1F;
+        sc->state[(k << 3) + 8 + 4] = 0x1F;
+        sc->state[(k << 3) + 8 + 5] = 0x1F;
+        sc->state[(k << 3) + 8 + 6] = 0x1F;
+        sc->state[(k << 3) + 8 + 7] = 0x1F;
+    }
+    sc->state[16 * 8 + 0] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 1] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 2] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 3] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 4] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 5] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 6] ^= (uint64_t)0x80 << 56;
+    sc->state[16 * 8 + 7] ^= (uint64_t)0x80 << 56;
+#    elif FNDSA_NEON_HYBRID_SHA3 || FNDSA_SSE2 || FNDSA_NEON_SHA3
+    for (size_t i = 0; i < rlen; i += 8) {
+        uint64_t x = dec64le(sbuf + i);
+        sc->state[((i >> 3) << 2) + 0] = x;
+        sc->state[((i >> 3) << 2) + 1] = x;
+        sc->state[((i >> 3) << 2) + 2] = x;
+        sc->state[((i >> 3) << 2) + 3] = x;
+        sc->state[((i >> 3) << 2) + 25 * 4 + 0] = x;
+        sc->state[((i >> 3) << 2) + 25 * 4 + 1] = x;
+        sc->state[((i >> 3) << 2) + 25 * 4 + 2] = x;
+        sc->state[((i >> 3) << 2) + 25 * 4 + 3] = x;
+    }
+    uint64_t x = 0;
+    for (size_t j = 0; j < elen; j++) {
+        x |= (uint64_t)sbuf[rlen + j] << (j << 3);
+    }
+    if (elen < 7) {
+        x |= (uint64_t)0x1F << ((elen + 1) << 3);
+        sc->state[(k << 2) + 0] = x;
+        sc->state[(k << 2) + 1] = x | ((uint64_t)0x01 << (elen << 3));
+        sc->state[(k << 2) + 2] = x | ((uint64_t)0x02 << (elen << 3));
+        sc->state[(k << 2) + 3] = x | ((uint64_t)0x03 << (elen << 3));
+        sc->state[(k << 2) + 25 * 4 + 0] =
+            x | ((uint64_t)0x04 << (elen << 3));
+        sc->state[(k << 2) + 25 * 4 + 1] =
+            x | ((uint64_t)0x05 << (elen << 3));
+        sc->state[(k << 2) + 25 * 4 + 2] =
+            x | ((uint64_t)0x06 << (elen << 3));
+        sc->state[(k << 2) + 25 * 4 + 3] =
+            x | ((uint64_t)0x07 << (elen << 3));
+    } else {
+        sc->state[(k << 2) + 0] = x;
+        sc->state[(k << 2) + 1] = x | ((uint64_t)0x01 << 56);
+        sc->state[(k << 2) + 2] = x | ((uint64_t)0x02 << 56);
+        sc->state[(k << 2) + 3] = x | ((uint64_t)0x03 << 56);
+        sc->state[(k << 2) + 4] = 0x1F;
+        sc->state[(k << 2) + 5] = 0x1F;
+        sc->state[(k << 2) + 6] = 0x1F;
+        sc->state[(k << 2) + 7] = 0x1F;
+        sc->state[(k << 2) + 25 * 4 + 0] = x | ((uint64_t)0x04 << 56);
+        sc->state[(k << 2) + 25 * 4 + 1] = x | ((uint64_t)0x05 << 56);
+        sc->state[(k << 2) + 25 * 4 + 2] = x | ((uint64_t)0x06 << 56);
+        sc->state[(k << 2) + 25 * 4 + 3] = x | ((uint64_t)0x07 << 56);
+        sc->state[(k << 2) + 25 * 4 + 4] = 0x1F;
+        sc->state[(k << 2) + 25 * 4 + 5] = 0x1F;
+        sc->state[(k << 2) + 25 * 4 + 6] = 0x1F;
+        sc->state[(k << 2) + 25 * 4 + 7] = 0x1F;
+    }
+    sc->state[64] ^= (uint64_t)0x80 << 56;
+    sc->state[65] ^= (uint64_t)0x80 << 56;
+    sc->state[66] ^= (uint64_t)0x80 << 56;
+    sc->state[67] ^= (uint64_t)0x80 << 56;
+    sc->state[64 + 25 * 4] ^= (uint64_t)0x80 << 56;
+    sc->state[65 + 25 * 4] ^= (uint64_t)0x80 << 56;
+    sc->state[66 + 25 * 4] ^= (uint64_t)0x80 << 56;
+    sc->state[67 + 25 * 4] ^= (uint64_t)0x80 << 56;
+    return;
+#    else
+    /* In the plain implementation, the four SHAKE256 states are
+       successive (i.e. not interleaved). */
+    for (size_t i = 0; i < rlen; i += 8) {
+        sc->state[i >> 3] = dec64le(sbuf + i);
+    }
+    memcpy(sc->state + 25 * 1, sc->state, rlen);
+    memcpy(sc->state + 25 * 2, sc->state, rlen);
+    memcpy(sc->state + 25 * 3, sc->state, rlen);
+    memcpy(sc->state + 25 * 4, sc->state, rlen);
+    memcpy(sc->state + 25 * 5, sc->state, rlen);
+    memcpy(sc->state + 25 * 6, sc->state, rlen);
+    memcpy(sc->state + 25 * 7, sc->state, rlen);
+    uint64_t x = 0;
+    for (size_t j = 0; j < elen; j++) {
+        x |= (uint64_t)sbuf[rlen + j] << (j << 3);
+    }
+    if (elen < 7) {
+        /* We have room for both the instance ID and the padding
+           byte. */
+        x |= (uint64_t)0x1F << ((elen + 1) << 3);
+        sc->state[k] = x;
+        sc->state[25 * 1 + k] = x | ((uint64_t)0x01 << (elen << 3));
+        sc->state[25 * 2 + k] = x | ((uint64_t)0x02 << (elen << 3));
+        sc->state[25 * 3 + k] = x | ((uint64_t)0x03 << (elen << 3));
+        sc->state[25 * 4 + k] = x | ((uint64_t)0x04 << (elen << 3));
+        sc->state[25 * 5 + k] = x | ((uint64_t)0x05 << (elen << 3));
+        sc->state[25 * 6 + k] = x | ((uint64_t)0x06 << (elen << 3));
+        sc->state[25 * 7 + k] = x | ((uint64_t)0x07 << (elen << 3));
+    } else {
+        /* ID byte and padding byte fall on different words. */
+        sc->state[k] = x;
+        sc->state[25 * 1 + k] = x | ((uint64_t)0x01 << 56);
+        sc->state[25 * 2 + k] = x | ((uint64_t)0x02 << 56);
+        sc->state[25 * 3 + k] = x | ((uint64_t)0x03 << 56);
+        sc->state[25 * 4 + k] = x | ((uint64_t)0x04 << 56);
+        sc->state[25 * 5 + k] = x | ((uint64_t)0x05 << 56);
+        sc->state[25 * 6 + k] = x | ((uint64_t)0x06 << 56);
+        sc->state[25 * 7 + k] = x | ((uint64_t)0x07 << 56);
+        sc->state[k + 1] = 0x1F;
+        sc->state[25 * 1 + k + 1] = 0x1F;
+        sc->state[25 * 2 + k + 1] = 0x1F;
+        sc->state[25 * 3 + k + 1] = 0x1F;
+        sc->state[25 * 4 + k + 1] = 0x1F;
+        sc->state[25 * 5 + k + 1] = 0x1F;
+        sc->state[25 * 6 + k + 1] = 0x1F;
+        sc->state[25 * 7 + k + 1] = 0x1F;
+    }
+    sc->state[16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 1 + 16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 2 + 16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 3 + 16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 4 + 16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 5 + 16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 6 + 16] ^= (uint64_t)0x80 << 56;
+    sc->state[25 * 7 + 16] ^= (uint64_t)0x80 << 56;
+#    endif
+}
+
+void shake256x8_refill(shake256x8_context *sc)
+{
+    sc->ptr = 0;
+#    if FNDSA_AVX512F
+    process_block_x8(sc->state);
+    memcpy(sc->buf, sc->state, sizeof sc->buf);
+    return;
+#    endif
+
+#    if FNDSA_NEON_HYBRID_SHA3
+    process_block_x4(sc->state);
+    process_block_x4(sc->state + 25 * 4);
+#    elif FNDSA_SSE2 || FNDSA_NEON_SHA3
+    process_block_x2(sc->state);
+    process_block_x2(sc->state + 2);
+    process_block_x2(sc->state + 25 * 4);
+    process_block_x2(sc->state + 25 * 4 + 2);
+#    else
+    process_block(sc->state, 17);
+    process_block(sc->state + 25 * 1, 17);
+    process_block(sc->state + 25 * 2, 17);
+    process_block(sc->state + 25 * 3, 17);
+    process_block(sc->state + 25 * 4, 17);
+    process_block(sc->state + 25 * 5, 17);
+    process_block(sc->state + 25 * 6, 17);
+    process_block(sc->state + 25 * 7, 17);
+    /* Interleave the outputs into the buffer. */
+    for (int i = 0; i < 17; i++) {
+        enc64le(&sc->buf[(i << 6) + 0 * 8], sc->state[0 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 1 * 8], sc->state[1 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 2 * 8], sc->state[2 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 3 * 8], sc->state[3 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 4 * 8], sc->state[4 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 5 * 8], sc->state[5 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 6 * 8], sc->state[6 * 25 + i]);
+        enc64le(&sc->buf[(i << 6) + 7 * 8], sc->state[7 * 25 + i]);
+    }
+    return;
+#    endif
+
+#    if FNDSA_NEON_HYBRID_SHA3 || FNDSA_SSE2 || FNDSA_NEON_SHA3
+    for (int i = 0; i < 17; i++) {
+        enc64le(&sc->buf[(i << 6) + 0 * 8], sc->state[0 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 1 * 8], sc->state[1 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 2 * 8], sc->state[2 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 3 * 8], sc->state[3 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 4 * 8], sc->state[0 + 4 * 25 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 5 * 8], sc->state[1 + 4 * 25 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 6 * 8], sc->state[2 + 4 * 25 + 4 * i]);
+        enc64le(&sc->buf[(i << 6) + 7 * 8], sc->state[3 + 4 * 25 + 4 * i]);
     }
 #    endif
 }

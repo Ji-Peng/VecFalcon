@@ -26,15 +26,15 @@
 
 /* TARGET_SSE2 is applied to a function definition and allows use of SSE2
    intrinsics in that function. */
-   #if FNDSA_SSE2
-   #    if defined __GNUC__ || defined __clang__
-   #        define TARGET_SSE2 __attribute__((target("sse2")))
-   #    else
-   #        define TARGET_SSE2
-   #    endif
-   #else
-   #    define TARGET_SSE2
-   #endif
+#if FNDSA_SSE2
+#    if defined __GNUC__ || defined __clang__
+#        define TARGET_SSE2 __attribute__((target("sse2")))
+#    else
+#        define TARGET_SSE2
+#    endif
+#else
+#    define TARGET_SSE2
+#endif
 
 #ifndef FNDSA_LITTLE_ENDIAN
 #    if defined __LITTLE_ENDIAN__ ||                                  \
@@ -160,6 +160,39 @@ static inline unsigned shake_next_u24(shake_context *sc)
 #endif
 }
 
+/* Get the next 32-bit word from SHAKE. */
+static inline unsigned shake_next_u32(shake_context *sc)
+{
+    if (sc->dptr + 3 >= sc->rate) {
+        uint8_t x[4];
+        shake_extract(sc, x, 4);
+        return (unsigned)x[0] | ((unsigned)x[1] << 8) |
+               ((unsigned)x[2] << 16) | ((unsigned)x[3] << 24);
+    }
+#if FNDSA_LITTLE_ENDIAN
+    uint8_t *d = (uint8_t *)(void *)sc;
+#    if FNDSA_UNALIGNED_16
+    unsigned v = (*(uint32_t *)(d + sc->dptr));
+#    else
+    unsigned v = (unsigned)d[sc->dptr] | ((unsigned)d[sc->dptr + 1] << 8) |
+                 ((unsigned)d[sc->dptr + 2] << 16) |
+                 ((unsigned)d[sc->dptr + 3] << 24);
+#    endif
+    sc->dptr += 4;
+    return v;
+#else
+    unsigned x0 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    unsigned x1 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    unsigned x2 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    unsigned x3 = (uint8_t)(sc->A[sc->dptr >> 3] >> ((sc->dptr & 7) << 3));
+    sc->dptr++;
+    return x0 | (x1 << 8) | (x2 << 16) | (x3 << 24);
+#endif
+}
+
 /* Get the next 64-bit word from SHAKE. */
 static inline uint64_t shake_next_u64(shake_context *sc)
 {
@@ -269,11 +302,116 @@ static inline unsigned shake256x4_next_u24(shake256x4_context *sc)
     return x;
 }
 
+/* Get the next 32-bit word of pseudorandom output. */
+static inline unsigned shake256x4_next_u32(shake256x4_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 3) {
+        shake256x4_refill(sc);
+    }
+    unsigned x = (unsigned)sc->buf[sc->ptr] |
+                 ((unsigned)sc->buf[sc->ptr + 1] << 8) |
+                 ((unsigned)sc->buf[sc->ptr + 2] << 16) |
+                 ((unsigned)sc->buf[sc->ptr + 3] << 24);
+    sc->ptr += 4;
+    return x;
+}
+
 /* Get the next 64-bit word of pseudorandom output. */
 static inline uint64_t shake256x4_next_u64(shake256x4_context *sc)
 {
     if (sc->ptr >= (sizeof sc->buf) - 7) {
         shake256x4_refill(sc);
+    }
+    uint64_t x = (uint64_t)sc->buf[sc->ptr] |
+                 ((uint64_t)sc->buf[sc->ptr + 1] << 8) |
+                 ((uint64_t)sc->buf[sc->ptr + 2] << 16) |
+                 ((uint64_t)sc->buf[sc->ptr + 3] << 24) |
+                 ((uint64_t)sc->buf[sc->ptr + 4] << 32) |
+                 ((uint64_t)sc->buf[sc->ptr + 5] << 40) |
+                 ((uint64_t)sc->buf[sc->ptr + 6] << 48) |
+                 ((uint64_t)sc->buf[sc->ptr + 7] << 56);
+    sc->ptr += 8;
+    return x;
+}
+#endif
+
+#if FNDSA_SHAKE256X8
+/*
+ * SHAKE256x8 is a PRNG based on SHAKE256; it runs eight SHAKE256 instances
+ * in parallel, interleaving their outputs with 64-bit granularity. The
+ * eight instances are initialized with a common seed, followed by a single
+ * byte of value 0x00, 0x01, 0x02, ..., 0x07, depending on the SHAKE
+ * instance.
+ */
+
+typedef struct {
+    uint64_t state[25 * 8] __attribute__((aligned(64)));
+    uint8_t buf[8 * 136];
+    unsigned ptr;
+} shake256x8_context;
+
+/* Initialize a SHAKE256x8 context from a given seed.
+   WARNING: seed length MUST NOT exceed 134 bytes. */
+#    define shake256x8_init fndsa_shake256x8_init
+void shake256x8_init(shake256x8_context *sc, const void *seed,
+                     size_t seed_len);
+/* Refill the SHAKE256x8 output buffer. */
+#    define shake256x8_refill fndsa_shake256x8_refill
+void shake256x8_refill(shake256x8_context *sc);
+
+/* Get the next byte of pseudorandom output. */
+static inline uint8_t shake256x8_next_u8(shake256x8_context *sc)
+{
+    if (sc->ptr >= sizeof sc->buf) {
+        shake256x8_refill(sc);
+    }
+    return sc->buf[sc->ptr++];
+}
+
+/* Get the next 16-bit word of pseudorandom output. */
+static inline unsigned shake256x8_next_u16(shake256x8_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 1) {
+        shake256x8_refill(sc);
+    }
+    unsigned x =
+        (unsigned)sc->buf[sc->ptr] | ((unsigned)sc->buf[sc->ptr + 1] << 8);
+    sc->ptr += 2;
+    return x;
+}
+
+/* Get the next 24-bit word of pseudorandom output. */
+static inline unsigned shake256x8_next_u24(shake256x8_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 2) {
+        shake256x8_refill(sc);
+    }
+    unsigned x = (unsigned)sc->buf[sc->ptr] |
+                 ((unsigned)sc->buf[sc->ptr + 1] << 8) |
+                 ((unsigned)sc->buf[sc->ptr + 2] << 16);
+    sc->ptr += 3;
+    return x;
+}
+
+/* Get the next 32-bit word of pseudorandom output. */
+static inline unsigned shake256x8_next_u32(shake256x8_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 3) {
+        shake256x8_refill(sc);
+    }
+    unsigned x = (unsigned)sc->buf[sc->ptr] |
+                 ((unsigned)sc->buf[sc->ptr + 1] << 8) |
+                 ((unsigned)sc->buf[sc->ptr + 2] << 16) |
+                 ((unsigned)sc->buf[sc->ptr + 3] << 24);
+    sc->ptr += 4;
+    return x;
+}
+
+/* Get the next 64-bit word of pseudorandom output. */
+static inline uint64_t shake256x8_next_u64(shake256x8_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 7) {
+        shake256x8_refill(sc);
     }
     uint64_t x = (uint64_t)sc->buf[sc->ptr] |
                  ((uint64_t)sc->buf[sc->ptr + 1] << 8) |
