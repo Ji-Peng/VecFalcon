@@ -1697,6 +1697,43 @@ TARGET_SSE2 TARGET_NEON void fpoly_mul_fft(unsigned logn, fpr *a,
                                            const fpr *b)
 {
     size_t hn = (size_t)1 << (logn - 1);
+// #if FNDSA_AVX2
+//     if (hn >= 4) {
+//         for (size_t i = 0; i < hn; i += 4) {
+//             __m256d xar = _mm256_loadu_pd((const double *)a + i);
+//             __m256d xai = _mm256_loadu_pd((const double *)a + i + hn);
+//             __m256d xbr = _mm256_loadu_pd((const double *)b + i);
+//             __m256d xbi = _mm256_loadu_pd((const double *)b + i + hn);
+//             __m256d xcr = _mm256_sub_pd(_mm256_mul_pd(xar, xbr),
+//                                         _mm256_mul_pd(xai, xbi));
+//             __m256d xci = _mm256_add_pd(_mm256_mul_pd(xar, xbi),
+//                                         _mm256_mul_pd(xai, xbr));
+//             _mm256_storeu_pd((double *)a + i, xcr);
+//             _mm256_storeu_pd((double *)a + i + hn, xci);
+//         }
+//     } else if (hn >= 2) {
+//         for (size_t i = 0; i < hn; i += 2) {
+//             __m128d xar = _mm_loadu_pd((const double *)a + i);
+//             __m128d xai = _mm_loadu_pd((const double *)a + i + hn);
+//             __m128d xbr = _mm_loadu_pd((const double *)b + i);
+//             __m128d xbi = _mm_loadu_pd((const double *)b + i + hn);
+//             __m128d xcr =
+//                 _mm_sub_pd(_mm_mul_pd(xar, xbr), _mm_mul_pd(xai, xbi));
+//             __m128d xci =
+//                 _mm_add_pd(_mm_mul_pd(xar, xbi), _mm_mul_pd(xai, xbr));
+//             _mm_storeu_pd((double *)a + i, xcr);
+//             _mm_storeu_pd((double *)a + i + hn, xci);
+//         }
+//     } else if (hn >= 1) {
+//         __m128d xa = _mm_loadu_pd((const double *)a);
+//         __m128d xb = _mm_loadu_pd((const double *)b);
+//         __m128d xcr = _mm_mul_pd(xa, xb);
+//         __m128d xci = _mm_mul_pd(xa, _mm_shuffle_pd(xb, xb, 1));
+//         xcr = _mm_sub_pd(xcr, _mm_shuffle_pd(xcr, xcr, 1));
+//         xci = _mm_add_pd(xci, _mm_shuffle_pd(xci, xci, 1));
+//         __m128d xc = _mm_shuffle_pd(xcr, xci, 0);
+//         _mm_storeu_pd((double *)a, xc);
+//     }
 #if FNDSA_SSE2
     if (hn >= 2) {
         for (size_t i = 0; i < hn; i += 2) {
@@ -1752,6 +1789,22 @@ TARGET_SSE2 TARGET_NEON void fpoly_mul_fft(unsigned logn, fpr *a,
             veorq_u64(vreinterpretq_u64_f64(xcr), cz.x));
         float64x2_t xc = vpaddq_f64(xcr, xci);
         vst1q_f64((float64_t *)a, xc);
+    }
+#elif RVV_VLEN256 && FNDSA_RV64D
+    extern void fpoly_mul_fft_rvv(size_t hn, double *a, const double *b);
+    if (hn >= 4)
+        fpoly_mul_fft_rvv(hn, (double *)a, (const double *)b);
+    else {
+        f64 *aa = (f64 *)a;
+        const f64 *bb = (const f64 *)b;
+        for (size_t i = 0; i < hn; i++) {
+            f64 a_re = aa[i];
+            f64 a_im = aa[i + hn];
+            f64 b_re = bb[i];
+            f64 b_im = bb[i + hn];
+            aa[i] = f64_sub(f64_mul(a_re, b_re), f64_mul(a_im, b_im));
+            aa[i + hn] = f64_add(f64_mul(a_im, b_re), f64_mul(a_re, b_im));
+        }
     }
 #elif FNDSA_RV64D
     f64 *aa = (f64 *)a;
@@ -1969,6 +2022,66 @@ TARGET_SSE2 TARGET_NEON void fpoly_LDL_fft(unsigned logn, const fpr *g00,
                                            fpr *g01, fpr *g11)
 {
     size_t hn = (size_t)1 << (logn - 1);
+// #if FNDSA_AVX2
+//     const union {
+//         fpr f[4];
+//         __m128d x[2];
+//         __m256d y;
+//     } one = {{FPR_ONE, FPR_ONE, FPR_ONE, FPR_ONE}};
+//     const union {
+//         int32_t i[8];
+//         __m128d x[2];
+//         __m256d y;
+//     } nz = {
+//         {0, -0x80000000, 0, -0x80000000, 0, -0x80000000, 0,
+//         -0x80000000}};
+//     const double *p00 = (const double *)g00;
+//     double *p01 = (double *)g01;
+//     double *p11 = (double *)g11;
+//     if (hn >= 4) {
+//         for (size_t i = 0; i < hn; i += 4) {
+//             __m256d g00_re = _mm256_loadu_pd(p00 + i);
+//             __m256d g01_re = _mm256_loadu_pd(p01 + i);
+//             __m256d g01_im = _mm256_loadu_pd(p01 + i + hn);
+//             __m256d g11_re = _mm256_loadu_pd(p11 + i);
+//             __m256d inv_g00_re = _mm256_div_pd(one.y, g00_re);
+//             __m256d mu_re = _mm256_mul_pd(g01_re, inv_g00_re);
+//             __m256d mu_im = _mm256_mul_pd(g01_im, inv_g00_re);
+//             __m256d zo_re = _mm256_add_pd(_mm256_mul_pd(mu_re, g01_re),
+//                                           _mm256_mul_pd(mu_im, g01_im));
+//             _mm256_storeu_pd(p11 + i, _mm256_sub_pd(g11_re, zo_re));
+//             _mm256_storeu_pd(p01 + i, mu_re);
+//             _mm256_storeu_pd(p01 + i + hn, _mm256_xor_pd(nz.y, mu_im));
+//         }
+//     } else if (hn >= 2) {
+//         for (size_t i = 0; i < hn; i += 2) {
+//             __m128d g00_re = _mm_loadu_pd(p00 + i);
+//             __m128d g01_re = _mm_loadu_pd(p01 + i);
+//             __m128d g01_im = _mm_loadu_pd(p01 + i + hn);
+//             __m128d g11_re = _mm_loadu_pd(p11 + i);
+//             __m128d inv_g00_re = _mm_div_pd(one.x[0], g00_re);
+//             __m128d mu_re = _mm_mul_pd(g01_re, inv_g00_re);
+//             __m128d mu_im = _mm_mul_pd(g01_im, inv_g00_re);
+//             __m128d zo_re = _mm_add_pd(_mm_mul_pd(mu_re, g01_re),
+//                                        _mm_mul_pd(mu_im, g01_im));
+//             _mm_storeu_pd(p11 + i, _mm_sub_pd(g11_re, zo_re));
+//             _mm_storeu_pd(p01 + i, mu_re);
+//             _mm_storeu_pd(p01 + i + hn, _mm_xor_pd(nz.x[0], mu_im));
+//         }
+//     } else {
+//         __m128d g00_re = _mm_load_sd(p00);
+//         __m128d g01_re = _mm_load_sd(p01);
+//         __m128d g01_im = _mm_load_sd(p01 + 1);
+//         __m128d g11_re = _mm_load_sd(p11);
+//         __m128d inv_g00_re = _mm_div_sd(one.x[0], g00_re);
+//         __m128d mu_re = _mm_mul_sd(g01_re, inv_g00_re);
+//         __m128d mu_im = _mm_mul_sd(g01_im, inv_g00_re);
+//         __m128d zo_re = _mm_add_sd(_mm_mul_sd(mu_re, g01_re),
+//                                    _mm_mul_sd(mu_im, g01_im));
+//         _mm_store_sd(p11, _mm_sub_sd(g11_re, zo_re));
+//         _mm_store_sd(p01, mu_re);
+//         _mm_store_sd(p01 + 1, _mm_xor_pd(nz.x[0], mu_im));
+//     }
 #if FNDSA_SSE2
     static const union {
         fpr f[2];
@@ -2046,23 +2159,98 @@ TARGET_SSE2 TARGET_NEON void fpoly_LDL_fft(unsigned logn, const fpr *g00,
         vst1_f64(p01, mu_re);
         vst1_f64(p01 + 1, vneg_f64(mu_im));
     }
+#elif RVV_VLEN256 && FNDSA_RV64D
+    extern void fpoly_LDL_fft_rvv(size_t hn, const double *g00,
+                                  double *g01, double *g11);
+    const f64 *gg00 = (const f64 *)g00;
+    f64 *gg01 = (f64 *)g01;
+    f64 *gg11 = (f64 *)g11;
+    if (hn >= 4)
+        fpoly_LDL_fft_rvv(hn, (const double *)gg00, (double *)gg01,
+                          (double *)gg11);
+    else if (hn >= 2)
+        for (size_t i = 0; i < hn; i += 2) {
+            f64 g00_re_0 = gg00[i];
+            f64 g00_re_1 = gg00[i + 1];
+            f64 g01_re_0 = gg01[i], g01_im_0 = gg01[i + hn];
+            f64 g01_re_1 = gg01[i + 1], g01_im_1 = gg01[i + hn + 1];
+            f64 g11_re_0 = gg11[i];
+            f64 g11_re_1 = gg11[i + 1];
+            f64 inv_g00_re_0 = f64_inv(g00_re_0);
+            f64 inv_g00_re_1 = f64_inv(g00_re_1);
+            f64 mu_re_0 = f64_mul(g01_re_0, inv_g00_re_0);
+            f64 mu_im_0 = f64_mul(g01_im_0, inv_g00_re_0);
+            f64 mu_re_1 = f64_mul(g01_re_1, inv_g00_re_1);
+            f64 mu_im_1 = f64_mul(g01_im_1, inv_g00_re_1);
+            f64 zo_re_0 = f64_add(f64_mul(mu_re_0, g01_re_0),
+                                  f64_mul(mu_im_0, g01_im_0));
+            f64 zo_re_1 = f64_add(f64_mul(mu_re_1, g01_re_1),
+                                  f64_mul(mu_im_1, g01_im_1));
+            gg11[i] = f64_sub(g11_re_0, zo_re_0);
+            gg11[i + 1] = f64_sub(g11_re_1, zo_re_1);
+            gg01[i] = mu_re_0;
+            gg01[i + 1] = mu_re_1;
+            gg01[i + hn] = f64_neg(mu_im_0);
+            gg01[i + hn + 1] = f64_neg(mu_im_1);
+        }
+    else
+        for (size_t i = 0; i < hn; i++) {
+            f64 g00_re = gg00[i];
+            f64 g01_re = gg01[i], g01_im = gg01[i + hn];
+            f64 g11_re = gg11[i];
+            f64 inv_g00_re = f64_inv(g00_re);
+            f64 mu_re = f64_mul(g01_re, inv_g00_re);
+            f64 mu_im = f64_mul(g01_im, inv_g00_re);
+            f64 zo_re =
+                f64_add(f64_mul(mu_re, g01_re), f64_mul(mu_im, g01_im));
+            gg11[i] = f64_sub(g11_re, zo_re);
+            gg01[i] = mu_re;
+            gg01[i + hn] = f64_neg(mu_im);
+        }
 #elif FNDSA_RV64D
     const f64 *gg00 = (const f64 *)g00;
     f64 *gg01 = (f64 *)g01;
     f64 *gg11 = (f64 *)g11;
-    for (size_t i = 0; i < hn; i++) {
-        f64 g00_re = gg00[i];
-        f64 g01_re = gg01[i], g01_im = gg01[i + hn];
-        f64 g11_re = gg11[i];
-        f64 inv_g00_re = f64_inv(g00_re);
-        f64 mu_re = f64_mul(g01_re, inv_g00_re);
-        f64 mu_im = f64_mul(g01_im, inv_g00_re);
-        f64 zo_re =
-            f64_add(f64_mul(mu_re, g01_re), f64_mul(mu_im, g01_im));
-        gg11[i] = f64_sub(g11_re, zo_re);
-        gg01[i] = mu_re;
-        gg01[i + hn] = f64_neg(mu_im);
-    }
+    if (hn >= 2)
+        for (size_t i = 0; i < hn; i += 2) {
+            f64 g00_re_0 = gg00[i];
+            f64 g00_re_1 = gg00[i + 1];
+            f64 g01_re_0 = gg01[i], g01_im_0 = gg01[i + hn];
+            f64 g01_re_1 = gg01[i + 1], g01_im_1 = gg01[i + hn + 1];
+            f64 g11_re_0 = gg11[i];
+            f64 g11_re_1 = gg11[i + 1];
+            f64 inv_g00_re_0 = f64_inv(g00_re_0);
+            f64 inv_g00_re_1 = f64_inv(g00_re_1);
+            f64 mu_re_0 = f64_mul(g01_re_0, inv_g00_re_0);
+            f64 mu_im_0 = f64_mul(g01_im_0, inv_g00_re_0);
+            f64 mu_re_1 = f64_mul(g01_re_1, inv_g00_re_1);
+            f64 mu_im_1 = f64_mul(g01_im_1, inv_g00_re_1);
+            f64 zo_re_0 = f64_add(f64_mul(mu_re_0, g01_re_0),
+                                  f64_mul(mu_im_0, g01_im_0));
+            f64 zo_re_1 = f64_add(f64_mul(mu_re_1, g01_re_1),
+                                  f64_mul(mu_im_1, g01_im_1));
+            gg11[i] = f64_sub(g11_re_0, zo_re_0);
+            gg11[i + 1] = f64_sub(g11_re_1, zo_re_1);
+            gg01[i] = mu_re_0;
+            gg01[i + 1] = mu_re_1;
+            gg01[i + hn] = f64_neg(mu_im_0);
+            gg01[i + hn + 1] = f64_neg(mu_im_1);
+        }
+    else
+        for (size_t i = 0; i < hn; i++) {
+            f64 g00_re = gg00[i];
+            f64 g01_re = gg01[i], g01_im = gg01[i + hn];
+            f64 g11_re = gg11[i];
+            f64 inv_g00_re = f64_inv(g00_re);
+            f64 mu_re = f64_mul(g01_re, inv_g00_re);
+            f64 mu_im = f64_mul(g01_im, inv_g00_re);
+            f64 zo_re =
+                f64_add(f64_mul(mu_re, g01_re), f64_mul(mu_im, g01_im));
+            gg11[i] = f64_sub(g11_re, zo_re);
+            gg01[i] = mu_re;
+            gg01[i + hn] = f64_neg(mu_im);
+        }
+
 #else
     for (size_t i = 0; i < hn; i++) {
         fpr g00_re = g00[i];
@@ -2091,7 +2279,6 @@ TARGET_SSE2 TARGET_NEON void fpoly_split_fft(unsigned logn, fpr *f0,
         f0[0] = f[0];
         f1[0] = f[hn];
     }
-
 #if FNDSA_SSE2
     static union {
         fpr f[2];
@@ -2156,6 +2343,38 @@ TARGET_SSE2 TARGET_NEON void fpoly_split_fft(unsigned logn, fpr *f0,
         vst1_f64(ff1 + i, vget_low_f64(w));
         vst1_f64(ff1 + i + qn, vget_high_f64(w));
     }
+#elif RVV_VLEN256 && FNDSA_RV64D
+    extern void fpoly_split_fft_rvv(size_t qn, double *f0, double *f1,
+                                    const double *f, const uint64_t *GM);
+    if (qn >= 4)
+        fpoly_split_fft_rvv(qn, (double *)f0, (double *)f1,
+                            (const double *)f, (const uint64_t *)GM);
+    else {
+        const f64 *ff = (const f64 *)f;
+        f64 *ff0 = (f64 *)f0;
+        f64 *ff1 = (f64 *)f1;
+        for (size_t i = 0; i < qn; i++) {
+            f64 a_re = ff[(i << 1) + 0], a_im = ff[(i << 1) + 0 + hn];
+            f64 b_re = ff[(i << 1) + 1], b_im = ff[(i << 1) + 1 + hn];
+            f64 u_re = ((const f64 *)GM)[((i + hn) << 1) + 0];
+            f64 u_im = ((const f64 *)GM)[((i + hn) << 1) + 1];
+            f64 t0_re, t0_im, t1_re, t1_im, t0, t1, t2, t3;
+            t0_re = f64_add(a_re, b_re);
+            t0_im = f64_add(a_im, b_im);
+            t1_re = f64_sub(a_re, b_re);
+            t1_im = f64_sub(a_im, b_im);
+            ff0[i] = f64_half(t0_re);
+            ff0[i + qn] = f64_half(t0_im);
+            t0 = f64_mul(t1_re, u_re);
+            t1 = f64_mul(t1_im, u_im);
+            t2 = f64_mul(t1_im, u_re);
+            t3 = f64_mul(t1_re, u_im);
+            f64 v_re = f64_add(t0, t1);
+            f64 v_im = f64_sub(t2, t3);
+            ff1[i] = f64_half(v_re);
+            ff1[i + qn] = f64_half(v_im);
+        }
+    }
 #elif FNDSA_RV64D
     const f64 *ff = (const f64 *)f;
     f64 *ff0 = (f64 *)f0;
@@ -2163,19 +2382,21 @@ TARGET_SSE2 TARGET_NEON void fpoly_split_fft(unsigned logn, fpr *f0,
     for (size_t i = 0; i < qn; i++) {
         f64 a_re = ff[(i << 1) + 0], a_im = ff[(i << 1) + 0 + hn];
         f64 b_re = ff[(i << 1) + 1], b_im = ff[(i << 1) + 1 + hn];
-        f64 t_re, t_im;
-
-        t_re = f64_add(a_re, b_re);
-        t_im = f64_add(a_im, b_im);
-        ff0[i] = f64_half(t_re);
-        ff0[i + qn] = f64_half(t_im);
-
-        t_re = f64_sub(a_re, b_re);
-        t_im = f64_sub(a_im, b_im);
         f64 u_re = ((const f64 *)GM)[((i + hn) << 1) + 0];
         f64 u_im = ((const f64 *)GM)[((i + hn) << 1) + 1];
-        f64 v_re = f64_add(f64_mul(t_re, u_re), f64_mul(t_im, u_im));
-        f64 v_im = f64_sub(f64_mul(t_im, u_re), f64_mul(t_re, u_im));
+        f64 t0_re, t0_im, t1_re, t1_im, t0, t1, t2, t3;
+        t0_re = f64_add(a_re, b_re);
+        t0_im = f64_add(a_im, b_im);
+        t1_re = f64_sub(a_re, b_re);
+        t1_im = f64_sub(a_im, b_im);
+        ff0[i] = f64_half(t0_re);
+        ff0[i + qn] = f64_half(t0_im);
+        t0 = f64_mul(t1_re, u_re);
+        t1 = f64_mul(t1_im, u_im);
+        t2 = f64_mul(t1_im, u_re);
+        t3 = f64_mul(t1_re, u_im);
+        f64 v_re = f64_add(t0, t1);
+        f64 v_im = f64_sub(t2, t3);
         ff1[i] = f64_half(v_re);
         ff1[i + qn] = f64_half(v_im);
     }
@@ -2251,6 +2472,31 @@ TARGET_SSE2 TARGET_NEON void fpoly_split_selfadj_fft(unsigned logn,
         vst1_f64(ff1 + i, vget_low_f64(w));
         vst1_f64(ff1 + i + qn, vget_high_f64(w));
     }
+#elif RVV_VLEN256 && FNDSA_RV64D
+    extern void fpoly_split_selfadj_fft_rvv(size_t qn, double *f0,
+                                            double *f1, const double *f,
+                                            const uint64_t *GM);
+    if (qn >= 4)
+        fpoly_split_selfadj_fft_rvv(qn, (double *)f0, (double *)f1,
+                                    (const double *)f,
+                                    (const uint64_t *)GM);
+    else {
+        const f64 *ff = (const f64 *)f;
+        f64 *ff0 = (f64 *)f0;
+        f64 *ff1 = (f64 *)f1;
+        for (size_t i = 0; i < qn; i++) {
+            f64 a_re = ff[(i << 1) + 0];
+            f64 b_re = ff[(i << 1) + 1];
+            f64 t_re;
+            t_re = f64_add(a_re, b_re);
+            ff0[i] = f64_half(t_re);
+            ff0[i + qn] = (f64){0.0};
+            t_re = f64_half(f64_sub(a_re, b_re));
+            ff1[i] = f64_mul(t_re, ((const f64 *)GM)[((i + hn) << 1) + 0]);
+            ff1[i + qn] = f64_mul(
+                t_re, f64_neg(((const f64 *)GM)[((i + hn) << 1) + 1]));
+        }
+    }
 #elif FNDSA_RV64D
     const f64 *ff = (const f64 *)f;
     f64 *ff0 = (f64 *)f0;
@@ -2259,11 +2505,9 @@ TARGET_SSE2 TARGET_NEON void fpoly_split_selfadj_fft(unsigned logn,
         f64 a_re = ff[(i << 1) + 0];
         f64 b_re = ff[(i << 1) + 1];
         f64 t_re;
-
         t_re = f64_add(a_re, b_re);
         ff0[i] = f64_half(t_re);
         ff0[i + qn] = (f64){0.0};
-
         t_re = f64_half(f64_sub(a_re, b_re));
         ff1[i] = f64_mul(t_re, ((const f64 *)GM)[((i + hn) << 1) + 0]);
         ff1[i + qn] =
@@ -2352,6 +2596,29 @@ TARGET_SSE2 TARGET_NEON void fpoly_merge_fft(unsigned logn, fpr *f,
         vst1q_f64(ff + (i << 1), vaddq_f64(c_re, vdupq_lane_f64(a_re, 0)));
         vst1q_f64(ff + (i << 1) + hn,
                   vaddq_f64(c_im, vdupq_lane_f64(a_im, 0)));
+    }
+#elif RVV_VLEN256 && FNDSA_RV64D
+    extern void fpoly_merge_fft_rvv(size_t qn, double *f, const double *f0,
+                                    const double *f1, const uint64_t *GM);
+    if (qn >= 4)
+        fpoly_merge_fft_rvv(qn, (double *)f, (const double *)f0,
+                            (const double *)f1, (const uint64_t *)GM);
+    else {
+        const f64 *ff0 = (const f64 *)f0;
+        const f64 *ff1 = (const f64 *)f1;
+        f64 *ff = (f64 *)f;
+        for (size_t i = 0; i < qn; i++) {
+            f64 a_re = ff0[i], a_im = ff0[i + qn];
+            f64 b_re = ff1[i], b_im = ff1[i + qn];
+            f64 s_re = ((const f64 *)GM)[((i + hn) << 1) + 0];
+            f64 s_im = ((const f64 *)GM)[((i + hn) << 1) + 1];
+            f64 c_re = f64_sub(f64_mul(b_re, s_re), f64_mul(b_im, s_im));
+            f64 c_im = f64_add(f64_mul(b_im, s_re), f64_mul(b_re, s_im));
+            ff[(i << 1) + 0] = f64_add(a_re, c_re);
+            ff[(i << 1) + 0 + hn] = f64_add(a_im, c_im);
+            ff[(i << 1) + 1] = f64_sub(a_re, c_re);
+            ff[(i << 1) + 1 + hn] = f64_sub(a_im, c_im);
+        }
     }
 #elif FNDSA_RV64D
     const f64 *ff0 = (const f64 *)f0;
@@ -2491,7 +2758,6 @@ TARGET_SSE2 TARGET_NEON void fpoly_gram_fft(unsigned logn, fpr *b00,
         f64 b01_re = bb01[i], b01_im = bb01[i + hn];
         f64 b10_re = bb10[i], b10_im = bb10[i + hn];
         f64 b11_re = bb11[i], b11_im = bb11[i + hn];
-
         /* g00 = b00*adj(b00) + b01*adj(b01) */
         f64 g00_re = f64_add(f64_add(f64_sqr(b00_re), f64_sqr(b00_im)),
                              f64_add(f64_sqr(b01_re), f64_sqr(b01_im)));
@@ -2509,7 +2775,6 @@ TARGET_SSE2 TARGET_NEON void fpoly_gram_fft(unsigned logn, fpr *b00,
         /* g11 = b10*adj(b10) + b11*adj(b11) */
         f64 g11_re = f64_add(f64_add(f64_sqr(b10_re), f64_sqr(b10_im)),
                              f64_add(f64_sqr(b11_re), f64_sqr(b11_im)));
-
         bb00[i] = g00_re;
         bb00[i + hn] = (f64){0.0};
         bb01[i] = g01_re;
