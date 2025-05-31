@@ -27,7 +27,10 @@ CFLAGS_RV64GCVB	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gcv_zba_zbb	\
 	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
 
 all: \
-	out/gaussian0_rv64 out/gaussian0_rv64_opt_sha3 out/batch_gaussian0_rv64imb out/batch_gaussian0_rv64imbv out/batch_gaussian0_ref_rv64imb out/batch_gaussian0_ref_rv64imbv
+	out/gaussian0_rv64 out/gaussian0_rv64_opt_sha3 \
+	out/batch_gaussian0_rv64imb out/batch_gaussian0_rv64imbv \
+	out/batch_gaussian0_ref_rv64imb out/batch_gaussian0_ref_rv64imbv \
+	out/fft_rvv
 
 clean:
 	rm -rf out
@@ -54,6 +57,9 @@ run_test: all
 
 out:
 	@mkdir -p out
+
+out/fft_rvv: cpucycles.c fft_rvv.c fft_rvv.S | out
+	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
 
 out/gaussian0_rv64: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S | out
 	$(CC) $(CFLAGS_RV64GCVB) -DREF_SHA3=1 $(DEPFLAGS) $^ $(LIBS) -o $@
