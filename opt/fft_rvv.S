@@ -1,5 +1,13 @@
 .section .rodata
 .align 4
+_MASK_0101:
+.dword 0,1,0,1
+_MASK_2323:
+.dword 2,3,2,3
+_MASK_0022:
+.dword 0,0,2,2
+_MASK_1133:
+.dword 1,1,3,3
 DOUBLE_ONE:
 .dword 0x3FF0000000000000  # 1.0 in the format of IEEE 754 double
 DOUBLE_HALF_ONE:
@@ -301,4 +309,429 @@ fpoly_merge_fft_rvv_loop:
     ld s1, 1*8(sp)
     addi sp, sp, 2*8
 FUNC_END fpoly_merge_fft_rvv
-.endif
+
+.macro save_regs
+  sd s0,  0*8(sp)
+  sd s1,  1*8(sp)
+  sd s2,  2*8(sp)
+  sd s3,  3*8(sp)
+  sd s4,  4*8(sp)
+  sd s5,  5*8(sp)
+  sd s6,  6*8(sp)
+  sd s7,  7*8(sp)
+.endm
+
+.macro restore_regs
+  ld s0,  0*8(sp)
+  ld s1,  1*8(sp)
+  ld s2,  2*8(sp)
+  ld s3,  3*8(sp)
+  ld s4,  4*8(sp)
+  ld s5,  5*8(sp)
+  ld s6,  6*8(sp)
+  ld s7,  7*8(sp)
+.endm
+
+// shuffle2
+# f[0ht, 1ht, 2ht, 3ht],f[4ht, 5ht, 6ht, 7ht] -> 
+# f[0ht, 1ht, 4ht, 5ht],f[2ht, 3ht, 6ht, 7ht]
+# vm0/vm1: _MASK_0101/_MASK_2323
+# v0: _MASK_V0_0b0011
+// shuffle1
+# f[0ht, 1ht, 4ht, 5ht],f[2ht, 3ht, 6ht, 7ht] -> 
+# f[0ht, 2ht, 4ht, 6ht],f[1ht, 3ht, 5ht, 7ht]
+# vm0/vm1: _MASK_0022/_MASK_1133
+# v0: _MASK_V0_0b0101
+.macro shuffle_x2 in0_0, in0_1, in1_0, in1_1, \
+        tm0_0, tm0_1, tm1_0, tm1_1,vm0, vm1
+    # shuffle2: tm0_0=f[4ht, 5ht, 4ht, 5ht], tm0_1=f[2ht, 3ht, 2ht, 3ht]
+    # shuffle1: tm0_0=f[2ht, 2ht, 6ht, 6ht], tm0_1=f[1ht, 1ht, 5ht, 5ht]
+    vrgather.vv \tm0_0, \in0_1, \vm0;       vrgather.vv \tm0_1, \in0_0, \vm1
+    vrgather.vv \tm1_0, \in1_1, \vm0;       vrgather.vv \tm1_1, \in1_0, \vm1
+    # shuffle2: in0_0=f[0ht, 1ht, 4ht, 5ht], in0_1=f[2ht, 3ht, 6ht, 7ht]
+    # shuffle1: in0_0=f[0ht, 2ht, 4ht, 6ht], in0_1=f[1ht, 3ht, 5ht, 7ht]
+    vmerge.vvm  \in0_0, \tm0_0, \in0_0, v0; vmerge.vvm  \in0_1, \in0_1, \tm0_1, v0
+    vmerge.vvm  \in1_0, \tm1_0, \in1_0, v0; vmerge.vvm  \in1_1, \in1_1, \tm1_1, v0
+.endm
+
+.macro CT_BF are,bre,aim,bim,wre,wim,vf,vt0,vt1
+	vfmul.v\()\vf \vt0, \bre, \wre
+	vfmul.v\()\vf \vt1, \bim, \wim
+	vfmul.v\()\vf \bre, \bre, \wim
+	vfmul.v\()\vf \bim, \bim, \wre
+	vfsub.vv \vt0, \vt0, \vt1
+	vfadd.vv \vt1, \bre, \bim
+	vfsub.vv \bre, \are, \vt0
+	vfsub.vv \bim, \aim, \vt1
+	vfadd.vv \are, \are, \vt0
+	vfadd.vv \aim, \aim, \vt1
+.endm
+
+.macro CT_BFx2 a0re,b0re,a1re,b1re,a0im,b0im,a1im,b1im,\
+		w0re,w1re,w0im,w1im,vf,vt00,vt01,vt10,vt11
+	vfmul.v\()\vf \vt00, \b0re, \w0re
+	vfmul.v\()\vf \vt01, \b0im, \w0im
+	vfmul.v\()\vf \vt10, \b1re, \w1re
+	vfmul.v\()\vf \vt11, \b1im, \w1im
+	vfmul.v\()\vf \b0re, \b0re, \w0im
+	vfmul.v\()\vf \b0im, \b0im, \w0re
+	vfmul.v\()\vf \b1re, \b1re, \w1im
+	vfmul.v\()\vf \b1im, \b1im, \w1re
+	vfsub.vv \vt00, \vt00, \vt01
+	vfsub.vv \vt10, \vt10, \vt11
+	vfadd.vv \vt01, \b0re, \b0im
+	vfadd.vv \vt11, \b1re, \b1im
+	vfsub.vv \b0re, \a0re, \vt00
+	vfsub.vv \b1re, \a1re, \vt10
+	vfsub.vv \b0im, \a0im, \vt01
+	vfsub.vv \b1im, \a1im, \vt11
+	vfadd.vv \a0re, \a0re, \vt00
+	vfadd.vv \a1re, \a1re, \vt10
+	vfadd.vv \a0im, \a0im, \vt01
+	vfadd.vv \a1im, \a1im, \vt11
+.endm
+
+# void fpoly_FFT_rvv(unsigned logn, double *f, double *GM);
+# t0: n, t1: hn, t2: byte_stride=ht*8, t3: loop number, t4: 2*byte_stride
+### Register usage:
+# v16-v31: 32 complex numbers
+# v0,v1,v2: used for shuffle2/shuffle1
+# v6-v13: items of GM table
+# v3,v4,v5,v14,v15: temporary registers
+# f0-f13: items of GM table
+# a0,a1,a2: parameters
+# a3,a4,a5: addresses related to input double *f
+# a6,a7,t5,t6: addresses related to GM table
+# t0: temporary usage
+# t1: hn; t3: loop number; 
+# t2,t4: byte stride used for vlse64.v and vsse64.v
+FUNC fpoly_FFT_rvv
+    li t6, 1
+    addi sp, sp, -8*9
+    sll  t0, t6, a0 # n = 1 << logn
+    save_regs
+    vsetivli a7, 4, e64, m1, tu, mu
+    srli t1, t0, 1  # hn = n >> 1
+    srli t2, t0, 2  # byte_stride=n>>2=ht*8, ht=32 for Falcon1024, =16 for Falcon512
+    srli t3, t1, 5  # loop number=hn/32=hn >> 5
+    slli t4, t2, 1  # 2*byte_stride
+    ### prepare the base addresses required by vlse64.v
+    # a1: &f[0], a3: &f[1], a4: &f[0+hn], a5: &f[1+hn]
+    slli t6, t1, 3  # 8*hn
+    addi a3, a1, 8
+    add  a4, a1, t6;    add  a5, a3, t6
+    sd a1, 8*8(sp)  # save a1 for later use
+    ### prepare the base addresses required by vsse64.v
+    # s0: &f[0],   s1: &f[1ht],   s2: &f[8ht],   s3: &f[9ht]
+    # s4: &f[0+hn],s5: &f[1ht+hn],s6: &f[8ht+hn],s7: &f[9ht+hn]
+    slli t5, t2, 3  # 8*byte_stride
+    fld f0, 0*8(a2);    fld f1, 1*8(a2)
+    mv   s0, a1;        add  s1, a1, t2
+    add  s2, s0, t5;    add  s3, s1, t5
+    add  s4, s0, t6;    add  s5, s1, t6
+    add  s6, s2, t6;    add  s7, s3, t6
+	### GM: 
+    # f0|f1 for layer 1.       f2-f3  |f4-f5   for layer 2.
+    # v6-v7|v8-v9 for layer 3. v10-v11|v12-v13 for layer 4.
+    addi a6, a2, 2*8;   addi a7, a2, 2*8+1*8
+    fld f2, (a6);       fld f4, (a7)
+    addi t5, a6, 2*8;   addi t6, a7, 2*8
+    fld f3, (t5);       fld f5, (t6)
+    addi a6, a6, 4*8;   addi a7, a7, 3*8+1*32
+    vle64.v v6, (a6);   vle64.v v8, (a7)
+    addi t5, a6, 2*32;  addi t6, a7, 2*32
+    vle64.v v7, (t5);   vle64.v v9, (t6)
+    addi a6, a6, 4*32;  addi a7, a7, 4*32
+    vle64.v v10, (a6);  vle64.v v12, (a7)
+    addi t5, t5, 4*32;  addi t6, t6, 4*32
+    vle64.v v11, (t5);  vle64.v v13, (t6)
+    addi a2, t6, 1*32 # jump to the beginning of 5th layer
+### 1 2 3 4 layers merging
+fpoly_FFT_rvv_1234_loop:
+    ### load coefficients
+    vsetivli a7, 16, e64, m4, tu, mu
+	# v16-v19=[f[0],f[ht],  ...,f[15ht]]    | v24-v27 are imaginary part
+    # v20-v23=[f[1],f[ht+1],...,f[15ht+1]]  | v28-v31 are imaginary part
+	vlse64.v v16, (a1), t2; vlse64.v v20, (a3), t2
+    addi a1, a1, 2*8; addi a3, a3, 2*8
+	vlse64.v v24, (a4), t2; vlse64.v v28, (a5), t2
+    vsetivli a7, 4, e64, m1, tu, mu
+    addi a4, a4, 2*8; addi a5, a5, 2*8
+    ### layer 1
+    CT_BFx2 v16,v18,v17,v19,v24,v26,v25,v27,f0,f0,f1,f1,f,v4,v5,v14,v15
+    CT_BFx2 v20,v22,v21,v23,v28,v30,v29,v31,f0,f0,f1,f1,f,v4,v5,v14,v15
+    ### layer 2
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,f2,f3,f4,f5,f,v4,v5,v14,v15
+    la a6, _MASK_0101;  la a7, _MASK_2323;  li t0, 0b0011
+    vle64.v v1, (a6);   vle64.v v2, (a7);   vmv.s.x v0, t0
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,f2,f3,f4,f5,f,v4,v5,v14,v15
+    # before shuffle2:
+    # v16=f[0ht,1ht, 2ht, 3ht], v17=f[4ht, 5ht, 6ht, 7ht]
+    # v18=f[8ht,9ht,10ht,11ht], v19=f[12ht,13ht,14ht,15ht]
+    # after shuffle2:
+    # v16=f[0ht,1ht, 4ht, 5ht], v17=f[2ht, 3ht, 6ht, 7ht]
+    # v18=f[8ht,9ht,12ht,13ht], v19=f[10ht,11ht,14ht,15ht]
+    ### layer 3
+    shuffle_x2 v16, v17, v18, v19, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v24, v25, v26, v27, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,v6,v7,v8,v9,v,v4,v5,v14,v15
+    shuffle_x2 v20, v21, v22, v23, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v28, v29, v30, v31, v14, v15, v4, v5, v1, v2
+    la a6, _MASK_0022;  la a7, _MASK_1133;  li t0, 0b0101
+    vle64.v v1, (a6);   vle64.v v2, (a7);   vmv.s.x v0, t0
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,v6,v7,v8,v9,v,v4,v5,v14,v15
+    # after shuffle1:
+    # v16=f[0ht,2ht, 4ht,  6ht], v17=[1ht,3ht, 5ht, 7ht]
+    # v18=f[8ht,10ht,12ht,14ht], v19=[9ht,11ht,13ht,15ht]
+    ### layer 4
+    shuffle_x2 v16, v17, v18, v19, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v24, v25, v26, v27, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,v10,v11,v12,v13,v,v4,v5,v14,v15
+    shuffle_x2 v20, v21, v22, v23, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v28, v29, v30, v31, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,v10,v11,v12,v13,v,v4,v5,v14,v15
+    ### store results
+    # stride: ht*16 (in bytes)
+    # base address: 
+    # v16: &f[0ht+0], v17: &f[1ht+0], v18: &f[8ht+0], v19: &f[9ht+0]
+    # v24: &f[0ht+hn],v25: &f[1ht+hn],v26: &f[8ht+hn],v27: &f[9ht+hn]
+    # v20: &f[0ht+1],   v21: &f[1ht+1],   v22: &f[8ht+1],   v23: &f[9ht+1]
+    # v28: &f[0ht+1+hn],v29: &f[1ht+1+hn],v30: &f[8ht+1+hn],v31: &f[9ht+1+hn]
+	vsse64.v v16, (s0), t4;  vsse64.v v17, (s1), t4
+    addi s0, s0, 8; addi s1, s1, 8
+    vsse64.v v18, (s2), t4;  vsse64.v v19, (s3), t4
+    addi s2, s2, 8; addi s3, s3, 8
+    vsse64.v v24, (s4), t4;  vsse64.v v25, (s5), t4
+    addi s4, s4, 8; addi s5, s5, 8
+    vsse64.v v26, (s6), t4;  vsse64.v v27, (s7), t4
+    addi s6, s6, 8; addi s7, s7, 8
+    vsse64.v v20, (s0), t4;  vsse64.v v21, (s1), t4
+    addi s0, s0, 8; addi s1, s1, 8
+    vsse64.v v22, (s2), t4;  vsse64.v v23, (s3), t4
+    addi s2, s2, 8; addi s3, s3, 8
+    vsse64.v v28, (s4), t4;  vsse64.v v29, (s5), t4
+    addi s4, s4, 8; addi s5, s5, 8
+    vsse64.v v30, (s6), t4;  vsse64.v v31, (s7), t4
+	addi t3, t3, -1
+    addi s6, s6, 8; addi s7, s7, 8
+	bnez t3, fpoly_FFT_rvv_1234_loop
+    # For Falcon512: hn=256.
+    ld a1, 8*8(sp)  # restore a1
+    li t0, 256
+    srli t3, t1, 5  # loop number
+    ### prepare the base addresses required by vle64.v
+    # a1: &f[0], a3: &f[16], a4: &f[0+hn], a5: &f[16+hn]
+    slli t6, t1, 3  # 8*hn
+    addi a3, a1, 16*8
+    add  a4, a1, t6;    add  a5, a3, t6
+    ### prepare the base addresses required by vsse64.v
+    # s0: &f[0],   s1: &f[1],   s2: &f[8],   s3: &f[9]
+    # s4: &f[0+hn],s5: &f[1+hn],s6: &f[8+hn],s7: &f[9+hn]
+    mv   s0, a1;        addi s1, a1, 1*8
+    addi s2, s0, 8*8;   addi s3, s1, 8*8
+    add  s4, s0, t6;    add  s5, s1, t6
+    add  s6, s2, t6;    add  s7, s3, t6
+    beq t0, t1, fpoly_FFT_rvv_5678_loop
+### 5 6 7 8 9 layers merging
+fpoly_FFT_rvv_56789_loop:
+    ### GM:
+    # f0|f1 for layer 5. f2-f3|f4-f5 for layer 6. f6-f9|f10-f13 for layer 7.
+    # v6-v9|v10-v13 for layer 8/9.
+    ### load coefficients
+    # v16-v19=f[0,1,...,14,15]   | v24-v27 are imaginary part
+    # v20-v23=f[16,17,...,30,31] | v28-v31 are imaginary part
+    vsetivli x0, 16, e64, m4, tu, mu
+    fld f0, 0*8(a2);    fld f1, 1*8(a2)
+	vle64.v v16, (a1);  vle64.v v20, (a3)
+	vle64.v v24, (a4);  vle64.v v28, (a5)
+    addi a6, a2, 2*8;   addi a7, a2, 2*8+1*8
+    addi t5, a6, 2*8;   addi t6, a7, 2*8
+    addi a1, a1, 32*8;  addi a3, a3, 32*8
+    addi a4, a4, 32*8;  addi a5, a5, 32*8
+    vsetivli x0, 4, e64, m1, tu, mu
+    ### layer 5
+    fld f2, (a6);       fld f3, (a7)
+    addi a6, a6, 4*8;   addi a7, a7, 4*8
+    CT_BFx2 v16,v20,v17,v21,v24,v28,v25,v29,f0,f0,f1,f1,f,v4,v5,v14,v15
+    fld f4, (t5);       fld f5, (t6)
+    addi t5, t5, 4*8;   addi t6, t6, 4*8
+    CT_BFx2 v18,v22,v19,v23,v26,v30,v27,v31,f0,f0,f1,f1,f,v4,v5,v14,v15
+    ### layer 6
+    fld f6, (a6);       fld f7, (a7)
+    addi a6, a6, 4*8;   addi a7, a7, 4*8
+    CT_BFx2 v16,v18,v17,v19,v24,v26,v25,v27,f2,f2,f4,f4,f,v4,v5,v14,v15
+    fld f8, (t5);       fld f9, (t6)
+    addi t5, t5, 4*8;   addi t6, t6, 4*8
+    CT_BFx2 v20,v22,v21,v23,v28,v30,v29,v31,f3,f3,f5,f5,f,v4,v5,v14,v15
+    ### layer 7
+    fld f10, (a6);      fld f11, (a7)
+    fld f12, (t5);      fld f13, (t6)
+    addi a6, a6, 4*8;   addi a7, a7, 3*8+1*32
+    addi t5,t5,2*8+2*32;addi t6, t6, 1*8+3*32
+    la t2, _MASK_0101;  la t4, _MASK_2323;  li t0, 0b0011
+    vle64.v v1, (t2);   vle64.v v2, (t4);   vmv.s.x v0, t0
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,f6,f7,f10,f11,f,v4,v5,v14,v15
+    shuffle_x2 v16, v17, v18, v19, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v24, v25, v26, v27, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,f8,f9,f12,f13,f,v4,v5,v14,v15
+    vle64.v v6, (a6);    vle64.v v7, (a7)
+    addi a6, a6, 4*32;   addi a7, a7, 4*32
+    shuffle_x2 v20, v21, v22, v23, v14, v15, v4, v5, v1, v2
+    vle64.v v8, (t5);    vle64.v v9, (t6)
+    addi t5, t5, 4*32;   addi t6, t6, 4*32
+    shuffle_x2 v28, v29, v30, v31, v14, v15, v4, v5, v1, v2
+    # after shuffle2:
+    # v16=f[0,1,4,5],   v17=f[2,3,6,7]
+    # v18=f[8,9,12,13], v19=f[10,11,14,15]
+    ### layer 8
+    vle64.v v10, (a6);   vle64.v v11, (a7)
+    vle64.v v12, (t5);   vle64.v v13, (t6)
+    addi a6, a6, 4*32;   addi a7, a7, 4*32
+    addi t5, t5, 4*32;   addi t6, t6, 4*32
+    la t2, _MASK_0022;  la t4, _MASK_1133;  li t0, 0b0101
+    vle64.v v1, (t2);   vle64.v v2, (t4);   vmv.s.x v0, t0
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,v6,v7,v10,v11,v,v4,v5,v14,v15
+    shuffle_x2 v16, v17, v18, v19, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v24, v25, v26, v27, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,v8,v9,v12,v13,v,v4,v5,v14,v15
+    vle64.v v6, (a6);    vle64.v v7, (a7)
+    addi a6, a6, 4*32;   addi a7, a7, 4*32
+    shuffle_x2 v20, v21, v22, v23, v14, v15, v4, v5, v1, v2
+    vle64.v v8, (t5);    vle64.v v9, (t6)
+    addi t5, t5, 4*32;   addi t6, t6, 4*32
+    shuffle_x2 v28, v29, v30, v31, v14, v15, v4, v5, v1, v2
+    # after shuffle1:
+    # v16=f[0,2,4,6],     v17=f[1,3,5,7]
+    # v18=f[8,10,12,14],  v19=f[9,11,13,15]
+    ### layer 9
+    vle64.v v10, (a6);   vle64.v v11, (a7)
+    vle64.v v12, (t5);   vle64.v v13, (t6)
+    addi a2, t6, 1*32 # jump to the beginning of 5th layer of next iteration
+    li t0, 2*8
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,v6,v7,v10,v11,v,v4,v5,v14,v15
+    vsse64.v v16, (s0), t0;  vsse64.v v17, (s1), t0
+    vsse64.v v18, (s2), t0;  vsse64.v v19, (s3), t0
+    vsse64.v v24, (s4), t0;  vsse64.v v25, (s5), t0
+    vsse64.v v26, (s6), t0;  vsse64.v v27, (s7), t0
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,v8,v9,v12,v13,v,v4,v5,v14,v15
+    ### store results
+    # stride: 2*8 bytes
+    # base address:
+    # v16: &f[0],    v17: &f[1],    v18: &f[8],    v19: &f[9]
+    # v24: &f[0+hn], v25: &f[1+hn], v26: &f[8+hn], v27: &f[9+hn]
+    # v20: &f[16],   v21: &f[17],   v22: &f[24],   v23: &f[25]
+    # v28: &f[16+hn],v29: &f[17+hn],v30: &f[24+hn],v31: &f[25+hn]
+    addi s0, s0, 16*8;  addi s1, s1, 16*8
+    addi s2, s2, 16*8;  addi s3, s3, 16*8
+    addi s4, s4, 16*8;  addi s5, s5, 16*8
+    addi s6, s6, 16*8;  addi s7, s7, 16*8
+    vsse64.v v20, (s0), t0;  vsse64.v v21, (s1), t0
+    vsse64.v v22, (s2), t0;  vsse64.v v23, (s3), t0
+    vsse64.v v28, (s4), t0;  vsse64.v v29, (s5), t0
+    vsse64.v v30, (s6), t0;  vsse64.v v31, (s7), t0
+    addi s0, s0, 16*8;  addi s1, s1, 16*8
+    addi s2, s2, 16*8;  addi s3, s3, 16*8
+    addi s4, s4, 16*8;  addi s5, s5, 16*8
+    addi t3, t3, -1
+    addi s6, s6, 16*8;  addi s7, s7, 16*8
+    bnez t3, fpoly_FFT_rvv_56789_loop
+    j fpoly_FFT_rvv_end
+### 5 6 7 8 layers merging
+fpoly_FFT_rvv_5678_loop:
+    ### GM:
+    # f2-f3|f4-f5 for  for layer 5. f6-f9|f10-f13 for layer 6.
+    # v6-v9|v10-v13 for layer 7/8.
+    ### load coefficients
+    # v16-v19=f[0,1,...,14,15]   | v24-v27 are imaginary part
+    # v20-v23=f[16,17,...,30,31] | v28-v31 are imaginary part
+    vsetivli x0, 16, e64, m4, tu, mu
+    fld f2, 0*8(a2);    fld f3, 1*8(a2)
+    fld f4, 2*8(a2);    fld f5, 3*8(a2)
+	vle64.v v16, (a1);  vle64.v v20, (a3)
+	vle64.v v24, (a4);  vle64.v v28, (a5)
+    vsetivli x0, 4, e64, m1, tu, mu
+    addi a1, a1, 32*8;  addi a3, a3, 32*8
+    addi a4, a4, 32*8;  addi a5, a5, 32*8
+    ### layer 5
+    fld f6, 4*8(a2);    fld f7, 5*8(a2)
+    fld f8, 6*8(a2);    fld f9, 7*8(a2)
+    CT_BFx2 v16,v18,v17,v19,v24,v26,v25,v27,f2,f2,f4,f4,f,v4,v5,v14,v15
+    fld f10, 8*8(a2);   fld f11, 9*8(a2)
+    fld f12, 10*8(a2);  fld f13, 11*8(a2)
+    CT_BFx2 v20,v22,v21,v23,v28,v30,v29,v31,f3,f3,f5,f5,f,v4,v5,v14,v15
+    ### layer 6
+    addi a6, a2,12*8;   addi a7, a2,12*8+1*32
+    addi t5, a6,2*32;   addi t6, a7, 2*32
+    la t2, _MASK_0101;  la t4, _MASK_2323;  li t0, 0b0011
+    vle64.v v1, (t2);   vle64.v v2, (t4);   vmv.s.x v0, t0
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,f6,f7,f10,f11,f,v4,v5,v14,v15
+    shuffle_x2 v16, v17, v18, v19, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v24, v25, v26, v27, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,f8,f9,f12,f13,f,v4,v5,v14,v15
+    vle64.v v6, (a6);    vle64.v v7, (a7)
+    addi a6, a6, 4*32;   addi a7, a7, 4*32
+    shuffle_x2 v20, v21, v22, v23, v14, v15, v4, v5, v1, v2
+    vle64.v v8, (t5);    vle64.v v9, (t6)
+    addi t5, t5, 4*32;   addi t6, t6, 4*32
+    shuffle_x2 v28, v29, v30, v31, v14, v15, v4, v5, v1, v2
+    # after shuffle2:
+    # v16=f[0,1,4,5],   v17=f[2,3,6,7]
+    # v18=f[8,9,12,13], v19=f[10,11,14,15]
+    ### layer 7
+    vle64.v v10, (a6);   vle64.v v11, (a7)
+    vle64.v v12, (t5);   vle64.v v13, (t6)
+    addi a6, a6, 4*32;   addi a7, a7, 4*32
+    addi t5, t5, 4*32;   addi t6, t6, 4*32
+    la t2, _MASK_0022;  la t4, _MASK_1133;  li t0, 0b0101
+    vle64.v v1, (t2);   vle64.v v2, (t4);   vmv.s.x v0, t0
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,v6,v7,v10,v11,v,v4,v5,v14,v15
+    shuffle_x2 v16, v17, v18, v19, v14, v15, v4, v5, v1, v2
+    shuffle_x2 v24, v25, v26, v27, v14, v15, v4, v5, v1, v2
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,v8,v9,v12,v13,v,v4,v5,v14,v15
+    vle64.v v6, (a6);    vle64.v v7, (a7)
+    addi a6, a6, 4*32;   addi a7, a7, 4*32
+    shuffle_x2 v20, v21, v22, v23, v14, v15, v4, v5, v1, v2
+    vle64.v v8, (t5);    vle64.v v9, (t6)
+    addi t5, t5, 4*32;   addi t6, t6, 4*32
+    shuffle_x2 v28, v29, v30, v31, v14, v15, v4, v5, v1, v2
+    # after shuffle1:
+    # v16=f[0,2,4,6],     v17=f[1,3,5,7]
+    # v18=f[8,10,12,14],  v19=f[9,11,13,15]
+    ### layer 8
+    vle64.v v10, (a6);   vle64.v v11, (a7)
+    vle64.v v12, (t5);   vle64.v v13, (t6)
+    addi a2, t6, 1*32 # jump to the beginning of 5th layer of next iteration
+    li t0, 2*8
+    CT_BFx2 v16,v17,v18,v19,v24,v25,v26,v27,v6,v7,v10,v11,v,v4,v5,v14,v15
+    vsse64.v v16, (s0), t0;  vsse64.v v17, (s1), t0
+    vsse64.v v18, (s2), t0;  vsse64.v v19, (s3), t0
+    vsse64.v v24, (s4), t0;  vsse64.v v25, (s5), t0
+    vsse64.v v26, (s6), t0;  vsse64.v v27, (s7), t0
+    CT_BFx2 v20,v21,v22,v23,v28,v29,v30,v31,v8,v9,v12,v13,v,v4,v5,v14,v15
+    ### store results
+    # stride: 2*8 bytes
+    # base address:
+    # v16: &f[0],    v17: &f[1],    v18: &f[8],    v19: &f[9]
+    # v24: &f[0+hn], v25: &f[1+hn], v26: &f[8+hn], v27: &f[9+hn]
+    # v20: &f[16],   v21: &f[17],   v22: &f[24],   v23: &f[25]
+    # v28: &f[16+hn],v29: &f[17+hn],v30: &f[24+hn],v31: &f[25+hn]
+    addi s0, s0, 16*8;  addi s1, s1, 16*8
+    addi s2, s2, 16*8;  addi s3, s3, 16*8
+    addi s4, s4, 16*8;  addi s5, s5, 16*8
+    addi s6, s6, 16*8;  addi s7, s7, 16*8
+    vsse64.v v20, (s0), t0;  vsse64.v v21, (s1), t0
+    vsse64.v v22, (s2), t0;  vsse64.v v23, (s3), t0
+    vsse64.v v28, (s4), t0;  vsse64.v v29, (s5), t0
+    vsse64.v v30, (s6), t0;  vsse64.v v31, (s7), t0
+    addi s0, s0, 16*8;  addi s1, s1, 16*8
+    addi s2, s2, 16*8;  addi s3, s3, 16*8
+    addi s4, s4, 16*8;  addi s5, s5, 16*8
+    addi t3, t3, -1
+    addi s6, s6, 16*8;  addi s7, s7, 16*8
+    bnez t3, fpoly_FFT_rvv_5678_loop
+fpoly_FFT_rvv_end:
+    restore_regs
+    addi sp, sp, 8*9
+FUNC_END fpoly_FFT_rvv
+
+.endif # RVV_VLEN256 == 1

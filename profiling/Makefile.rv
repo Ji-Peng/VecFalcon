@@ -46,6 +46,8 @@ run_speed: all
 	./out/gaussian0_rv64 >> speed_gaussian0_x60.txt
 	echo "\nWith SHAKE256-ASM; -march=rv64gcv_zba_zbb:" >> speed_gaussian0_x60.txt
 	./out/gaussian0_rv64_opt_sha3 >> speed_gaussian0_x60.txt
+	echo "FFT speed:" > speed_fft_rvv_x60.txt
+	./out/fft_rvv >> speed_fft_rvv_x60.txt
 
 run_test: all
 	./out/batch_gaussian0_ref_rv64imb test > ./out/batch_gaussian0_ref_rv64imb.txt
