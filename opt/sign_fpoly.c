@@ -1045,22 +1045,22 @@ const fpr GM_4_5_merging_rvv256[] = {
     // layer 1
     X1(FPR(   6369051672525773, -53)), X1(FPR(   6369051672525773, -53)), 
     // layer 2
-    X1(FPR(   8321567036706118, -53)), X1(FPR(   6893811853601123, -54)), 
-    X1(FPR(  -6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
+    X1(FPR(   8321567036706118, -53)), X1(FPR(  -6893811853601123, -54)), 
+    X1(FPR(   6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
     // layer 3
     X2(FPR(   8834128446708912, -53)), X2(FPR(  -7028869612283403, -55)), 
-    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   5004131788810440, -53)), X2(FPR(  -7489212472271267, -53)), 
+    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   7489212472271267, -53)), X2(FPR(   5004131788810440, -53)), 
     // layer 4
     X1(FPR(   8963827128411430, -53)), X1(FPR(  -7062879306626092, -56)), 
     X1(FPR(   5714106716331478, -53)), X1(FPR(  -6962659179435841, -53)), 
-    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
-    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   7943640554978737, -53)), X1(FPR(  -8491928673252923, -54)), 
     X1(FPR(   5229303857258246, -54)), X1(FPR(  -8619352278838746, -53)), 
+    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
+    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   8491928673252923, -54)), X1(FPR(   7943640554978737, -53)), 
-    X1(FPR(   8619352278838746, -53)), X1(FPR(   5229303857258246, -54)), 
+    X1(FPR(   8619352278838746, -53)), X1(FPR(   5229303857258246, -54)),  
     // layer 5 - 0th iteration
     X1(FPR(   8996349688769918, -53)), X1(FPR(   7071397114140692, -57)), 
     // layer 6 - 0th iteration
@@ -1642,20 +1642,20 @@ const fpr GM_4_4_merging_rvv256[] = {
     // layer 1
     X1(FPR(   6369051672525773, -53)), X1(FPR(   6369051672525773, -53)), 
     // layer 2
-    X1(FPR(   8321567036706118, -53)), X1(FPR(   6893811853601123, -54)), 
-    X1(FPR(  -6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
+    X1(FPR(   8321567036706118, -53)), X1(FPR(  -6893811853601123, -54)), 
+    X1(FPR(   6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
     // layer 3
     X2(FPR(   8834128446708912, -53)), X2(FPR(  -7028869612283403, -55)), 
-    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   5004131788810440, -53)), X2(FPR(  -7489212472271267, -53)), 
+    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   7489212472271267, -53)), X2(FPR(   5004131788810440, -53)), 
     // layer 4
     X1(FPR(   8963827128411430, -53)), X1(FPR(  -7062879306626092, -56)), 
     X1(FPR(   5714106716331478, -53)), X1(FPR(  -6962659179435841, -53)), 
-    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
-    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   7943640554978737, -53)), X1(FPR(  -8491928673252923, -54)), 
     X1(FPR(   5229303857258246, -54)), X1(FPR(  -8619352278838746, -53)), 
+    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
+    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   8491928673252923, -54)), X1(FPR(   7943640554978737, -53)), 
     X1(FPR(   8619352278838746, -53)), X1(FPR(   5229303857258246, -54)), 
     // layer 5 - 0th iteration
@@ -2087,6 +2087,39 @@ TARGET_SSE2 TARGET_NEON void fpoly_FFT(unsigned logn, fpr *f)
         fpoly_FFT_rvv(logn, (double *)f, (double *)GM_4_4_merging_rvv256);
     else if (logn == 10)
         fpoly_FFT_rvv(logn, (double *)f, (double *)GM_4_5_merging_rvv256);
+    else {
+        size_t hn = (size_t)1 << (logn - 1);
+        size_t t = hn;
+        f64 *ff = (f64 *)f;
+        for (unsigned lm = 1; lm < logn; lm++) {
+            size_t m = (size_t)1 << lm;
+            size_t hm = m >> 1;
+            size_t ht = t >> 1;
+            size_t j0 = 0;
+            for (size_t i = 0; i < hm; i++) {
+                f64 s_re = ((const f64 *)GM)[((m + i) << 1) + 0];
+                f64 s_im = ((const f64 *)GM)[((m + i) << 1) + 1];
+                for (size_t j = 0; j < ht; j++) {
+                    size_t j1 = j0 + j;
+                    size_t j2 = j1 + ht;
+                    f64 x_re = ff[j1];
+                    f64 x_im = ff[j1 + hn];
+                    f64 y_re = ff[j2];
+                    f64 y_im = ff[j2 + hn];
+                    f64 z_re =
+                        f64_sub(f64_mul(y_re, s_re), f64_mul(y_im, s_im));
+                    f64 z_im =
+                        f64_add(f64_mul(y_im, s_re), f64_mul(y_re, s_im));
+                    ff[j1] = f64_add(x_re, z_re);
+                    ff[j1 + hn] = f64_add(x_im, z_im);
+                    ff[j2] = f64_sub(x_re, z_re);
+                    ff[j2 + hn] = f64_sub(x_im, z_im);
+                }
+                j0 += t;
+            }
+            t = ht;
+        }
+    }
 #elif FNDSA_RV64D
     size_t hn = (size_t)1 << (logn - 1);
     size_t t = hn;
@@ -2336,6 +2369,61 @@ TARGET_SSE2 TARGET_NEON void fpoly_iFFT(unsigned logn, fpr *f)
             vst1q_f64(ff + i, x);
         }
     }
+#elif RVV_VLEN256
+    extern void fpoly_iFFT_rvv(unsigned logn, double *f, double *GM);
+    if (logn == 9)
+        fpoly_iFFT_rvv(logn, (double *)f, (double *)GM_4_4_merging_rvv256);
+    else if (logn == 10)
+        fpoly_iFFT_rvv(logn, (double *)f, (double *)GM_4_5_merging_rvv256);
+    else {
+        size_t n = (size_t)1 << logn;
+        size_t hn = n >> 1;
+        size_t t = 1;
+        f64 *ff = (f64 *)f;
+        for (unsigned lm = 1; lm < logn; lm++) {
+            size_t hm = (size_t)1 << (logn - lm);
+            size_t dt = t << 1;
+            size_t j0 = 0;
+            for (size_t i = 0; i < (hm >> 1); i++) {
+                f64 s_re = ((const f64 *)GM)[((hm + i) << 1) + 0];
+                f64 s_im = ((const f64 *)GM)[((hm + i) << 1) + 1];
+                for (size_t j = 0; j < t; j++) {
+                    size_t j1 = j0 + j;
+                    size_t j2 = j1 + t;
+                    f64 x_re = ff[j1];
+                    f64 x_im = ff[j1 + hn];
+                    f64 y_re = ff[j2];
+                    f64 y_im = ff[j2 + hn];
+                    ff[j1] = f64_add(x_re, y_re);
+                    ff[j1 + hn] = f64_add(x_im, y_im);
+                    x_re = f64_sub(x_re, y_re);
+                    x_im = f64_sub(x_im, y_im);
+                    /* Note: multiply with conj(s), not s */
+                    ff[j2] =
+                        f64_add(f64_mul(x_re, s_re), f64_mul(x_im, s_im));
+                    ff[j2 + hn] =
+                        f64_sub(f64_mul(x_im, s_re), f64_mul(x_re, s_im));
+                }
+                j0 += dt;
+            }
+            t = dt;
+        }
+        /* MM[i] = 1/2^i */
+        static const union {
+            fpr f;
+            f64 v;
+        } MM[] = {
+            {FPR(4503599627370496, -52)}, {FPR(4503599627370496, -53)},
+            {FPR(4503599627370496, -54)}, {FPR(4503599627370496, -55)},
+            {FPR(4503599627370496, -56)}, {FPR(4503599627370496, -57)},
+            {FPR(4503599627370496, -58)}, {FPR(4503599627370496, -59)},
+            {FPR(4503599627370496, -60)}, {FPR(4503599627370496, -61)}};
+        f64 z = MM[logn - 1].v;
+
+        for (size_t i = 0; i < n; i++) {
+            ff[i] = f64_mul(ff[i], z);
+        }
+    }
 #elif FNDSA_RV64D
     size_t n = (size_t)1 << logn;
     size_t hn = n >> 1;
@@ -2368,7 +2456,6 @@ TARGET_SSE2 TARGET_NEON void fpoly_iFFT(unsigned logn, fpr *f)
         }
         t = dt;
     }
-
     /* MM[i] = 1/2^i */
     static const union {
         fpr f;

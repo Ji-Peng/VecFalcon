@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "../opt/sign_inner.h"
 #include "cpucycles.h"
@@ -1047,22 +1048,22 @@ const fpr GM_4_5_merging_rvv256[] = {
     // layer 1
     X1(FPR(   6369051672525773, -53)), X1(FPR(   6369051672525773, -53)), 
     // layer 2
-    X1(FPR(   8321567036706118, -53)), X1(FPR(   6893811853601123, -54)), 
-    X1(FPR(  -6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
+    X1(FPR(   8321567036706118, -53)), X1(FPR(  -6893811853601123, -54)), 
+    X1(FPR(   6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
     // layer 3
     X2(FPR(   8834128446708912, -53)), X2(FPR(  -7028869612283403, -55)), 
-    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   5004131788810440, -53)), X2(FPR(  -7489212472271267, -53)), 
+    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   7489212472271267, -53)), X2(FPR(   5004131788810440, -53)), 
     // layer 4
     X1(FPR(   8963827128411430, -53)), X1(FPR(  -7062879306626092, -56)), 
     X1(FPR(   5714106716331478, -53)), X1(FPR(  -6962659179435841, -53)), 
-    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
-    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   7943640554978737, -53)), X1(FPR(  -8491928673252923, -54)), 
     X1(FPR(   5229303857258246, -54)), X1(FPR(  -8619352278838746, -53)), 
+    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
+    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   8491928673252923, -54)), X1(FPR(   7943640554978737, -53)), 
-    X1(FPR(   8619352278838746, -53)), X1(FPR(   5229303857258246, -54)), 
+    X1(FPR(   8619352278838746, -53)), X1(FPR(   5229303857258246, -54)),  
     // layer 5 - 0th iteration
     X1(FPR(   8996349688769918, -53)), X1(FPR(   7071397114140692, -57)), 
     // layer 6 - 0th iteration
@@ -1644,20 +1645,20 @@ const fpr GM_4_4_merging_rvv256[] = {
     // layer 1
     X1(FPR(   6369051672525773, -53)), X1(FPR(   6369051672525773, -53)), 
     // layer 2
-    X1(FPR(   8321567036706118, -53)), X1(FPR(   6893811853601123, -54)), 
-    X1(FPR(  -6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
+    X1(FPR(   8321567036706118, -53)), X1(FPR(  -6893811853601123, -54)), 
+    X1(FPR(   6893811853601123, -54)), X1(FPR(   8321567036706118, -53)), 
     // layer 3
     X2(FPR(   8834128446708912, -53)), X2(FPR(  -7028869612283403, -55)), 
-    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   5004131788810440, -53)), X2(FPR(  -7489212472271267, -53)), 
+    X2(FPR(   7028869612283403, -55)), X2(FPR(   8834128446708912, -53)), 
     X2(FPR(   7489212472271267, -53)), X2(FPR(   5004131788810440, -53)), 
     // layer 4
     X1(FPR(   8963827128411430, -53)), X1(FPR(  -7062879306626092, -56)), 
     X1(FPR(   5714106716331478, -53)), X1(FPR(  -6962659179435841, -53)), 
-    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
-    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   7943640554978737, -53)), X1(FPR(  -8491928673252923, -54)), 
     X1(FPR(   5229303857258246, -54)), X1(FPR(  -8619352278838746, -53)), 
+    X1(FPR(   7062879306626092, -56)), X1(FPR(   8963827128411430, -53)), 
+    X1(FPR(   6962659179435841, -53)), X1(FPR(   5714106716331478, -53)), 
     X1(FPR(   8491928673252923, -54)), X1(FPR(   7943640554978737, -53)), 
     X1(FPR(   8619352278838746, -53)), X1(FPR(   5229303857258246, -54)), 
     // layer 5 - 0th iteration
@@ -1972,6 +1973,55 @@ void fpoly_FFT_ref(unsigned logn, fpr *f)
     }
 }
 
+void fpoly_iFFT_ref(unsigned logn, fpr *f)
+{
+    size_t n = (size_t)1 << logn;
+    size_t hn = n >> 1;
+    size_t t = 1;
+    f64 *ff = (f64 *)f;
+    // lm < logn
+    for (unsigned lm = 1; lm < logn; lm++) {
+        size_t hm = (size_t)1 << (logn - lm);
+        size_t dt = t << 1;
+        size_t j0 = 0;
+        for (size_t i = 0; i < (hm >> 1); i++) {
+            f64 s_re = ((const f64 *)GM)[((hm + i) << 1) + 0];
+            f64 s_im = ((const f64 *)GM)[((hm + i) << 1) + 1];
+            for (size_t j = 0; j < t; j++) {
+                size_t j1 = j0 + j;
+                size_t j2 = j1 + t;
+                f64 x_re = ff[j1];
+                f64 x_im = ff[j1 + hn];
+                f64 y_re = ff[j2];
+                f64 y_im = ff[j2 + hn];
+                ff[j1] = f64_add(x_re, y_re);
+                ff[j1 + hn] = f64_add(x_im, y_im);
+                x_re = f64_sub(x_re, y_re);
+                x_im = f64_sub(x_im, y_im);
+                /* Note: multiply with conj(s), not s */
+                ff[j2] = f64_add(f64_mul(x_re, s_re), f64_mul(x_im, s_im));
+                ff[j2 + hn] =
+                    f64_sub(f64_mul(x_im, s_re), f64_mul(x_re, s_im));
+            }
+            j0 += dt;
+        }
+        t = dt;
+    }
+    /* MM[i] = 1/2^i */
+    static const union {
+        fpr f;
+        f64 v;
+    } MM[] = {{FPR(4503599627370496, -52)}, {FPR(4503599627370496, -53)},
+              {FPR(4503599627370496, -54)}, {FPR(4503599627370496, -55)},
+              {FPR(4503599627370496, -56)}, {FPR(4503599627370496, -57)},
+              {FPR(4503599627370496, -58)}, {FPR(4503599627370496, -59)},
+              {FPR(4503599627370496, -60)}, {FPR(4503599627370496, -61)}};
+    f64 z = MM[logn - 1].v;
+    for (size_t i = 0; i < n; i++) {
+        ff[i] = f64_mul(ff[i], z);
+    }
+}
+
 void print_fpoly(double *f, size_t n, const char *name)
 {
     printf("%s = [", name);
@@ -2000,24 +2050,11 @@ int fpoly_equal(double *f1, double *f2, size_t n)
 }
 
 extern void fpoly_FFT_rvv(unsigned logn, double *f, double *GM);
+extern void fpoly_iFFT_rvv(unsigned logn, double *f, double *GM);
 
-void test_FFT(unsigned logn)
+double rand_double()
 {
-    double f1[1024], f2[1024];
-    for (int i = 0; i < 1024; i++) {
-        f1[i] = i;
-        f2[i] = i;
-    }
-    fpoly_FFT_ref(logn, (fpr *)f1);
-
-    if (logn == 9)
-        fpoly_FFT_rvv(logn, f2, (double *)GM_4_4_merging_rvv256);
-    else if (logn == 10)
-        fpoly_FFT_rvv(logn, f2, (double *)GM_4_5_merging_rvv256);
-    
-		if (!fpoly_equal(f1, f2, 1 << logn)) {
-        printf("FFT test failed!\n");
-    }
+    return (double)rand() / (RAND_MAX + 1.0);
 }
 
 #ifndef WARMUP_N
@@ -2027,6 +2064,49 @@ void test_FFT(unsigned logn)
 #ifndef TESTS_N
 #    define TESTS_N 5000
 #endif
+
+void test_FFT(unsigned logn)
+{
+    srand(time(NULL));
+    for (int j = 0; j < TESTS_N; j++) {
+        double f1[1024], f2[1024];
+        for (int i = 0; i < 1024; i++) {
+            f1[i] = f2[i] = rand_double();
+        }
+        fpoly_FFT_ref(logn, (fpr *)f1);
+
+        if (logn == 9)
+            fpoly_FFT_rvv(logn, f2, (double *)GM_4_4_merging_rvv256);
+        else if (logn == 10)
+            fpoly_FFT_rvv(logn, f2, (double *)GM_4_5_merging_rvv256);
+
+        if (!fpoly_equal(f1, f2, 1 << logn)) {
+            printf("FFT test failed!\n");
+            return;
+        }
+    }
+}
+
+void test_iFFT(unsigned logn)
+{
+    srand(time(NULL));
+    for (int j = 0; j < TESTS_N; j++) {
+        double f1[1024], f2[1024];
+        for (int i = 0; i < 1024; i++) {
+            f1[i] = f2[i] = rand_double();
+        }
+        fpoly_iFFT_ref(logn, (fpr *)f1);
+
+        if (logn == 9)
+            fpoly_iFFT_rvv(logn, f2, (double *)GM_4_4_merging_rvv256);
+        else if (logn == 10)
+            fpoly_iFFT_rvv(logn, f2, (double *)GM_4_5_merging_rvv256);
+
+        if (!fpoly_equal(f1, f2, 1 << logn)) {
+            printf("FFT test failed!\n");
+        }
+    }
+}
 
 void speed_FFT()
 {
@@ -2038,20 +2118,33 @@ void speed_FFT()
 
     init_perf_counters();
 
+    printf("FFT:\n");
     PERF(fpoly_FFT_ref(9, (fpr *)f1), fpoly_FFT_ref_9, , WARMUP_N,
          TESTS_N);
     PERF(fpoly_FFT_ref(10, (fpr *)f1), fpoly_FFT_ref_10, , WARMUP_N,
          TESTS_N);
     PERF(fpoly_FFT_rvv(9, f2, (double *)GM_4_4_merging_rvv256),
          fpoly_FFT_rvv_9, , WARMUP_N, TESTS_N);
-    PERF(fpoly_FFT_rvv(10, f2, (double *)GM_4_4_merging_rvv256),
+    PERF(fpoly_FFT_rvv(10, f2, (double *)GM_4_5_merging_rvv256),
          fpoly_FFT_rvv_10, , WARMUP_N, TESTS_N);
+
+    printf("\niFFT:\n");
+    PERF(fpoly_iFFT_ref(9, (fpr *)f1), fpoly_iFFT_ref_9, , WARMUP_N,
+         TESTS_N);
+    PERF(fpoly_iFFT_ref(10, (fpr *)f1), fpoly_iFFT_ref_10, , WARMUP_N,
+         TESTS_N);
+    PERF(fpoly_iFFT_rvv(9, f2, (double *)GM_4_4_merging_rvv256),
+         fpoly_iFFT_rvv_9, , WARMUP_N, TESTS_N);
+    PERF(fpoly_iFFT_rvv(10, f2, (double *)GM_4_5_merging_rvv256),
+         fpoly_iFFT_rvv_10, , WARMUP_N, TESTS_N);
 }
 
 int main()
 {
     test_FFT(9);
     test_FFT(10);
+    test_iFFT(9);
+    test_iFFT(10);
     speed_FFT();
     return 0;
 }

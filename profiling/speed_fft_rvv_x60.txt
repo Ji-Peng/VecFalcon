@@ -1,5 +1,11 @@
-FFT speed:
-fpoly_FFT_ref_9                cycles/insts/CPI=35518/26296/1.35
-fpoly_FFT_ref_10               cycles/insts/CPI=79502/58356/1.36
-fpoly_FFT_rvv_9                cycles/insts/CPI=8393/5010/1.68
-fpoly_FFT_rvv_10               cycles/insts/CPI=17327/10795/1.61
+FFT:
+fpoly_FFT_ref_9                cycles/insts/CPI=35738/26289/1.36
+fpoly_FFT_ref_10               cycles/insts/CPI=80524/58358/1.38
+fpoly_FFT_rvv_9                cycles/insts/CPI=8290/5008/1.66
+fpoly_FFT_rvv_10               cycles/insts/CPI=17181/10793/1.59
+
+iFFT:
+fpoly_iFFT_ref_9               cycles/insts/CPI=34728/28859/1.20
+fpoly_iFFT_ref_10              cycles/insts/CPI=76652/63470/1.21
+fpoly_iFFT_rvv_9               cycles/insts/CPI=8400/5235/1.60
+fpoly_iFFT_rvv_10              cycles/insts/CPI=17974/11060/1.63

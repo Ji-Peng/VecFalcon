@@ -60,7 +60,7 @@ run_test: all
 out:
 	@mkdir -p out
 
-out/fft_rvv: cpucycles.c fft_rvv.c fft_rvv.S | out
+out/fft_rvv: cpucycles.c fft_rvv.c fft_rvv.S fft_rvv_consts.h | out
 	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
 
 out/gaussian0_rv64: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S | out
