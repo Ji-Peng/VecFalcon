@@ -1934,6 +1934,10 @@ const fpr GM_4_4_merging_rvv256[] = {
 
 // clang-format on
 
+#if FNDSA_NEON
+#    include "fft_neon.c"
+#endif
+
 /* see sign_inner.h */
 TARGET_SSE2 TARGET_NEON void fpoly_FFT(unsigned logn, fpr *f)
 {
@@ -2008,78 +2012,15 @@ TARGET_SSE2 TARGET_NEON void fpoly_FFT(unsigned logn, fpr *f)
         }
     }
 #elif FNDSA_NEON
-    size_t n = (size_t)1 << logn;
-    size_t hn = n >> 1;
-    size_t t = hn;
-    float64_t *ff = (float64_t *)f;
-    /* We separate the last iteration of the loop. With that change,
-       t >= 4 and ht >= 2 in all iteration of the loop. */
-    for (unsigned lm = 1; lm < (logn - 1); lm++) {
-        size_t m = (size_t)1 << lm;
-        size_t hm = m >> 1;
-        size_t ht = t >> 1;
-        size_t j0 = 0;
-        for (size_t i = 0; i < hm; i++) {
-            float64x2_t s =
-                vld1q_f64((const float64_t *)GM + ((m + i) << 1));
-            float64x2_t s_re = vzip1q_f64(s, s);
-            float64x2_t s_im = vzip2q_f64(s, s);
-            for (size_t j = 0; j < ht; j += 2) {
-                size_t j1 = j0 + j;
-                size_t j2 = j1 + ht;
-                float64x2_t x_re = vld1q_f64(ff + j1);
-                float64x2_t x_im = vld1q_f64(ff + j1 + hn);
-                float64x2_t y_re = vld1q_f64(ff + j2);
-                float64x2_t y_im = vld1q_f64(ff + j2 + hn);
-                float64x2_t z_re = vsubq_f64(vmulq_f64(y_re, s_re),
-                                             vmulq_f64(y_im, s_im));
-                float64x2_t z_im = vaddq_f64(vmulq_f64(y_re, s_im),
-                                             vmulq_f64(y_im, s_re));
-                vst1q_f64(ff + j1, vaddq_f64(x_re, z_re));
-                vst1q_f64(ff + j1 + hn, vaddq_f64(x_im, z_im));
-                vst1q_f64(ff + j2, vsubq_f64(x_re, z_re));
-                vst1q_f64(ff + j2 + hn, vsubq_f64(x_im, z_im));
-            }
-            j0 += t;
-        }
-        t = ht;
-    }
-
-    /* Last iteration: m = n/2, hm = n/4, t = 2, ht = 1 */
-    if (logn >= 2) {
-        static const union {
-            fpr f[2];
-            float64x2_t x;
-        } cz = {{FPR_ZERO, FPR_NZERO}};
-        for (size_t i = 0; i < hn; i += 2) {
-            /* s <- re(s):im(s) */
-            float64x2_t s = vld1q_f64((const float64_t *)GM + n + i);
-            /* xy_re <- re(x):re(y) */
-            float64x2_t xy_re = vld1q_f64(ff + i);
-            /* xy_im <- im(x):im(y) */
-            float64x2_t xy_im = vld1q_f64(ff + i + hn);
-            /* y1 <- re(y):im(y) */
-            float64x2_t y1 = vzip2q_f64(xy_re, xy_im);
-            /* y2 <- im(y):re(y) */
-            float64x2_t y2 = vzip2q_f64(xy_im, xy_re);
-            /* z_re <- re(y)*re(s):im(y)*im(s) */
-            float64x2_t z_re = vmulq_f64(y1, s);
-            /* z_im <- im(y)*re(s):re(y)*im(s) */
-            float64x2_t z_im = vmulq_f64(y2, s);
-            /* With u = y*s (complex):
-               u_re <- re(u):-re(u)
-               u_im <- im(u):-im(u)  */
-            float64x2_t u_re = vsubq_f64(z_re, vextq_f64(z_re, z_re, 1));
-            float64x2_t u_im = vreinterpretq_f64_u64(
-                veorq_u64(cz.x, vreinterpretq_u64_f64(vaddq_f64(
-                                    z_im, vextq_f64(z_im, z_im, 1)))));
-            /* u_re <- re(x+z):re(x-z)
-               u_im <- im(x+z):im(x-z) */
-            u_re = vaddq_f64(u_re, vdupq_laneq_f64(xy_re, 0));
-            u_im = vaddq_f64(u_im, vdupq_laneq_f64(xy_im, 0));
-            vst1q_f64(ff + i, u_re);
-            vst1q_f64(ff + i + hn, u_im);
-        }
+    unsigned level = logn;
+    double *ff = (double *)f;
+    if (logn == 9) {
+        FFT_logn2(ff, logn, level);
+        FFT_log5(ff, logn);
+    } else if (logn == 10) {
+        FFT_logn1(ff, logn);
+        FFT_logn2(ff, logn, level - 1);
+        FFT_log5(ff, logn);
     }
 #elif RVV_VLEN256
     extern void fpoly_FFT_rvv(unsigned logn, double *f, double *GM);
@@ -2087,39 +2028,6 @@ TARGET_SSE2 TARGET_NEON void fpoly_FFT(unsigned logn, fpr *f)
         fpoly_FFT_rvv(logn, (double *)f, (double *)GM_4_4_merging_rvv256);
     else if (logn == 10)
         fpoly_FFT_rvv(logn, (double *)f, (double *)GM_4_5_merging_rvv256);
-    else {
-        size_t hn = (size_t)1 << (logn - 1);
-        size_t t = hn;
-        f64 *ff = (f64 *)f;
-        for (unsigned lm = 1; lm < logn; lm++) {
-            size_t m = (size_t)1 << lm;
-            size_t hm = m >> 1;
-            size_t ht = t >> 1;
-            size_t j0 = 0;
-            for (size_t i = 0; i < hm; i++) {
-                f64 s_re = ((const f64 *)GM)[((m + i) << 1) + 0];
-                f64 s_im = ((const f64 *)GM)[((m + i) << 1) + 1];
-                for (size_t j = 0; j < ht; j++) {
-                    size_t j1 = j0 + j;
-                    size_t j2 = j1 + ht;
-                    f64 x_re = ff[j1];
-                    f64 x_im = ff[j1 + hn];
-                    f64 y_re = ff[j2];
-                    f64 y_im = ff[j2 + hn];
-                    f64 z_re =
-                        f64_sub(f64_mul(y_re, s_re), f64_mul(y_im, s_im));
-                    f64 z_im =
-                        f64_add(f64_mul(y_im, s_re), f64_mul(y_re, s_im));
-                    ff[j1] = f64_add(x_re, z_re);
-                    ff[j1 + hn] = f64_add(x_im, z_im);
-                    ff[j2] = f64_sub(x_re, z_re);
-                    ff[j2 + hn] = f64_sub(x_im, z_im);
-                }
-                j0 += t;
-            }
-            t = ht;
-        }
-    }
 #elif FNDSA_RV64D
     size_t hn = (size_t)1 << (logn - 1);
     size_t t = hn;
@@ -2276,98 +2184,15 @@ TARGET_SSE2 TARGET_NEON void fpoly_iFFT(unsigned logn, fpr *f)
         }
     }
 #elif FNDSA_NEON
-    size_t n = (size_t)1 << logn;
-    size_t hn = n >> 1;
-    float64_t *ff = (float64_t *)f;
-
-    /* Applying the reverse process of fpoly_FFT(), we separate the
-       first iteration (for which t = 1). */
-    if (logn >= 2) {
-        static const union {
-            fpr f[2];
-            float64x2_t x;
-        } cz = {{FPR_ZERO, FPR_NZERO}};
-        for (size_t i = 0; i < hn; i += 2) {
-            /* s <- re(s):im(s) */
-            float64x2_t s = vld1q_f64((const float64_t *)GM + n + i);
-            /* sc <- re(s):-im(s)  (conjugation) */
-            float64x2_t sc = vreinterpretq_f64_u64(
-                veorq_u64(cz.x, vreinterpretq_u64_f64(s)));
-            /* xy_re <- re(x):re(y) */
-            float64x2_t xy_re = vld1q_f64(ff + i);
-            /* xy_im <- im(x):im(y) */
-            float64x2_t xy_im = vld1q_f64(ff + i + hn);
-            /* x <- re(x):im(x)
-               y <- re(y):im(y) */
-            float64x2_t x = vzip1q_f64(xy_re, xy_im);
-            float64x2_t y = vzip2q_f64(xy_re, xy_im);
-            /* u <- x + y (complex) */
-            float64x2_t u = vaddq_f64(x, y);
-            /* z <- x - y (complex) */
-            float64x2_t z = vsubq_f64(x, y);
-            /* v <- z*conj(s) (complex) */
-            float64x2_t v1 = vmulq_f64(z, s);
-            float64x2_t v2 = vmulq_f64(z, vextq_f64(sc, sc, 1));
-            float64x2_t v = vpaddq_f64(v1, v2);
-            /* separate re/im and write */
-            vst1q_f64(ff + i, vzip1q_f64(u, v));
-            vst1q_f64(ff + i + hn, vzip2q_f64(u, v));
-        }
-    }
-
-    size_t t = 2;
-    for (unsigned lm = 2; lm < logn; lm++) {
-        size_t hm = (size_t)1 << (logn - lm);
-        size_t m = hm << 1;
-        size_t dt = t << 1;
-        size_t j0 = 0;
-        for (size_t i = 0; i < hm; i += 2) {
-            float64x2_t s = vld1q_f64((const double *)GM + m + i);
-            float64x2_t s_re = vzip1q_f64(s, s);
-            float64x2_t s_im = vzip2q_f64(s, s);
-            for (size_t j = 0; j < t; j += 2) {
-                size_t j1 = j0 + j;
-                size_t j2 = j1 + t;
-                float64x2_t x_re = vld1q_f64(ff + j1);
-                float64x2_t x_im = vld1q_f64(ff + j1 + hn);
-                float64x2_t y_re = vld1q_f64(ff + j2);
-                float64x2_t y_im = vld1q_f64(ff + j2 + hn);
-                vst1q_f64(ff + j1, vaddq_f64(x_re, y_re));
-                vst1q_f64(ff + j1 + hn, vaddq_f64(x_im, y_im));
-                float64x2_t u_re = vsubq_f64(x_re, y_re);
-                float64x2_t u_im = vsubq_f64(x_im, y_im);
-                /* Note: we loaded s but we want to
-                   multiply with conj(s). */
-                float64x2_t z_re = vaddq_f64(vmulq_f64(u_re, s_re),
-                                             vmulq_f64(u_im, s_im));
-                float64x2_t z_im = vsubq_f64(vmulq_f64(u_im, s_re),
-                                             vmulq_f64(u_re, s_im));
-                vst1q_f64(ff + j2, z_re);
-                vst1q_f64(ff + j2 + hn, z_im);
-            }
-            j0 += dt;
-        }
-        t = dt;
-    }
-
-    if (n >= 4) {
-        /* MM[i] = 1/2^i */
-        static const union {
-            fpr f;
-            float64x1_t v;
-        } MM[] = {
-            {FPR(4503599627370496, -52)}, {FPR(4503599627370496, -53)},
-            {FPR(4503599627370496, -54)}, {FPR(4503599627370496, -55)},
-            {FPR(4503599627370496, -56)}, {FPR(4503599627370496, -57)},
-            {FPR(4503599627370496, -58)}, {FPR(4503599627370496, -59)},
-            {FPR(4503599627370496, -60)}, {FPR(4503599627370496, -61)}};
-
-        float64x2_t e = vdupq_lane_f64(MM[logn - 1].v, 0);
-        for (size_t i = 0; i < n; i += 2) {
-            float64x2_t x = vld1q_f64(ff + i);
-            x = vmulq_f64(x, e);
-            vst1q_f64(ff + i, x);
-        }
+    const unsigned level = (logn - 5) & 1;
+    double *ff = (double *)f;
+    if (logn == 9) {
+        iFFT_log5(ff, logn, 0);
+        iFFT_logn2(ff, logn, level, 1);
+    } else if (logn == 10) {
+        iFFT_log5(ff, logn, 0);
+        iFFT_logn2(ff, logn, level, 0);
+        iFFT_logn1(ff, logn, 1);
     }
 #elif RVV_VLEN256
     extern void fpoly_iFFT_rvv(unsigned logn, double *f, double *GM);
@@ -2375,55 +2200,6 @@ TARGET_SSE2 TARGET_NEON void fpoly_iFFT(unsigned logn, fpr *f)
         fpoly_iFFT_rvv(logn, (double *)f, (double *)GM_4_4_merging_rvv256);
     else if (logn == 10)
         fpoly_iFFT_rvv(logn, (double *)f, (double *)GM_4_5_merging_rvv256);
-    else {
-        size_t n = (size_t)1 << logn;
-        size_t hn = n >> 1;
-        size_t t = 1;
-        f64 *ff = (f64 *)f;
-        for (unsigned lm = 1; lm < logn; lm++) {
-            size_t hm = (size_t)1 << (logn - lm);
-            size_t dt = t << 1;
-            size_t j0 = 0;
-            for (size_t i = 0; i < (hm >> 1); i++) {
-                f64 s_re = ((const f64 *)GM)[((hm + i) << 1) + 0];
-                f64 s_im = ((const f64 *)GM)[((hm + i) << 1) + 1];
-                for (size_t j = 0; j < t; j++) {
-                    size_t j1 = j0 + j;
-                    size_t j2 = j1 + t;
-                    f64 x_re = ff[j1];
-                    f64 x_im = ff[j1 + hn];
-                    f64 y_re = ff[j2];
-                    f64 y_im = ff[j2 + hn];
-                    ff[j1] = f64_add(x_re, y_re);
-                    ff[j1 + hn] = f64_add(x_im, y_im);
-                    x_re = f64_sub(x_re, y_re);
-                    x_im = f64_sub(x_im, y_im);
-                    /* Note: multiply with conj(s), not s */
-                    ff[j2] =
-                        f64_add(f64_mul(x_re, s_re), f64_mul(x_im, s_im));
-                    ff[j2 + hn] =
-                        f64_sub(f64_mul(x_im, s_re), f64_mul(x_re, s_im));
-                }
-                j0 += dt;
-            }
-            t = dt;
-        }
-        /* MM[i] = 1/2^i */
-        static const union {
-            fpr f;
-            f64 v;
-        } MM[] = {
-            {FPR(4503599627370496, -52)}, {FPR(4503599627370496, -53)},
-            {FPR(4503599627370496, -54)}, {FPR(4503599627370496, -55)},
-            {FPR(4503599627370496, -56)}, {FPR(4503599627370496, -57)},
-            {FPR(4503599627370496, -58)}, {FPR(4503599627370496, -59)},
-            {FPR(4503599627370496, -60)}, {FPR(4503599627370496, -61)}};
-        f64 z = MM[logn - 1].v;
-
-        for (size_t i = 0; i < n; i++) {
-            ff[i] = f64_mul(ff[i], z);
-        }
-    }
 #elif FNDSA_RV64D
     size_t n = (size_t)1 << logn;
     size_t hn = n >> 1;
