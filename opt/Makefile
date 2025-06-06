@@ -112,17 +112,13 @@ OBJS_TEST_AVX512F	= $(addprefix out/, $(SRCS_TEST:.c=_avx512f.o))
 OBJS_SPEED_AVX512F	= $(addprefix out/, $(SRCS_SPEED:.c=_avx512f.o))
 OBJS_GPERF_AVX512F	= $(addprefix out/, $(SRCS_GPERF:.c=_avx512f.o))
 
-# for debug
-SRCS_DEBUG = prof_sampler_next_sse2_2w.c
-
 # all: \
 # 	out/test_fndsa_sse2 out/speed_fndsa_sse2 out/test_gperf_sse2 \
 # 	out/test_fndsa_avx2 out/speed_fndsa_avx2 out/test_gperf_avx2
 
 all: \
 	out/speed_fndsa_sse2 out/speed_fndsa_avx2 out/speed_fndsa_avx512f \
-	out/test_fndsa_sse2  out/test_fndsa_avx2  out/test_fndsa_avx512f \
-	out/prof_sampler_next_sse2_2w
+	out/test_fndsa_sse2  out/test_fndsa_avx2  out/test_fndsa_avx512f
 
 run_speed: all
 	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_11700k.txt
@@ -138,10 +134,6 @@ clean:
 
 out:
 	@mkdir -p out
-
-out/prof_sampler_next_sse2_2w: $(SRCS_DEBUG) sha3.c ../profiling/cpucycles.c | out
-	$(CC) $(CFLAGS_SSE2) $^ -o $@ $(LIBS)
-	objdump -S $@ > $@_S.SS
 
 out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
