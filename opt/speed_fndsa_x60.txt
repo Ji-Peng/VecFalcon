@@ -2,41 +2,41 @@ We work on the SHAKE256X4 variant.
 
 FN-DSA on RV64GC
 n = 512:
-FN-DSA sign:                         2810635
-FN-DSA sign_core:                    2233645
-FN-DSA verify:                        322031
+FN-DSA sign:                         2811956
+FN-DSA sign_core:                    2251337
+FN-DSA verify:                        326122
 n = 1024:
-FN-DSA sign:                         5950639
-FN-DSA sign_core:                    4684529
-FN-DSA verify:                        686747
+FN-DSA sign:                         5923504
+FN-DSA sign_core:                    4759874
+FN-DSA verify:                        683162
 
 FN-DSA on RV64GCV
 n = 512:
-FN-DSA sign:                         2340405
-FN-DSA sign_core:                    1750692
-FN-DSA verify:                        326186
+FN-DSA sign:                         2318497
+FN-DSA sign_core:                    1748952
+FN-DSA verify:                        322089
 n = 1024:
-FN-DSA sign:                         4737124
-FN-DSA sign_core:                    3591169
-FN-DSA verify:                        686187
+FN-DSA sign:                         4798246
+FN-DSA sign_core:                    3555435
+FN-DSA verify:                        685693
 
 FN-DSA on RV64GCB
 n = 512:
-FN-DSA sign:                         2689038
-FN-DSA sign_core:                    2121301
-FN-DSA verify:                        311138
+FN-DSA sign:                         2670846
+FN-DSA sign_core:                    2096518
+FN-DSA verify:                        311946
 n = 1024:
-FN-DSA sign:                         5660671
-FN-DSA sign_core:                    4498979
-FN-DSA verify:                        657701
+FN-DSA sign:                         5627356
+FN-DSA sign_core:                    4490279
+FN-DSA verify:                        656836
 
 FN-DSA on RV64GCVB
 n = 512:
-FN-DSA sign:                         2194269
-FN-DSA sign_core:                    1628513
-FN-DSA verify:                        307542
+FN-DSA sign:                         2186582
+FN-DSA sign_core:                    1597610
+FN-DSA verify:                        310209
 n = 1024:
-FN-DSA sign:                         4491297
-FN-DSA sign_core:                    3332353
-FN-DSA verify:                        657180
+FN-DSA sign:                         4488499
+FN-DSA sign_core:                    3253439
+FN-DSA verify:                        657447
 

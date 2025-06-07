@@ -1,56 +1,51 @@
-File: test_gperf_rv64gcvb
-Type: cpu
-Showing nodes accounting for 354.10s, 97.71% of 362.40s total
-Dropped 27 nodes (cum <= 1.81s)
-      flat  flat%   sum%        cum   cum%
-    54.08s 14.92% 14.92%     54.08s 14.92%  fndsa_sha3_process_block
-    38.91s 10.74% 25.66%     38.91s 10.74%  mq_mred (inline)
-    36.53s 10.08% 35.74%     81.64s 22.53%  gaussian0 (inline)
-    30.93s  8.53% 44.27%     31.46s  8.68%  expm_p63 (inline)
-    25.50s  7.04% 51.31%     41.88s 11.56%  fndsa_fpoly_FFT
-    17.09s  4.72% 56.03%     17.09s  4.72%  f64_sub (inline)
-    13.09s  3.61% 59.64%     13.09s  3.61%  f64_mul (inline)
-    12.76s  3.52% 63.16%     12.76s  3.52%  f64_add (inline)
-    11.22s  3.10% 66.26%     13.41s  3.70%  fndsa_fpoly_LDL_fft
-     9.25s  2.55% 68.81%    144.83s 39.96%  sampler_next_rv64d
-     9.10s  2.51% 71.32%     13.62s  3.76%  fndsa_fpoly_split_fft
-     8.72s  2.41% 73.73%      8.72s  2.41%  _GI_memcpy
-     8.58s  2.37% 76.09%     46.51s 12.83%  ber_exp (inline)
-     8.12s  2.24% 78.33%     10.60s  2.92%  fndsa_fpoly_mul_fft
-     6.76s  1.87% 80.20%     10.50s  2.90%  fndsa_fpoly_merge_fft
-     6.31s  1.74% 81.94%      9.56s  2.64%  fndsa_fpoly_split_selfadj_fft
-     5.69s  1.57% 83.51%      8.48s  2.34%  fndsa_fpoly_iFFT
-     5.66s  1.56% 85.07%      5.66s  1.56%  mq_add (inline)
-     5.23s  1.44% 86.51%    219.29s 60.51%  ffsamp_fft_inner
-     4.98s  1.37% 87.89%      4.98s  1.37%  mq_sub (inline)
-     3.90s  1.08% 88.97%     20.98s  5.79%  fndsa_mqpoly_int_to_ntt.part.0
-     3.03s  0.84% 89.80%     39.61s 10.93%  shake_next_u64 (inline)
-     2.94s  0.81% 90.61%      2.94s  0.81%  mq_half (inline)
-     2.79s  0.77% 91.38%     17.58s  4.85%  fndsa_mqpoly_ntt_to_int.part.0
-     2.70s  0.75% 92.13%      2.70s  0.75%  f64_neg (inline)
-     2.54s   0.7% 92.83%      2.59s  0.71%  fndsa_fpoly_set_small
-     2.53s   0.7% 93.53%      2.53s   0.7%  fndsa_trim_i8_decode
-     2.41s  0.67% 94.19%     53.95s 14.89%  fndsa_shake_extract
-     2.41s  0.67% 94.86%     16.33s  4.51%  shake_next_u8 (inline)
-     2.18s   0.6% 95.46%    293.53s 81.00%  fndsa_sign_core
-     1.91s  0.53% 95.99%      4.27s  1.18%  fndsa_fpoly_add
-     1.38s  0.38% 96.37%      3.66s  1.01%  fndsa_fpoly_sub
-     1.15s  0.32% 96.68%      4.22s  1.16%  fndsa_hash_to_point
-     1.04s  0.29% 96.97%      9.76s  2.69%  memcpy (inline)
-     0.97s  0.27% 97.24%      3.51s  0.97%  fndsa_shake_inject
-     0.67s  0.18% 97.42%      2.12s  0.58%  fndsa_fpoly_gram_fft
-     0.40s  0.11% 97.53%     18.45s  5.09%  fndsa_mqpoly_div_ntt
-     0.29s  0.08% 97.61%      2.70s  0.75%  fndsa_mqpoly_mul_ntt
-     0.19s 0.052% 97.67%      8.17s  2.25%  fndsa_fpoly_apply_basis
-     0.09s 0.025% 97.69%     18.05s  4.98%  mq_div
-     0.03s 0.0083% 97.70%     40.13s 11.07%  basis_to_FFT
-     0.02s 0.0055% 97.70%    361.52s 99.76%  sign_1024.constprop.0
-     0.01s 0.0028% 97.71%    361.54s 99.76%  fndsa_sign_seeded
-     0.01s 0.0028% 97.71%    361.50s 99.75%  sign_step1
-         0     0% 97.71%    361.54s 99.76%  _libc_start_call_main
-         0     0% 97.71%    361.54s 99.76%  _libc_start_main_impl
-         0     0% 97.71%    361.54s 99.76%  gperf_sign_1024
-         0     0% 97.71%    361.54s 99.76%  main
-         0     0% 97.71%     38.91s 10.74%  mq_mmul (inline)
-         0     0% 97.71%    361.53s 99.76%  sign_wrapper (inline)
-         0     0% 97.71%    361.54s 99.76%  start
+File: test_gperf_rv64gcvb; Type: cpu; Showing nodes accounting for 34.95s, 96.92% of 36.06s total; Dropped 25 nodes (cum <= 0.18s);       flat  flat%   sum%        cum   cum%
+     5.39s 14.95% 14.95%      5.39s 14.95%  fndsa_sha3_process_block
+     3.76s 10.43% 25.37%      9.64s 26.73%  gaussian0 (inline)
+     3.65s 10.12% 35.50%      3.65s 10.12%  mq_mred (inline)
+     3.04s  8.43% 43.93%      4.54s 12.59%  fndsa_fpoly_FFT
+     3.03s  8.40% 52.33%      3.06s  8.49%  expm_p63 (inline)
+     1.45s  4.02% 56.35%      1.45s  4.02%  f64_sub (inline)
+     1.42s  3.94% 60.29%      1.42s  3.94%  f64_mul (inline)
+     1.14s  3.16% 63.45%      1.14s  3.16%  f64_add (inline)
+     1.11s  3.08% 66.53%      1.25s  3.47%  fndsa_fpoly_LDL_fft
+     0.85s  2.36% 68.89%         4s 11.09%  ber_exp (inline)
+     0.81s  2.25% 71.13%      0.81s  2.25%  _GI_memcpy
+     0.77s  2.14% 73.27%      0.97s  2.69%  fndsa_fpoly_mul_fft
+     0.74s  2.05% 75.32%      1.20s  3.33%  fndsa_fpoly_split_fft
+     0.72s  2.00% 77.32%     14.70s 40.77%  sampler_next_rv64d
+     0.70s  1.94% 79.26%      0.70s  1.94%  mq_add (inline)
+     0.69s  1.91% 81.17%      0.69s  1.91%  mq_sub (inline)
+     0.65s  1.80% 82.97%      0.95s  2.63%  fndsa_fpoly_merge_fft
+     0.60s  1.66% 84.64%      0.95s  2.63%  fndsa_fpoly_iFFT
+     0.56s  1.55% 86.19%     21.70s 60.18%  ffsamp_fft_inner
+     0.51s  1.41% 87.60%      0.81s  2.25%  fndsa_fpoly_split_selfadj_fft
+     0.46s  1.28% 88.88%      5.83s 16.17%  shake256x4_next_u64 (inline)
+     0.37s  1.03% 89.91%      0.37s  1.03%  enc64le (inline)
+     0.36s     1% 90.90%      2.09s  5.80%  fndsa_mqpoly_int_to_ntt.part.0
+     0.32s  0.89% 91.79%      0.32s  0.89%  mq_half (inline)
+     0.28s  0.78% 92.57%      0.28s  0.78%  f64_neg (inline)
+     0.26s  0.72% 93.29%      0.26s  0.72%  fndsa_fpoly_set_small
+     0.26s  0.72% 94.01%      1.92s  5.32%  fndsa_mqpoly_ntt_to_int.part.0
+     0.20s  0.55% 94.56%     29.20s 80.98%  fndsa_sign_core
+     0.16s  0.44% 95.01%      0.40s  1.11%  fndsa_fpoly_add
+     0.14s  0.39% 95.40%      0.28s  0.78%  fndsa_fpoly_sub
+     0.13s  0.36% 95.76%      0.43s  1.19%  fndsa_hash_to_point
+     0.13s  0.36% 96.12%      0.37s  1.03%  fndsa_shake_extract
+     0.10s  0.28% 96.39%      0.91s  2.52%  memcpy (inline)
+     0.08s  0.22% 96.62%      0.25s  0.69%  fndsa_shake_inject
+     0.05s  0.14% 96.76%      1.83s  5.07%  fndsa_mqpoly_div_ntt
+     0.04s  0.11% 96.87%      0.21s  0.58%  fndsa_mqpoly_mul_ntt
+     0.02s 0.055% 96.92%      5.37s 14.89%  fndsa_shake256x4_refill
+         0     0% 96.92%     35.96s 99.72%  _libc_start_call_main
+         0     0% 96.92%     35.96s 99.72%  _libc_start_main_impl
+         0     0% 96.92%      4.36s 12.09%  basis_to_FFT
+         0     0% 96.92%      0.73s  2.02%  fndsa_fpoly_apply_basis
+         0     0% 96.92%     35.96s 99.72%  fndsa_sign_seeded
+         0     0% 96.92%     35.96s 99.72%  gperf_sign_1024 (inline)
+         0     0% 96.92%     35.96s 99.72%  main
+         0     0% 96.92%      1.78s  4.94%  mq_div
+         0     0% 96.92%      3.65s 10.12%  mq_mmul (inline)
+         0     0% 96.92%     35.96s 99.72%  sign_1024.constprop.0
+         0     0% 96.92%     35.96s 99.72%  sign_step1
+         0     0% 96.92%     35.96s 99.72%  sign_wrapper (inline)
+         0     0% 96.92%     35.96s 99.72%  start

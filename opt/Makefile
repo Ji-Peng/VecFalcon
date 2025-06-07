@@ -112,13 +112,12 @@ OBJS_TEST_AVX512F	= $(addprefix out/, $(SRCS_TEST:.c=_avx512f.o))
 OBJS_SPEED_AVX512F	= $(addprefix out/, $(SRCS_SPEED:.c=_avx512f.o))
 OBJS_GPERF_AVX512F	= $(addprefix out/, $(SRCS_GPERF:.c=_avx512f.o))
 
-# all: \
-# 	out/test_fndsa_sse2 out/speed_fndsa_sse2 out/test_gperf_sse2 \
-# 	out/test_fndsa_avx2 out/speed_fndsa_avx2 out/test_gperf_avx2
-
 all: \
 	out/speed_fndsa_sse2 out/speed_fndsa_avx2 out/speed_fndsa_avx512f \
 	out/test_fndsa_sse2  out/test_fndsa_avx2  out/test_fndsa_avx512f
+
+profiling: \
+	out/test_gperf_sse2 out/test_gperf_avx2 out/test_gperf_avx512f
 
 run_speed: all
 	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_11700k.txt
@@ -128,6 +127,17 @@ run_speed: all
 	taskset -c 0 ./out/speed_fndsa_avx2 >> speed_fndsa_11700k.txt
 	echo "AVX-512F with SHAKE256X8 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_avx512f >> speed_fndsa_11700k.txt
+
+run_profiling: profiling
+	taskset -c 0 ./out/test_gperf_sse2 3
+	mv gperf_sign_core_1024.prof gperf_sign_core_1024_sse2.prof
+	taskset -c 0 ./out/test_gperf_avx2 3
+	mv gperf_sign_core_1024.prof gperf_sign_core_1024_avx2.prof
+	taskset -c 0 ./out/test_gperf_avx512f 3
+	mv gperf_sign_core_1024.prof gperf_sign_core_1024_avx512f.prof
+	pprof --text ./out/test_gperf_sse2 gperf_sign_core_1024_sse2.prof > gperf_sign_core_1024_sse2.txt
+	pprof --text ./out/test_gperf_avx2 gperf_sign_core_1024_avx2.prof > gperf_sign_core_1024_avx2.txt
+	pprof --text ./out/test_gperf_avx512f gperf_sign_core_1024_avx512f.prof > gperf_sign_core_1024_avx512f.txt
 
 clean:
 	-rm -rf out/
@@ -141,8 +151,8 @@ out/test_fndsa_sse2: $(OBJS_SSE2) $(OBJS_TEST_SSE2) | out
 out/speed_fndsa_sse2: $(OBJS_SSE2) $(OBJS_SPEED_SSE2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-# out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2) | out
-# 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+out/test_gperf_sse2: $(OBJS_SSE2) $(OBJS_GPERF_SSE2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
 out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -150,14 +160,17 @@ out/test_fndsa_avx2: $(OBJS_AVX2) $(OBJS_TEST_AVX2) | out
 out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-# out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2) | out
-# 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
 out/test_fndsa_avx512f: $(OBJS_AVX512F) $(OBJS_TEST_AVX512F) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 out/speed_fndsa_avx512f: $(OBJS_AVX512F) $(OBJS_SPEED_AVX512F) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+out/test_gperf_avx512f: $(OBJS_AVX512F) $(OBJS_GPERF_AVX512F) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
 out/%_sse2.o: %.c | out
 	$(CC) $(CFLAGS_SSE2) $(DEPFLAGS) -c $< -o $@

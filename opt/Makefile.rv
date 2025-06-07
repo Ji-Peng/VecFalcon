@@ -71,9 +71,9 @@ all: \
 	out/test_fndsa_rv64gcb 		out/speed_fndsa_rv64gcb		\
 	out/test_fndsa_rv64gcvb 	out/speed_fndsa_rv64gcvb
 
-# out/test_gperf_rv64gcvb
+profiling: out/test_gperf_rv64gcvb
 
-run_speed: \
+run_speed: all
 	out/speed_fndsa_rv64gc 	out/speed_fndsa_rv64gcv		\
 	out/speed_fndsa_rv64gcb	out/speed_fndsa_rv64gcvb
 	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_x60.txt
@@ -85,6 +85,14 @@ run_speed: \
 	perf stat ./out/speed_fndsa_rv64gcb  >>speed_fndsa_x60.txt  2>/dev/null
 	echo "FN-DSA on RV64GCVB" >>speed_fndsa_x60.txt
 	perf stat ./out/speed_fndsa_rv64gcvb >>speed_fndsa_x60.txt 2>/dev/null
+
+run_profiling: profiling
+	./out/test_gperf_rv64gcvb 1
+	mv gperf_sign_1024.prof gperf_sign_1024_rv64gcvb.prof
+	./out/test_gperf_rv64gcvb 3
+	mv gperf_sign_core_1024.prof gperf_sign_core_1024_rv64gcvb.prof
+	pprof --text out/test_gperf_rv64gcvb gperf_sign_1024_rv64gcvb.prof > gperf_sign_1024_rv64gcvb.txt
+	pprof --text out/test_gperf_rv64gcvb gperf_sign_core_1024_rv64gcvb.prof > gperf_sign_core_1024_rv64gcvb.txt
 
 clean:
 	-rm -rf out/
@@ -116,8 +124,8 @@ out/test_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_TEST_RV64GCVB)| out
 out/speed_fndsa_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_SPEED_RV64GCVB)| out
 	$(LD) $(LDFLAGS) $(LIBS) $^ -o $@
 
-# out/test_gperf_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_GPERF_RV64GCVB)| out
-# 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
+out/test_gperf_rv64gcvb: $(OBJS_RV64GCVB) $(OBJS_GPERF_RV64GCVB)| out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
 out/%_rv64gc.o: %.c | out
 	$(CC) $(CFLAGS_RV64GC) $(DEPFLAGS) -c $< -o $@

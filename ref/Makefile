@@ -104,8 +104,11 @@ OBJS_SPEED_AVX2	= $(addprefix out/, $(SRCS_SPEED:.c=_avx2.o))
 OBJS_GPERF_AVX2	= $(addprefix out/, $(SRCS_GPERF:.c=_avx2.o))
 
 all: \
-	out/test_fndsa_sse2 out/speed_fndsa_sse2 out/test_gperf_sse2 \
-	out/test_fndsa_avx2 out/speed_fndsa_avx2 out/test_gperf_avx2
+	out/test_fndsa_sse2 out/speed_fndsa_sse2 \
+	out/test_fndsa_avx2 out/speed_fndsa_avx2
+
+profiling: \
+	out/test_gperf_sse2 out/test_gperf_avx2
 
 run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
 	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_11700k.txt
@@ -113,6 +116,20 @@ run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
 	taskset -c 0 ./out/speed_fndsa_sse2 >> speed_fndsa_11700k.txt
 	echo "\nAVX2 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_avx2 >> speed_fndsa_11700k.txt
+
+run_profiling: profiling
+	taskset -c 0 ./out/test_gperf_sse2 1
+	mv gperf_sign_1024.prof gperf_sign_1024_sse2.prof
+	taskset -c 0 ./out/test_gperf_avx2 1
+	mv gperf_sign_1024.prof gperf_sign_1024_avx2.prof
+	taskset -c 0 ./out/test_gperf_sse2 3
+	mv gperf_sign_core_1024.prof gperf_sign_core_1024_sse2.prof
+	taskset -c 0 ./out/test_gperf_avx2 3
+	mv gperf_sign_core_1024.prof gperf_sign_core_1024_avx2.prof
+	pprof --text ./out/test_gperf_sse2 gperf_sign_1024_sse2.prof > gperf_sign_1024_sse2.txt
+	pprof --text ./out/test_gperf_avx2 gperf_sign_1024_avx2.prof > gperf_sign_1024_avx2.txt
+	pprof --text ./out/test_gperf_sse2 gperf_sign_core_1024_sse2.prof > gperf_sign_core_1024_sse2.txt
+	pprof --text ./out/test_gperf_avx2 gperf_sign_core_1024_avx2.prof > gperf_sign_core_1024_avx2.txt
 
 clean:
 	-rm -rf out/
