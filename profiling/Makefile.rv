@@ -30,7 +30,7 @@ all: \
 	out/gaussian0_rv64 out/gaussian0_rv64_opt_sha3 \
 	out/batch_gaussian0_rv64imb out/batch_gaussian0_rv64imbv \
 	out/batch_gaussian0_ref_rv64imb out/batch_gaussian0_ref_rv64imbv \
-	out/fft_rvv
+	out/fft_rvv out/fft_rv64d
 
 clean:
 	rm -rf out
@@ -46,8 +46,8 @@ run_speed: all
 	./out/gaussian0_rv64 >> speed_gaussian0_x60.txt
 	echo "\nWith SHAKE256-ASM; -march=rv64gcv_zba_zbb:" >> speed_gaussian0_x60.txt
 	./out/gaussian0_rv64_opt_sha3 >> speed_gaussian0_x60.txt
-	echo "FFT speed:" > speed_fft_rvv_x60.txt
-	./out/fft_rvv >> speed_fft_rvv_x60.txt
+	./out/fft_rvv > speed_fft_rvv_x60.txt
+	./out/fft_rv64d > speed_fft_rv64d_x60.txt
 
 run_test: all
 	./out/batch_gaussian0_ref_rv64imb test > ./out/batch_gaussian0_ref_rv64imb.txt
@@ -61,6 +61,9 @@ out:
 	@mkdir -p out
 
 out/fft_rvv: cpucycles.c fft_rvv.c fft_rvv.S fft_rvv_consts.h | out
+	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/fft_rv64d: cpucycles.c fft_rv64d.c fft_rv64d.S | out
 	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
 
 out/gaussian0_rv64: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S | out

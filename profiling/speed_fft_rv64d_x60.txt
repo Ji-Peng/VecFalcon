@@ -1,0 +1,11 @@
+FFT:
+fpoly_FFT_ref_9                cycles/insts/CPI=35742/26290/1.36
+fpoly_FFT_ref_10               cycles/insts/CPI=80718/58345/1.38
+fpoly_FFT_rv64d_9              cycles/insts/CPI=12818/16937/0.76
+fpoly_FFT_rv64d_10             cycles/insts/CPI=27115/36245/0.75
+
+iFFT:
+fpoly_iFFT_ref_9               cycles/insts/CPI=34737/28859/1.20
+fpoly_iFFT_ref_10              cycles/insts/CPI=76633/63472/1.21
+fpoly_iFFT_rv64d_9             cycles/insts/CPI=12814/17522/0.73
+fpoly_iFFT_rv64d_10            cycles/insts/CPI=27074/37474/0.72

@@ -38,8 +38,8 @@ SRCS_TEST = test_fndsa.c
 SRCS_SPEED = speed_fndsa.c
 SRCS_GPERF = test_gperf.c
 
-ASMS_RV64IM 	= fips202_rv64im.S  gaussian0_rv64.S
-ASMS_RV64IMB	= fips202_rv64imb.S gaussian0_rv64.S
+ASMS_RV64IM 	= fips202_rv64im.S  gaussian0_rv64.S fft_rv64d.S
+ASMS_RV64IMB	= fips202_rv64imb.S gaussian0_rv64.S fft_rv64d.S
 ASMS_RVV		= fft_rvv.S
 
 OBJS_RV64GC 		= $(addprefix out/, $(SRCS:.c=_rv64gc.o))	\
@@ -74,8 +74,6 @@ all: \
 profiling: out/test_gperf_rv64gcvb
 
 run_speed: all
-	out/speed_fndsa_rv64gc 	out/speed_fndsa_rv64gcv		\
-	out/speed_fndsa_rv64gcb	out/speed_fndsa_rv64gcvb
 	echo "We work on the SHAKE256X4 variant.\n" > speed_fndsa_x60.txt
 	echo "FN-DSA on RV64GC" >>speed_fndsa_x60.txt
 	perf stat ./out/speed_fndsa_rv64gc  >>speed_fndsa_x60.txt  2>/dev/null
