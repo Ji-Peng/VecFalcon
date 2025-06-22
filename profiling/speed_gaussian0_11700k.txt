@@ -18,11 +18,13 @@ AVX2 version:
 Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=123/548/0.23
 gaussian0_ref_u24              cycles/insts/CPI=129/546/0.24
+gaussian0_avx2_ref             cycles/insts/CPI=68/250/0.27
 gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=424/1629/0.26/53
 gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=786/3179/0.25/49
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=74/364/0.21
+gaussian0_avx2_ref_core        cycles/insts/CPI=49/71/0.69
 gaussian0_avx2_8w_core         cycles/insts/CPI/1-wayCC=116/348/0.34/14
 gaussian0_avx2_16w_core        cycles/insts/CPI/1-wayCC=142/617/0.23/8
 

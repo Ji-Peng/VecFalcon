@@ -51,11 +51,20 @@ void sampler_init(sampler_state *ss, unsigned logn, const void *seed,
  * Sample an integer value along a half-gaussian distribution centered
  * on zero and standard deviation 1.8205, with a precision of 72 bits.
  *
- * Obtained from https://falcon-sign.info/Falcon-impl-20211101.zip, the
- * prng_get_* subroutines were deleted to observe the implementation
- * efficiency of the sampler
+ * Obtained from https://falcon-sign.info/Falcon-impl-20211101.zip.
+ * The original version returns z directly after the for loop ends. We do
+ * some additional operations, namely "z*z" and "get a random bit b to turn
+ * the sampling into a bimodal distribution". In the original version of
+ * the implementation, these additional operations are done in the
+ * sampler_next subroutine. The reason we do this is to facilitate
+ * vectorization of these additional operations.
+ *
+ * Let z after the loop be z0.
+ * @param *z_bimodal = b + ((b << 1) - 1) * z0, where b is a random bit
+ * @param *z_square = z0*z0
  */
-int32_t gaussian0_avx2(sampler_state *ss)
+void gaussian0_avx2_ref(sampler_state *ss, int32_t *z_bimodal,
+                        int32_t *z_square)
 {
     /*
      * High words.
@@ -152,8 +161,113 @@ int32_t gaussian0_avx2(sampler_state *ss)
                       _mm256_extracti128_si256(gtlo0, 1));
     t = _mm_add_epi64(t, _mm_srli_si128(t, 8));
     r -= _mm_cvtsi128_si32(t);
+    // Get a random bit b to turn the sampling into a bimodal distribution.
+    int32_t b = prng_next_u8(&ss->pc) & 1;
+    *z_bimodal = b + ((b << 1) - 1) * r;
+    *z_square = r * r;
+}
 
-    return r;
+void gaussian0_avx2_ref_core(int32_t *z_bimodal, int32_t *z_square)
+{
+    /*
+     * High words.
+     */
+    const union {
+        uint16_t u16[16];
+        __m256i ymm[1];
+    } rhi15 = {{0x51FB, 0x2A69, 0x113E, 0x0568, 0x014A, 0x003B, 0x0008,
+                0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+                0x0000, 0x0000}};
+    const union {
+        uint64_t u64[20];
+        __m256i ymm[5];
+    } rlo57 = {{0x1F42ED3AC391802, 0x12B181F3F7DDB82, 0x1CDD0934829C1FF,
+                0x1754377C7994AE4, 0x1846CAEF33F1F6F, 0x14AC754ED74BD5F,
+                0x024DD542B776AE4, 0x1A1FFDC65AD63DA, 0x01F80D88A7B6428,
+                0x001C3FDB2040C69, 0x00012CF24D031FB, 0x00000949F8B091F,
+                0x0000003665DA998, 0x00000000EBF6EBB, 0x0000000002F5D7E,
+                0x000000000007098, 0x0000000000000C6, 0x000000000000001,
+                0x000000000000000, 0x000000000000000}};
+    uint64_t lo;
+    unsigned hi;
+    __m256i xhi, rhi, gthi, eqhi, eqm;
+    __m256i xlo, gtlo0, gtlo1, gtlo2, gtlo3, gtlo4;
+    __m128i t, zt;
+    int r;
+    /*
+     * Get a 72-bit random value and split it into a low part
+     * (57 bits) and a high part (15 bits)
+     */
+    lo = *z_bimodal << 32 + *z_bimodal;
+    hi = *z_square;
+
+    hi = (hi << 7) | (unsigned)(lo >> 57);
+    lo &= 0x1FFFFFFFFFFFFFF;
+    /*
+     * Broadcast the high part and compare it with the relevant
+     * values. We need both a "greater than" and an "equal"
+     * comparisons.
+     */
+    xhi = _mm256_broadcastw_epi16(_mm_cvtsi32_si128(hi));
+    rhi = _mm256_loadu_si256(&rhi15.ymm[0]);
+    gthi = _mm256_cmpgt_epi16(rhi, xhi);
+    eqhi = _mm256_cmpeq_epi16(rhi, xhi);
+    /*
+     * The result is the number of 72-bit values (among the list of 19)
+     * which are greater than the 72-bit random value. We first count
+     * all non-zero 16-bit elements in the first eight of gthi. Such
+     * elements have value -1 or 0, so we first negate them.
+     */
+    t = _mm_srli_epi16(_mm256_castsi256_si128(gthi), 15);
+    zt = _mm_setzero_si128();
+    t = _mm_hadd_epi16(t, zt);
+    t = _mm_hadd_epi16(t, zt);
+    t = _mm_hadd_epi16(t, zt);
+    r = _mm_cvtsi128_si32(t);
+    /*
+     * We must look at the low bits for all values for which the
+     * high bits are an "equal" match; values 8-18 all have the
+     * same high bits (0).
+     * On 32-bit systems, 'lo' really is two registers, requiring
+     * some extra code.
+     */
+    xlo = _mm256_broadcastq_epi64(_mm_cvtsi64_si128(*(int64_t *)&lo));
+    gtlo0 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[0]), xlo);
+    gtlo1 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[1]), xlo);
+    gtlo2 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[2]), xlo);
+    gtlo3 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[3]), xlo);
+    gtlo4 = _mm256_cmpgt_epi64(_mm256_loadu_si256(&rlo57.ymm[4]), xlo);
+    /*
+     * Keep only comparison results that correspond to the non-zero
+     * elements in eqhi.
+     */
+    gtlo0 = _mm256_and_si256(
+        gtlo0, _mm256_cvtepi16_epi64(_mm256_castsi256_si128(eqhi)));
+    gtlo1 = _mm256_and_si256(
+        gtlo1, _mm256_cvtepi16_epi64(
+                   _mm256_castsi256_si128(_mm256_bsrli_epi128(eqhi, 8))));
+    eqm = _mm256_permute4x64_epi64(eqhi, 0xFF);
+    gtlo2 = _mm256_and_si256(gtlo2, eqm);
+    gtlo3 = _mm256_and_si256(gtlo3, eqm);
+    gtlo4 = _mm256_and_si256(gtlo4, eqm);
+    /*
+     * Add all values to count the total number of "-1" elements.
+     * Since the first eight "high" words are all different, only
+     * one element (at most) in gtlo0:gtlo1 can be non-zero; however,
+     * if the high word of the random value is zero, then many
+     * elements of gtlo2:gtlo3:gtlo4 can be non-zero.
+     */
+    gtlo0 = _mm256_or_si256(gtlo0, gtlo1);
+    gtlo0 = _mm256_add_epi64(_mm256_add_epi64(gtlo0, gtlo2),
+                             _mm256_add_epi64(gtlo3, gtlo4));
+    t = _mm_add_epi64(_mm256_castsi256_si128(gtlo0),
+                      _mm256_extracti128_si256(gtlo0, 1));
+    t = _mm_add_epi64(t, _mm_srli_si128(t, 8));
+    r -= _mm_cvtsi128_si32(t);
+    // Get a random bit b to turn the sampling into a bimodal distribution.
+    unsigned b = *z_bimodal & 1;
+    *z_bimodal = b + ((b << 1) - 1) * r;
+    *z_square = r * r;
 }
 
 const uint32_t GAUSS0[][3] = {{10745844, 3068844, 3741698},
@@ -716,6 +830,10 @@ void speed_gaussian0()
                            &z0_square.coeffs[0]),
          gaussian0_ref_u24, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
          TESTS_N);
+    PERF(gaussian0_avx2_ref(&ss0, &z0_bimodal.coeffs[0],
+                            &z0_square.coeffs[0]),
+         gaussian0_avx2_ref, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+         TESTS_N);
 
     PERF_N(gaussian0_avx2_8w(&ss0, &z0_bimodal.coeffs[0],
                              &z0_square.coeffs[0]),
@@ -732,6 +850,10 @@ void speed_gaussian0()
     PERF(gaussian0_ref_core(&z0_bimodal.coeffs[0], &z0_square.coeffs[0]),
          gaussian0_ref_core, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
          TESTS_N);
+    PERF(gaussian0_avx2_ref_core(&z0_bimodal.coeffs[0],
+                                 &z0_square.coeffs[0]),
+         gaussian0_avx2_ref_core, sampler_init(&ss0, 9, seed, 32),
+         WARMUP_N, TESTS_N);
     PERF_N(gaussian0_avx2_8w_core(&z0_bimodal.coeffs[0],
                                   &z0_square.coeffs[0]),
            gaussian0_avx2_8w_core, sampler_init(&ss0, 9, seed, 32),
