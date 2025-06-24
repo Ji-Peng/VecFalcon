@@ -14,9 +14,10 @@
                 ""
             ],
             "defines": [
+                "FNDSA_AVX512F=0",
                 "FNDSA_AVX2=0",
                 "FNDSA_SSE2=0",
-                "FNDSA_RV64D=0",
+                "FNDSA_RV64D=1",
                 "FNDSA_NEON=1",
                 "FNDSA_SHAKE256X4=1",
                 "BATCH_GAUSSIAN0=1"

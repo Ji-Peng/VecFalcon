@@ -47,51 +47,54 @@ DECL_SSR(instructions)
         VALUE = cycles_sum / CYCLES_N;                       \
     } while (0)
 
-#define PERF(FUNC, LABEL, INIT, WARMUP_N, CYCLES_N)       \
-    do {                                                  \
-        INIT;                                             \
-        for (int ii = 0; ii < WARMUP_N; ii++) {           \
-            FUNC;                                         \
-        }                                                 \
-        INIT;                                             \
-        start_cycles();                                   \
-        start_instructions();                             \
-        for (int ii = 0; ii < CYCLES_N; ii++) {           \
-            FUNC;                                         \
-        }                                                 \
-        stop_cycles();                                    \
-        stop_instructions();                              \
-        uint64_t cycles_sum = read_cycles();              \
-        uint64_t inst_sum = read_instructions();          \
-        printf("%-30s ", #LABEL);                         \
-        printf("cycles/insts/CPI=%llu/%llu/%.2f\n",       \
-               (unsigned long long)cycles_sum / CYCLES_N, \
-               (unsigned long long)inst_sum / CYCLES_N,   \
-               (float)cycles_sum / inst_sum);             \
+#define PERF(FUNC, LABEL, INIT, WARMUP_N, CYCLES_N)                     \
+    do {                                                                \
+        INIT;                                                           \
+        for (int ii = 0; ii < WARMUP_N; ii++) {                         \
+            FUNC;                                                       \
+        }                                                               \
+        INIT;                                                           \
+        start_cycles();                                                 \
+        start_instructions();                                           \
+        for (int ii = 0; ii < CYCLES_N; ii++) {                         \
+            FUNC;                                                       \
+        }                                                               \
+        stop_cycles();                                                  \
+        stop_instructions();                                            \
+        uint64_t cycles_sum = read_cycles();                            \
+        uint64_t inst_sum = read_instructions();                        \
+        printf("%-30s ", #LABEL);                                       \
+        printf(                                                         \
+            "cycles/insts/CPI=%llu/%llu/%.2f\n",                        \
+            (unsigned long long)(cycles_sum + CYCLES_N / 2) / CYCLES_N, \
+            (unsigned long long)(inst_sum + CYCLES_N / 2) / CYCLES_N,   \
+            (float)cycles_sum / inst_sum);                              \
     } while (0)
 
-#define PERF_N(FUNC, LABEL, INIT, WARMUP_N, CYCLES_N, N_WAY)         \
-    do {                                                             \
-        INIT;                                                        \
-        for (int ii = 0; ii < WARMUP_N; ii++) {                      \
-            FUNC;                                                    \
-        }                                                            \
-        INIT;                                                        \
-        start_cycles();                                              \
-        start_instructions();                                        \
-        for (int ii = 0; ii < CYCLES_N; ii++) {                      \
-            FUNC;                                                    \
-        }                                                            \
-        stop_cycles();                                               \
-        stop_instructions();                                         \
-        uint64_t cycles_sum = read_cycles();                         \
-        uint64_t inst_sum = read_instructions();                     \
-        printf("%-30s ", #LABEL);                                    \
-        printf("cycles/insts/CPI/1-wayCC=%llu/%llu/%.2f/%llu\n",     \
-               (unsigned long long)cycles_sum / CYCLES_N,            \
-               (unsigned long long)inst_sum / CYCLES_N,              \
-               (float)cycles_sum / inst_sum,                         \
-               (unsigned long long)(cycles_sum / CYCLES_N / N_WAY)); \
+#define PERF_N(FUNC, LABEL, INIT, WARMUP_N, CYCLES_N, N_WAY)            \
+    do {                                                                \
+        INIT;                                                           \
+        for (int ii = 0; ii < WARMUP_N; ii++) {                         \
+            FUNC;                                                       \
+        }                                                               \
+        INIT;                                                           \
+        start_cycles();                                                 \
+        start_instructions();                                           \
+        for (int ii = 0; ii < CYCLES_N; ii++) {                         \
+            FUNC;                                                       \
+        }                                                               \
+        stop_cycles();                                                  \
+        stop_instructions();                                            \
+        uint64_t cycles_sum = read_cycles();                            \
+        uint64_t inst_sum = read_instructions();                        \
+        printf("%-30s ", #LABEL);                                       \
+        printf(                                                         \
+            "cycles/insts/CPI/1-wayCC=%llu/%llu/%.2f/%llu\n",           \
+            (unsigned long long)(cycles_sum + CYCLES_N / 2) / CYCLES_N, \
+            (unsigned long long)(inst_sum + CYCLES_N / 2) / CYCLES_N,   \
+            (float)cycles_sum / inst_sum,                               \
+            (unsigned long long)(cycles_sum + CYCLES_N * N_WAY / 2) /   \
+                (CYCLES_N * N_WAY));                                    \
     } while (0)
 
 // these two events are not supported on my machine with WSL ubuntu
