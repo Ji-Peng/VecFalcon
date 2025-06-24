@@ -1,16 +1,16 @@
 We work on the SHAKE256X4 variant.
 batch_gaussian0_ref with SHAKE256X4-AVX2 and gaussian0_ref:
-gaussian0                      cycles/insts/CPI/1-wayCC=1736/8032/0.22/108
-GAUSSIAN0_STORE_get_next       cycles/insts/CPI=109/509/0.22
+gaussian0                      cycles/insts/CPI/1-wayCC=1437/5865/0.25/89
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=90/373/0.24
 
 batch_gaussian0_sse2 with SHAKE256X2-SSE2 and gaussian0_sse2:
-gaussian0                      cycles/insts/CPI/1-wayCC=1659/6844/0.24/103
-GAUSSIAN0_STORE_get_next       cycles/insts/CPI=96/435/0.22
+gaussian0                      cycles/insts/CPI/1-wayCC=1451/6764/0.21/90
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=92/430/0.21
 
 batch_gaussian0_avx2 with SHAKE256X4-AVX2 and gaussian0_avx2:
-gaussian0                      cycles/insts/CPI/1-wayCC=806/3181/0.25/50
-GAUSSIAN0_STORE_get_next       cycles/insts/CPI=52/206/0.25
+gaussian0                      cycles/insts/CPI/1-wayCC=775/3029/0.26/48
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=50/196/0.26
 
 batch_gaussian0_avx512f with SHAKE256X8-AVX512 and gaussian0_avx512f:
-gaussian0                      cycles/insts/CPI/1-wayCC=891/3069/0.29/27
-GAUSSIAN0_STORE_get_next       cycles/insts/CPI=28/103/0.28
+gaussian0                      cycles/insts/CPI/1-wayCC=831/2822/0.29/25
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=28/95/0.30

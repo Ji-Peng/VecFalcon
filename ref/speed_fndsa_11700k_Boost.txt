@@ -1,0 +1,23 @@
+We work on the SHAKE256X4 variant.
+
+SSE2 version:
+n = 512:
+FN-DSA sign:                          619340
+FN-DSA sign_core:                     464316
+FN-DSA verify:                         77464
+n = 1024:
+FN-DSA sign:                         1261412
+FN-DSA sign_core:                     931738
+FN-DSA verify:                        160640
+
+
+AVX2 version:
+n = 512:
+FN-DSA sign:                          559760
+FN-DSA sign_core:                     398500
+FN-DSA verify:                         34772
+n = 1024:
+FN-DSA sign:                         1136346
+FN-DSA sign_core:                     807796
+FN-DSA verify:                         68116
+

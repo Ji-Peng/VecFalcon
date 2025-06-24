@@ -1,62 +1,59 @@
-Total: 188 samples
-      46  24.5%  24.5%       47  25.0% expm_p63 (inline)
-      10   5.3%  29.8%       10   5.3% _mm_mul_pd (inline)
-       9   4.8%  34.6%        9   4.8% _mm_storeu_pd (inline)
-       8   4.3%  38.8%        8   4.3% _mm512_xor_si512 (inline)
-       8   4.3%  43.1%        8   4.3% _mm_mul_sd (inline)
-       7   3.7%  46.8%        7   3.7% _mm_cvtsi32_sd (inline)
-       7   3.7%  50.5%       25  13.3% shake256x8_next_u24 (inline)
-       6   3.2%  53.7%       32  17.0% GAUSSIAN0_STORE_get_next (inline)
-       6   3.2%  56.9%       19  10.1% fpoly_FFT
-       5   2.7%  59.6%        5   2.7% __memcpy_evex_unaligned_erms
-       5   2.7%  62.2%        5   2.7% _mm512_rol_epi64 (inline)
-       5   2.7%  64.9%        5   2.7% _mm512_ternarylogic_epi64 (inline)
-       5   2.7%  67.6%        5   2.7% _mm_add_pd (inline)
-       5   2.7%  70.2%        5   2.7% fndsa_sha3_process_block
-       4   2.1%  72.3%        4   2.1% _mm_shuffle_pd (inline)
-       4   2.1%  74.5%        4   2.1% _mm_sub_pd (inline)
-       4   2.1%  76.6%        4   2.1% fndsa_comp_encode
-       4   2.1%  78.7%       11   5.9% memcpy (inline)
-       4   2.1%  80.9%      104  55.3% sampler_next_sse2
-       3   1.6%  82.4%      141  75.0% ffsamp_fft_inner
-       3   1.6%  84.0%        8   4.3% fndsa_shake_extract
-       3   1.6%  85.6%        3   1.6% fpoly_iFFT
-       2   1.1%  86.7%        2   1.1% _init
-       2   1.1%  87.8%        2   1.1% _mm_comilt_sd (inline)
-       2   1.1%  88.8%        2   1.1% _mm_loadu_pd (inline)
-       2   1.1%  89.9%        2   1.1% _mm_store_sd (inline)
-       2   1.1%  91.0%        2   1.1% _mm_sub_sd (inline)
-       2   1.1%  92.0%       55  29.3% ber_exp (inline)
-       2   1.1%  93.1%        5   2.7% fpoly_set_small
-       2   1.1%  94.1%      188 100.0% sign_core
-       1   0.5%  94.7%        1   0.5% __GI___libc_free
-       1   0.5%  95.2%        1   0.5% _mm512_loadu_si512 (inline)
-       1   0.5%  95.7%        1   0.5% _mm_cvttsd_si32 (inline)
-       1   0.5%  96.3%        1   0.5% _mm_div_sd (inline)
-       1   0.5%  96.8%        1   0.5% _mm_set_epi32 (inline)
-       1   0.5%  97.3%        8   4.3% fndsa_hash_to_point
-       1   0.5%  97.9%        1   0.5% fpoly_add
-       1   0.5%  98.4%        7   3.7% fpoly_merge_fft
-       1   0.5%  98.9%        1   0.5% fpoly_neg
-       1   0.5%  99.5%        2   1.1% fpoly_split_fft
-       1   0.5% 100.0%       27  14.4% gaussian0
-       0   0.0% 100.0%       27  14.4% GAUSSIAN0_STORE_fill (inline)
-       0   0.0% 100.0%        1   0.5% GAUSSIAN0_STORE_new (inline)
-       0   0.0% 100.0%       18   9.6% KeccakP1600times8_PermuteAll_24rounds
-       0   0.0% 100.0%      188 100.0% __libc_start_call_main
-       0   0.0% 100.0%      188 100.0% __libc_start_main_impl
-       0   0.0% 100.0%        1   0.5% _mm_setr_epi32 (inline)
-       0   0.0% 100.0%      188 100.0% _start
-       0   0.0% 100.0%       22  11.7% basis_to_FFT
-       0   0.0% 100.0%      141  75.0% ffsamp_fft
-       0   0.0% 100.0%       19  10.1% fndsa_shake256x8_refill
-       0   0.0% 100.0%        8   4.3% fpoly_LDL_fft
-       0   0.0% 100.0%        3   1.6% fpoly_apply_basis
-       0   0.0% 100.0%        3   1.6% fpoly_mul_fft
-       0   0.0% 100.0%        1   0.5% fpoly_split_selfadj_fft
-       0   0.0% 100.0%      188 100.0% gperf_sign_core_1024
-       0   0.0% 100.0%      188 100.0% main
-       0   0.0% 100.0%        1   0.5% mtwop63 (inline)
-       0   0.0% 100.0%       18   9.6% process_block_x8 (inline)
-       0   0.0% 100.0%        1   0.5% sampler_init
-       0   0.0% 100.0%        1   0.5% shake256x8_next_u8 (inline)
+File: test_gperf_avx512f
+Type: cpu
+Showing nodes accounting for 2.24s, 96.14% of 2.33s total
+Dropped 12 nodes (cum <= 0.01s)
+      flat  flat%   sum%        cum   cum%
+     0.62s 26.61% 26.61%      0.69s 29.61%  expm_p63 (inline)
+     0.14s  6.01% 32.62%      0.14s  6.01%  _mm_mul_pd (inline)
+     0.12s  5.15% 37.77%      1.31s 56.22%  sampler_next_sse2
+     0.10s  4.29% 42.06%      0.10s  4.29%  __memcpy_evex_unaligned_erms
+     0.10s  4.29% 46.35%      0.10s  4.29%  _mm_add_pd (inline)
+     0.10s  4.29% 50.64%      0.10s  4.29%  _mm_mul_sd (inline)
+     0.10s  4.29% 54.94%      0.10s  4.29%  _mm_storeu_pd (inline)
+     0.09s  3.86% 58.80%      0.09s  3.86%  _mm512_rol_epi64 (inline)
+     0.07s  3.00% 61.80%      0.07s  3.00%  fndsa_sha3_process_block
+     0.06s  2.58% 64.38%      0.06s  2.58%  _mm_sub_sd (inline)
+     0.06s  2.58% 66.95%      0.06s  2.58%  _mm_xor_pd (inline)
+     0.06s  2.58% 69.53%      0.17s  7.30%  shake256x8_next_u24 (inline)
+     0.05s  2.15% 71.67%      0.27s 11.59%  GAUSSIAN0_STORE_get_next (inline)
+     0.05s  2.15% 73.82%      0.05s  2.15%  _mm_cvtsi32_sd (inline)
+     0.05s  2.15% 75.97%      1.92s 82.40%  ffsamp_fft_inner
+     0.04s  1.72% 77.68%      0.04s  1.72%  _mm512_ternarylogic_epi64 (inline)
+     0.04s  1.72% 79.40%      0.04s  1.72%  _mm_shuffle_pd (inline)
+     0.04s  1.72% 81.12%      0.04s  1.72%  _mm_sub_pd (inline)
+     0.04s  1.72% 82.83%      0.12s  5.15%  fpoly_merge_fft
+     0.04s  1.72% 84.55%      0.04s  1.72%  fpr_ursh (inline)
+     0.03s  1.29% 85.84%      0.03s  1.29%  _mm_store_sd (inline)
+     0.03s  1.29% 87.12%      0.10s  4.29%  fndsa_hash_to_point
+     0.03s  1.29% 88.41%      0.08s  3.43%  fpoly_split_fft
+     0.03s  1.29% 89.70%      0.25s 10.73%  gaussian0
+     0.02s  0.86% 90.56%      0.02s  0.86%  [test_gperf_avx512f]
+     0.02s  0.86% 91.42%      0.02s  0.86%  _mm512_xor_si512 (inline)
+     0.02s  0.86% 92.27%      0.03s  1.29%  _mm_load_sd (inline)
+     0.02s  0.86% 93.13%      0.13s  5.58%  memcpy (inline)
+     0.02s  0.86% 93.99%      0.04s  1.72%  shake256x8_next_u8 (inline)
+     0.01s  0.43% 94.42%      0.84s 36.05%  ber_exp (inline)
+     0.01s  0.43% 94.85%      0.03s  1.29%  fpoly_add
+     0.01s  0.43% 95.28%      0.04s  1.72%  fpoly_iFFT
+     0.01s  0.43% 95.71%      0.07s  3.00%  fpoly_mul_fft
+     0.01s  0.43% 96.14%      2.33s   100%  sign_core
+         0     0% 96.14%      0.25s 10.73%  GAUSSIAN0_STORE_fill (inline)
+         0     0% 96.14%      0.03s  1.29%  GAUSSIAN0_STORE_new (inline)
+         0     0% 96.14%      0.15s  6.44%  KeccakP1600times8_PermuteAll_24rounds
+         0     0% 96.14%      2.33s   100%  __libc_start_call_main
+         0     0% 96.14%      2.33s   100%  __libc_start_main_impl
+         0     0% 96.14%      2.33s   100%  _start
+         0     0% 96.14%      0.15s  6.44%  basis_to_FFT
+         0     0% 96.14%      1.93s 82.83%  ffsamp_fft
+         0     0% 96.14%      0.15s  6.44%  fndsa_shake256x8_refill
+         0     0% 96.14%      0.07s  3.00%  fndsa_shake_extract
+         0     0% 96.14%      0.15s  6.44%  fpoly_FFT
+         0     0% 96.14%      0.05s  2.15%  fpoly_LDL_fft
+         0     0% 96.14%      0.02s  0.86%  fpoly_apply_basis
+         0     0% 96.14%      0.06s  2.58%  fpoly_split_selfadj_fft
+         0     0% 96.14%      2.33s   100%  gperf_sign_core_1024
+         0     0% 96.14%      2.33s   100%  main
+         0     0% 96.14%      0.07s  3.00%  mtwop63 (inline)
+         0     0% 96.14%      0.15s  6.44%  process_block_x8 (inline)
+         0     0% 96.14%      0.04s  1.72%  sampler_init
+         0     0% 96.14%      0.02s  0.86%  shake256x8_next_u32 (inline)
