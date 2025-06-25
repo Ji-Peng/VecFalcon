@@ -12,7 +12,7 @@ Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=59/257/0.23
 gaussian0_sse2_4w_core         cycles/insts/CPI/1-wayCC=67/313/0.22/16
 gaussian0_sse2_8w_core         cycles/insts/CPI/1-wayCC=127/416/0.31/15
-gaussian0_sse2_16w_core        cycles/insts/CPI/1-wayCC=217/803/0.27/13
+gaussian0_sse2_16w_core        cycles/insts/CPI/1-wayCC=217/803/0.27/14
 
 AVX2 version:
 Including prng_next_* subroutines
@@ -20,7 +20,7 @@ gaussian0_ref                  cycles/insts/CPI=95/396/0.24
 gaussian0_ref_u24              cycles/insts/CPI=92/391/0.24
 gaussian0_avx2_ref             cycles/insts/CPI=66/247/0.27
 gaussian0_avx2_8w              cycles/insts/CPI/1-wayCC=404/1573/0.26/50
-gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=778/3032/0.26/48
+gaussian0_avx2_16w             cycles/insts/CPI/1-wayCC=778/3032/0.26/49
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=59/223/0.27
@@ -33,7 +33,7 @@ Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=71/302/0.24
 gaussian0_ref_u24              cycles/insts/CPI=68/298/0.23
 gaussian0_avx2_ref             cycles/insts/CPI=42/152/0.28
-gaussian0_avx512f_32w          cycles/insts/CPI/1-wayCC=817/2822/0.29/25
+gaussian0_avx512f_32w          cycles/insts/CPI/1-wayCC=817/2822/0.29/26
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=59/223/0.27

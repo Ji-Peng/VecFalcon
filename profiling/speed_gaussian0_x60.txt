@@ -1,50 +1,42 @@
 We work on the SHAKE256X4 variant.
 With SHAKE256-ref; -march=rv64gcv_zba_zbb:
 Including prng_next_* subroutines
-gaussian0_ref                  cycles/insts/CPI=486/781/0.62
-gaussian0_1w                   cycles/insts/CPI=388/642/0.61
-gaussian0_16w                  cycles/insts/CPI/1-wayCC=4846/8465/0.57/302
-gaussian0_16w_rvv              cycles/insts/CPI/1-wayCC=4632/7415/0.62/289
-gaussian0_16w_bisq_rvv         cycles/insts/CPI/1-wayCC=4549/7303/0.62/284
-
-Excluding prng_next_* subroutines and bimodal/square calculations
-gaussian0_rv64im               cycles/insts/CPI=84/135/0.63
-gaussian0_rv64im_16w           cycles/insts/CPI/1-wayCC=702/1385/0.51/43
-gaussian0_rvv                  cycles/insts/CPI/1-wayCC=2999/2252/1.33/23
+gaussian0_ref                  cycles/insts/CPI=485/782/0.62
+gaussian0_rv64im_1w            cycles/insts/CPI=381/642/0.59
+gaussian0_rv64im_16w           cycles/insts/CPI/1-wayCC=4877/8464/0.58/305
+gaussian0_rv64im_64w           cycles/insts/CPI/1-wayCC=19287/33493/0.58/301
+gaussian0_bisq_rvv_16w         cycles/insts/CPI/1-wayCC=4532/7302/0.62/283
+gaussian0_bisq_rvv_64w         cycles/insts/CPI/1-wayCC=17742/28713/0.62/277
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=192/287/0.67
-gaussian0_16w_core             cycles/insts/CPI/1-wayCC=870/1634/0.53/54
-gaussian0_64w_core             cycles/insts/CPI/1-wayCC=3273/6244/0.52/51
-gaussian0_16w_rvv_core         cycles/insts/CPI/1-wayCC=476/391/1.22/29
-gaussian0_64w_rvv_core         cycles/insts/CPI/1-wayCC=1621/1244/1.30/25
+gaussian0_rv64im_16w_core      cycles/insts/CPI/1-wayCC=916/1634/0.56/57
+gaussian0_rv64im_64w_core      cycles/insts/CPI/1-wayCC=3475/6244/0.56/54
+gaussian0_rvv_16w_core         cycles/insts/CPI/1-wayCC=469/391/1.20/29
+gaussian0_rvv_64w_core         cycles/insts/CPI/1-wayCC=1624/1244/1.31/25
 
 With SHAKE256-ASM; -march=rv64gcv_zba_zbb:
 Including prng_next_* subroutines
-gaussian0_ref                  cycles/insts/CPI=395/644/0.61
-gaussian0_1w                   cycles/insts/CPI=299/505/0.59
-gaussian0_16w                  cycles/insts/CPI/1-wayCC=3549/6464/0.55/221
-gaussian0_16w_rvv              cycles/insts/CPI/1-wayCC=3348/5429/0.62/209
-gaussian0_16w_bisq_rvv         cycles/insts/CPI/1-wayCC=3279/5317/0.62/204
-
-Excluding prng_next_* subroutines and bimodal/square calculations
-gaussian0_rv64im               cycles/insts/CPI=83/135/0.62
-gaussian0_rv64im_16w           cycles/insts/CPI/1-wayCC=699/1386/0.50/43
-gaussian0_rvv                  cycles/insts/CPI/1-wayCC=3001/2252/1.33/23
+gaussian0_ref                  cycles/insts/CPI=395/645/0.61
+gaussian0_rv64im_1w            cycles/insts/CPI=298/506/0.59
+gaussian0_rv64im_16w           cycles/insts/CPI/1-wayCC=3525/6464/0.55/220
+gaussian0_rv64im_64w           cycles/insts/CPI/1-wayCC=13841/25503/0.54/216
+gaussian0_bisq_rvv_16w         cycles/insts/CPI/1-wayCC=3252/5316/0.61/203
+gaussian0_bisq_rvv_64w         cycles/insts/CPI/1-wayCC=12543/20766/0.60/196
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=192/287/0.67
-gaussian0_16w_core             cycles/insts/CPI/1-wayCC=868/1633/0.53/54
-gaussian0_64w_core             cycles/insts/CPI/1-wayCC=3273/6244/0.52/51
-gaussian0_16w_rvv_core         cycles/insts/CPI/1-wayCC=477/391/1.22/29
-gaussian0_64w_rvv_core         cycles/insts/CPI/1-wayCC=1621/1244/1.30/25
+gaussian0_rv64im_16w_core      cycles/insts/CPI/1-wayCC=870/1634/0.53/54
+gaussian0_rv64im_64w_core      cycles/insts/CPI/1-wayCC=3279/6244/0.53/51
+gaussian0_rvv_16w_core         cycles/insts/CPI/1-wayCC=477/392/1.22/30
+gaussian0_rvv_64w_core         cycles/insts/CPI/1-wayCC=1622/1244/1.30/25
 
 Some optimization ideas:
 gaussian0_rvv_64b_p0_x2        cycles/insts/CPI/1-wayCC=2203/706/3.12/1101
-gaussian0_rvv_64b_p0_x3        cycles/insts/CPI/1-wayCC=3405/1107/3.07/1135
-gaussian0_rvv_64b_p1_x3        cycles/insts/CPI/1-wayCC=3806/1507/2.52/1268
-gaussian0_rvv_64b_p1_x3_v2     cycles/insts/CPI/1-wayCC=2003/1506/1.33/667
-gaussian0_rvv_24b_p0_x2        cycles/insts/CPI/1-wayCC=3205/1007/3.18/1602
-gaussian0_rvv_24b_p0_x3        cycles/insts/CPI/1-wayCC=5092/1654/3.08/1697
-gaussian0_rvv_24b_p1_x3        cycles/insts/CPI/1-wayCC=4147/2230/1.86/1382
-gaussian0_rvv_24b_p1_x3_v2     cycles/insts/CPI/1-wayCC=2911/2209/1.32/970
+gaussian0_rvv_64b_p0_x3        cycles/insts/CPI/1-wayCC=3404/1107/3.07/1135
+gaussian0_rvv_64b_p1_x3        cycles/insts/CPI/1-wayCC=3805/1508/2.52/1268
+gaussian0_rvv_64b_p1_x3_v2     cycles/insts/CPI/1-wayCC=2003/1506/1.33/668
+gaussian0_rvv_24b_p0_x2        cycles/insts/CPI/1-wayCC=3204/1007/3.18/1602
+gaussian0_rvv_24b_p0_x3        cycles/insts/CPI/1-wayCC=5006/1608/3.11/1669
+gaussian0_rvv_24b_p1_x3        cycles/insts/CPI/1-wayCC=4106/2208/1.86/1369
+gaussian0_rvv_24b_p1_x3_v2     cycles/insts/CPI/1-wayCC=2904/2207/1.32/968

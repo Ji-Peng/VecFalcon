@@ -182,9 +182,9 @@ typedef union {
     uint32_t u32[3][4] __attribute__((aligned(16)));
 } prn_24x3_4w;
 
-#define ALIGNED_INT32(N)   \
-    union {                \
-        int32_t coeffs[N]; \
+#define ALIGNED_INT32(N)                                \
+    union {                                             \
+        int32_t coeffs[N] __attribute__((aligned(16))); \
     }
 
 extern void gaussian0_neon(int32_t *z, uint32_t *prn, size_t n_way);
@@ -244,6 +244,31 @@ void gaussian0_16w_bisq_neon(sampler_state *ss, int32_t *z_bimodal,
         b_16bs[i + 1] = (b_16b >> (i + 1)) & 1;
     }
     gaussian0_neon_bisq(_z_bi, _z_sq, &prn[0].u32[0][0], b_16bs, 4);
+}
+
+void gaussian0_64w_bisq_neon(sampler_state *ss, int32_t *z_bimodal,
+                             int32_t *z_square)
+{
+    ALIGNED_INT32(64) b_64bs;
+    prn_24x3_4w prn[16];
+    int32_t *_z_bi = (int32_t *)z_bimodal;
+    int32_t *_z_sq = (int32_t *)z_square;
+
+    for (int j = 0; j < 16; j++)
+        for (int i = 0; i < 4; i++) {
+            prn[j].u32[0][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[1][i] = prng_next_u24(&ss->pc);
+            prn[j].u32[2][i] = prng_next_u24(&ss->pc);
+        }
+    uint64_t b_64b = prng_next_u64(&ss->pc);
+    for (int i = 0; i < 64; i += 4) {
+        b_64bs.coeffs[i] = (b_64b >> i) & 1;
+        b_64bs.coeffs[i + 1] = (b_64b >> (i + 1)) & 1;
+        b_64bs.coeffs[i + 2] = (b_64b >> (i + 2)) & 1;
+        b_64bs.coeffs[i + 3] = (b_64b >> (i + 3)) & 1;
+    }
+    gaussian0_neon_bisq(_z_bi, _z_sq, &prn[0].u32[0][0],
+                        (uint32_t *)b_64bs.coeffs, 16);
 }
 
 /**
@@ -344,13 +369,17 @@ void speed_gaussian0()
     PERF(gaussian0_ref(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
          gaussian0_ref, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
          TESTS_N);
-    PERF_N(gaussian0_16w_neon(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
-           gaussian0_16w_neon, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
-           TESTS_N, 16);
+    // PERF_N(gaussian0_16w_neon(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
+    //        gaussian0_16w_neon, sampler_init(&ss0, 9, seed, 32),
+    //        WARMUP_N, TESTS_N, 16);
     PERF_N(
         gaussian0_16w_bisq_neon(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
         gaussian0_16w_bisq_neon, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
         TESTS_N, 16);
+    PERF_N(
+        gaussian0_64w_bisq_neon(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
+        gaussian0_64w_bisq_neon, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+        TESTS_N, 64);
 
     printf(
         "\nExcluding prng_next_* subroutines; including bimodal/square "
@@ -358,17 +387,17 @@ void speed_gaussian0()
     PERF(gaussian0_ref_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0]),
          gaussian0_ref_core, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
          TESTS_N);
-    PERF_N(gaussian0_nw_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 16),
-           gaussian0_16w_neon_core, sampler_init(&ss0, 9, seed, 32),
-           WARMUP_N, TESTS_N, 16);
-    PERF_N(gaussian0_nw_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 64),
-           gaussian0_64w_neon_core, sampler_init(&ss0, 9, seed, 32),
-           WARMUP_N, TESTS_N, 64);
+    // PERF_N(gaussian0_nw_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 16),
+    //        gaussian0_16w_neon_core, sampler_init(&ss0, 9, seed, 32),
+    //        WARMUP_N, TESTS_N, 16);
+    // PERF_N(gaussian0_nw_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 64),
+    //        gaussian0_64w_neon_core, sampler_init(&ss0, 9, seed, 32),
+    //        WARMUP_N, TESTS_N, 64);
     PERF_N(gaussian0_nw_bisq_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 16),
            gaussian0_16w_neon_bisq_core, sampler_init(&ss0, 9, seed, 32),
            WARMUP_N, TESTS_N, 16);
     PERF_N(gaussian0_nw_bisq_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 64),
-           gaussian0_16w_neon_bisq_core, sampler_init(&ss0, 9, seed, 32),
+           gaussian0_64w_neon_bisq_core, sampler_init(&ss0, 9, seed, 32),
            WARMUP_N, TESTS_N, 64);
 }
 

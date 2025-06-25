@@ -1,12 +1,12 @@
 We work on the SHAKE256X4 variant
 batch_gaussian0_ref with SHAKE256-ref and gaussian0_ref; -march=rv64gcv_zba_zbb:
-gaussian0                      cycles/insts/CPI/1-wayCC=6910/11197/0.62/431
-GAUSSIAN0_STORE_get_next       cycles/insts/CPI=435/706/0.62
+gaussian0                      cycles/insts/CPI/1-wayCC=27474/44647/0.62/429
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=433/704/0.62
 
-batch_gaussian0_rv64im with SHAKE256-ASM and optimized gaussian0 on RV64IMB; -march=rv64gc_zba_zbb:
-gaussian0                      cycles/insts/CPI/1-wayCC=14048/25443/0.55/219
+batch_gaussian0_rv64imb with SHAKE256-ASM and optimized gaussian0 on RV64IMB; -march=rv64gc_zba_zbb:
+gaussian0                      cycles/insts/CPI/1-wayCC=13956/25440/0.55/218
 GAUSSIAN0_STORE_get_next       cycles/insts/CPI=223/403/0.55
 
-batch_gaussian0_rvv with SHAKE256-ASM and optimized gaussian0 on RVV; -march=rv64gcv_zba_zbb:
-gaussian0                      cycles/insts/CPI/1-wayCC=12647/20770/0.61/197
-GAUSSIAN0_STORE_get_next       cycles/insts/CPI=200/329/0.61
+batch_gaussian0_rv64imbv with SHAKE256-ASM and optimized gaussian0 on RVV; -march=rv64gcv_zba_zbb:
+gaussian0                      cycles/insts/CPI/1-wayCC=12541/20767/0.60/195
+GAUSSIAN0_STORE_get_next       cycles/insts/CPI=198/329/0.60
