@@ -78,11 +78,13 @@ DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 # We disable more advanced instruction sets to ensure a fair comparison. If we don't disable them explicitly, the compiler may convert SSE2 instructions to AVX instructions.
 SSE2_FLAGS = -msse2 -mno-sse2avx -mno-sse3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-sse5 -mno-avx -mno-avx2 -mno-avx512f -mno-avx512dq -mno-avx512pf -mno-avx512er -mno-avx512cd -mno-avx512bw -mno-avx512vl -mno-avx512ifma -mno-avx512vbmi -mno-avx512vpopcntdq
 AVX2_FLAGS = -mavx2 -mno-avx512f -mno-avx512dq -mno-avx512pf -mno-avx512er -mno-avx512cd -mno-avx512bw -mno-avx512vl -mno-avx512ifma -mno-avx512vbmi -mno-avx512vpopcntdq
+AVX512F_FLAGS = -mavx512f -mno-avx512dq -mno-avx512pf -mno-avx512er -mno-avx512cd -mno-avx512bw -mno-avx512vl -mno-avx512ifma -mno-avx512vbmi -mno-avx512vpopcntdq
 
 CFLAGS_COMM = -W -Wextra -Wundef -Wshadow -O2 $(PG) $(X4) \
 	-DWARMUP_N=2000 -DTESTS_N=10000 -g
 CFLAGS_SSE2 = $(CFLAGS_COMM) -DFNDSA_AVX2=0 -DFNDSA_SSE2=1 $(SSE2_FLAGS)
 CFLAGS_AVX2 = $(CFLAGS_COMM) -DFNDSA_AVX2=1 -DFNDSA_SSE2=1 $(AVX2_FLAGS)
+CFLAGS_AVX512F = $(CFLAGS_COMM) -DFNDSA_AVX512F=1 -DFNDSA_AVX2=1 -DFNDSA_SSE2=1 $(AVX512F_FLAGS)
 
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c
@@ -103,9 +105,15 @@ OBJS_TEST_AVX2	= $(addprefix out/, $(SRCS_TEST:.c=_avx2.o))
 OBJS_SPEED_AVX2	= $(addprefix out/, $(SRCS_SPEED:.c=_avx2.o))
 OBJS_GPERF_AVX2	= $(addprefix out/, $(SRCS_GPERF:.c=_avx2.o))
 
+OBJS_AVX512F		= $(addprefix out/, $(SRCS:.c=_avx512f.o)) $(addprefix out/, $(SRCS_AVX512F:.c=_avx512f.o))
+OBJS_TEST_AVX512F	= $(addprefix out/, $(SRCS_TEST:.c=_avx512f.o))
+OBJS_SPEED_AVX512F	= $(addprefix out/, $(SRCS_SPEED:.c=_avx512f.o))
+OBJS_GPERF_AVX512F	= $(addprefix out/, $(SRCS_GPERF:.c=_avx512f.o))
+
 all: \
 	out/test_fndsa_sse2 out/speed_fndsa_sse2 \
-	out/test_fndsa_avx2 out/speed_fndsa_avx2
+	out/test_fndsa_avx2 out/speed_fndsa_avx2 \
+	out/test_fndsa_avx512f out/speed_fndsa_avx512f
 
 profiling: \
 	out/test_gperf_sse2 out/test_gperf_avx2
@@ -116,6 +124,8 @@ run_speed: out/speed_fndsa_sse2 out/speed_fndsa_avx2
 	taskset -c 0 ./out/speed_fndsa_sse2 >> speed_fndsa_11700k.txt
 	echo "\nAVX2 version:" >> speed_fndsa_11700k.txt
 	taskset -c 0 ./out/speed_fndsa_avx2 >> speed_fndsa_11700k.txt
+	echo "\nAVX-512F version:" >> speed_fndsa_11700k.txt
+	taskset -c 0 ./out/speed_fndsa_avx512f >> speed_fndsa_11700k.txt
 
 run_profiling: profiling
 	taskset -c 0 ./out/test_gperf_sse2 1
@@ -155,10 +165,19 @@ out/speed_fndsa_avx2: $(OBJS_AVX2) $(OBJS_SPEED_AVX2) | out
 out/test_gperf_avx2: $(OBJS_AVX2) $(OBJS_GPERF_AVX2) | out
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS_GPERF)
 
+out/test_fndsa_avx512f: $(OBJS_AVX512F) $(OBJS_TEST_AVX512F) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+out/speed_fndsa_avx512f: $(OBJS_AVX512F) $(OBJS_SPEED_AVX512F) | out
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
 out/%_sse2.o: %.c | out
 	$(CC) $(CFLAGS_SSE2) $(DEPFLAGS) -c $< -o $@
 
 out/%_avx2.o: %.c | out
 	$(CC) $(CFLAGS_AVX2) $(DEPFLAGS) -c $< -o $@
+
+out/%_avx512f.o: %.c | out
+	$(CC) $(CFLAGS_AVX512F) $(DEPFLAGS) -c $< -o $@
 
 -include $(wildcard out/*.d)

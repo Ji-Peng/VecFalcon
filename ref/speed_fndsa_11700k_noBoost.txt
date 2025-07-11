@@ -21,3 +21,14 @@ FN-DSA sign:                         1547466
 FN-DSA sign_core:                    1103622
 FN-DSA verify:                         90782
 
+
+AVX-512F version:
+n = 512:
+FN-DSA sign:                          757024
+FN-DSA sign_core:                     535984
+FN-DSA verify:                         46534
+n = 1024:
+FN-DSA sign:                         1527832
+FN-DSA sign_core:                    1085946
+FN-DSA verify:                         88882
+
