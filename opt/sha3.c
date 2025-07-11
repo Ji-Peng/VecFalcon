@@ -1738,7 +1738,7 @@ void shake256x8_refill(shake256x8_context *sc)
     return;
 #    endif
 
-#    if FNDSA_NEON_HYBRID_SHA3
+#    if FNDSA_NEON_HYBRID_SHA3 || FNDSA_AVX2
     process_block_x4(sc->state);
     process_block_x4(sc->state + 25 * 4);
 #    elif FNDSA_SSE2 || FNDSA_NEON_SHA3
@@ -1769,7 +1769,7 @@ void shake256x8_refill(shake256x8_context *sc)
     return;
 #    endif
 
-#    if FNDSA_NEON_HYBRID_SHA3 || FNDSA_SSE2 || FNDSA_NEON_SHA3
+#    if FNDSA_NEON_HYBRID_SHA3 || FNDSA_SSE2 || FNDSA_NEON_SHA3 || FNDSA_AVX2
     for (int i = 0; i < 17; i++) {
         enc64le(&sc->buf[(i << 6) + 0 * 8], sc->state[0 + 4 * i]);
         enc64le(&sc->buf[(i << 6) + 1 * 8], sc->state[1 + 4 * i]);

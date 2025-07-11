@@ -42,6 +42,7 @@ typedef union {
 #        define prng_next_u8 shake256x4_next_u8
 #        define prng_next_u16 shake256x4_next_u16
 #        define prng_next_u24 shake256x4_next_u24
+#        define prng_next_u32 shake256x4_next_u32
 #        define prng_next_u64 shake256x4_next_u64
 #    else
 #        define prng_init(pc, seed, seed_len)     \

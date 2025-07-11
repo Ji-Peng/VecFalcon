@@ -487,6 +487,20 @@ static inline unsigned shake256x4_next_u24(shake256x4_context *sc)
     return x;
 }
 
+/* Get the next 32-bit word of pseudorandom output. */
+static inline unsigned shake256x4_next_u32(shake256x4_context *sc)
+{
+    if (sc->ptr >= (sizeof sc->buf) - 3) {
+        shake256x4_refill(sc);
+    }
+    unsigned x = (unsigned)sc->buf[sc->ptr] |
+                 ((unsigned)sc->buf[sc->ptr + 1] << 8) |
+                 ((unsigned)sc->buf[sc->ptr + 2] << 16) |
+                 ((unsigned)sc->buf[sc->ptr + 3] << 24);
+    sc->ptr += 4;
+    return x;
+}
+
 /* Get the next 64-bit word of pseudorandom output. */
 static inline uint64_t shake256x4_next_u64(shake256x4_context *sc)
 {
