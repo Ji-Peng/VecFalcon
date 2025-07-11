@@ -77,7 +77,7 @@ DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 
 CFLAGS_COMM = -W -Wextra -Wundef -Wshadow -O2 $(PG) $(X4) \
 	-DWARMUP_N=2000 -DTESTS_N=10000 -g
-CFLAGS = $(CFLAGS_COMM) -DFNDSA_NEON=1 -DFNDSA_NEON_HYBRID_SHA3=1
+CFLAGS = $(CFLAGS_COMM) -DFNDSA_NEON=1 -DFNDSA_NEON_HYBRID_SHA3=1 -DFNDSA_NEON_FFT_OPT=1
 
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c

@@ -2,21 +2,25 @@ We work on the SHAKE256X4 variant.
 With SHAKE256-ref:
 Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=201/377/0.53
+gaussian0_NG23                 cycles/insts/CPI=206/383/0.54
 gaussian0_16w_bisq_neon        cycles/insts/CPI/1-wayCC=2583/5153/0.50/161
 gaussian0_64w_bisq_neon        cycles/insts/CPI/1-wayCC=10284/20542/0.50/161
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=54/50/1.09
+gaussian0_NG23_core            cycles/insts/CPI=59/54/1.09
 gaussian0_16w_neon_bisq_core   cycles/insts/CPI/1-wayCC=495/565/0.88/31
 gaussian0_16w_neon_bisq_core   cycles/insts/CPI/1-wayCC=1926/2209/0.87/30
 
 With SHAKE256X4-hybrid-neon:
 Including prng_next_* subroutines
 gaussian0_ref                  cycles/insts/CPI=175/291/0.60
+gaussian0_NG23                 cycles/insts/CPI=180/297/0.60
 gaussian0_16w_bisq_neon        cycles/insts/CPI/1-wayCC=2210/3898/0.57/138
 gaussian0_64w_bisq_neon        cycles/insts/CPI/1-wayCC=8791/15521/0.57/137
 
 Excluding prng_next_* subroutines; including bimodal/square calculations
 gaussian0_ref_core             cycles/insts/CPI=54/50/1.09
+gaussian0_NG23_core            cycles/insts/CPI=59/54/1.09
 gaussian0_16w_neon_bisq_core   cycles/insts/CPI/1-wayCC=496/565/0.88/31
 gaussian0_64w_neon_bisq_core   cycles/insts/CPI/1-wayCC=1926/2209/0.87/30

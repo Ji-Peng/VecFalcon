@@ -1,4 +1,5 @@
 We work on the SHAKE256X4 variant.
+With -DFNDSA_NEON_HYBRID_SHA3=1 -DFNDSA_NEON_FFT_OPT=1
 
 NEON version:
 n = 512:

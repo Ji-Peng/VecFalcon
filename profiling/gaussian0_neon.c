@@ -1,3 +1,4 @@
+#include <arm_neon.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -176,6 +177,219 @@ void gaussian0_ref_16w_u24(sampler_state *ss, int32_t *z_bimodal,
         *(_z_bimodal + j) = b + ((b << 1) - 1) * z[j];
         *(_z_square + j) = z[j] * z[j];
     }
+}
+
+/**
+ * Obtained from https://github.com/GMUCERG/Falcon_NEON with
+ * commit id: 1d26700.
+ * The gaussian0_sampler subroutine in falcon-armv8/neon/sampler.c
+ * The original version returns z directly . We do
+ * some additional operations, namely "z*z" and "get a random bit b to turn
+ * the sampling into a bimodal distribution".
+ */
+void gaussian0_NG23(sampler_state *ss, int32_t *z_bimodal,
+                    int32_t *z_square)
+{
+    static const uint32_t dist[] = {
+        10745844u, 3068844u,  3741698u,  5559083u, 1580863u,  8248194u,
+        2260429u,  13669192u, 2736639u,  708981u,  4421575u,  10046180u,
+        169348u,   7122675u,  4136815u,  30538u,   13063405u, 7650655u,
+        4132u,     14505003u, 7826148u,  417u,     16768101u, 11363290u,
+        31u,       8444042u,  8086568u,  1u,       12844466u, 265321u,
+        0u,        1232676u,  13644283u, 0u,       38047u,    9111839u,
+        0u,        870u,      6138264u,  0u,       14u,       12545723u,
+        0u,        0u,        3104126u,  0u,       0u,        28824u,
+        0u,        0u,        198u,      0u,       0u,        1u};
+
+    uint32_t v0, v1, v2, hi;
+    uint64_t lo;
+    int z;
+
+    /*
+     * Get a random 72-bit value, into three 24-bit limbs v0..v2.
+     */
+    lo = prng_next_u64(&ss->pc);
+    hi = prng_next_u8(&ss->pc);
+    v0 = (uint32_t)lo & 0xFFFFFF;
+    v1 = (uint32_t)(lo >> 24) & 0xFFFFFF;
+    v2 = (uint32_t)(lo >> 48) | (hi << 16);
+
+    /*
+     * Sampled value is z, such that v0..v2 is lower than the first
+     * z elements of the table.
+     */
+
+    uint32x4x3_t w;
+    uint32x4_t x0, x1, x2, cc0, cc1, cc2, zz;
+    uint32x2x3_t wh;
+    uint32x2_t cc0h, cc1h, cc2h, zzh;
+    x0 = vdupq_n_u32(v0);
+    x1 = vdupq_n_u32(v1);
+    x2 = vdupq_n_u32(v2);
+
+    // 0: 0, 3, 6, 9
+    // 1: 1, 4, 7, 10
+    // 2: 2, 5, 8, 11
+    // v0 - w0
+    // v1 - w1
+    // v2 - w2
+    // cc1 - cc0 >> 31
+    // cc2 - cc1 >> 31
+    // z + cc2 >> 31
+    w = vld3q_u32(&dist[0]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vshrq_n_u32(cc2, 31);
+
+    w = vld3q_u32(&dist[12]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vsraq_n_u32(zz, cc2, 31);
+
+    w = vld3q_u32(&dist[24]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vsraq_n_u32(zz, cc2, 31);
+
+    w = vld3q_u32(&dist[36]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vsraq_n_u32(zz, cc2, 31);
+
+    // 0: 48, 51
+    // 1: 49, 52
+    // 2: 50, 53
+    wh = vld3_u32(&dist[48]);
+    cc0h = vsub_u32(vget_low_u32(x0), wh.val[2]);
+    cc1h = vsub_u32(vget_low_u32(x1), wh.val[1]);
+    cc2h = vsub_u32(vget_low_u32(x2), wh.val[0]);
+    cc1h = (uint32x2_t)vsra_n_s32((int32x2_t)cc1h, (int32x2_t)cc0h, 31);
+    cc2h = (uint32x2_t)vsra_n_s32((int32x2_t)cc2h, (int32x2_t)cc1h, 31);
+    zzh = vshr_n_u32(cc2h, 31);
+
+    z = vaddvq_u32(zz) + vaddv_u32(zzh);
+    // Get a random bit b to turn the sampling into a bimodal distribution.
+    int32_t b = prng_next_u8(&ss->pc) & 1;
+    *z_bimodal = b + ((b << 1) - 1) * z;
+    *z_square = z * z;
+}
+
+/**
+ * Obtained from https://github.com/GMUCERG/Falcon_NEON with
+ * commit id: 1d26700.
+ * The gaussian0_sampler subroutine in falcon-armv8/neon/sampler.c
+ * The original version returns z directly . We do
+ * some additional operations, namely "z*z" and "get a random bit b to turn
+ * the sampling into a bimodal distribution".
+ */
+void gaussian0_NG23_core(int32_t *z_bimodal, int32_t *z_square)
+{
+    static const uint32_t dist[] = {
+        10745844u, 3068844u,  3741698u,  5559083u, 1580863u,  8248194u,
+        2260429u,  13669192u, 2736639u,  708981u,  4421575u,  10046180u,
+        169348u,   7122675u,  4136815u,  30538u,   13063405u, 7650655u,
+        4132u,     14505003u, 7826148u,  417u,     16768101u, 11363290u,
+        31u,       8444042u,  8086568u,  1u,       12844466u, 265321u,
+        0u,        1232676u,  13644283u, 0u,       38047u,    9111839u,
+        0u,        870u,      6138264u,  0u,       14u,       12545723u,
+        0u,        0u,        3104126u,  0u,       0u,        28824u,
+        0u,        0u,        198u,      0u,       0u,        1u};
+
+    uint32_t v0, v1, v2, hi;
+    uint64_t lo;
+    int z;
+
+    /*
+     * Get a random 72-bit value, into three 24-bit limbs v0..v2.
+     */
+    lo = ((uint64_t)*z_bimodal << 32) + (*z_bimodal);
+    hi = *z_square;
+    v0 = (uint32_t)lo & 0xFFFFFF;
+    v1 = (uint32_t)(lo >> 24) & 0xFFFFFF;
+    v2 = (uint32_t)(lo >> 48) | (hi << 16);
+
+    /*
+     * Sampled value is z, such that v0..v2 is lower than the first
+     * z elements of the table.
+     */
+
+    uint32x4x3_t w;
+    uint32x4_t x0, x1, x2, cc0, cc1, cc2, zz;
+    uint32x2x3_t wh;
+    uint32x2_t cc0h, cc1h, cc2h, zzh;
+    x0 = vdupq_n_u32(v0);
+    x1 = vdupq_n_u32(v1);
+    x2 = vdupq_n_u32(v2);
+
+    // 0: 0, 3, 6, 9
+    // 1: 1, 4, 7, 10
+    // 2: 2, 5, 8, 11
+    // v0 - w0
+    // v1 - w1
+    // v2 - w2
+    // cc1 - cc0 >> 31
+    // cc2 - cc1 >> 31
+    // z + cc2 >> 31
+    w = vld3q_u32(&dist[0]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vshrq_n_u32(cc2, 31);
+
+    w = vld3q_u32(&dist[12]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vsraq_n_u32(zz, cc2, 31);
+
+    w = vld3q_u32(&dist[24]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vsraq_n_u32(zz, cc2, 31);
+
+    w = vld3q_u32(&dist[36]);
+    cc0 = vsubq_u32(x0, w.val[2]);
+    cc1 = vsubq_u32(x1, w.val[1]);
+    cc2 = vsubq_u32(x2, w.val[0]);
+    cc1 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc1, (int32x4_t)cc0, 31);
+    cc2 = (uint32x4_t)vsraq_n_s32((int32x4_t)cc2, (int32x4_t)cc1, 31);
+    zz = vsraq_n_u32(zz, cc2, 31);
+
+    // 0: 48, 51
+    // 1: 49, 52
+    // 2: 50, 53
+    wh = vld3_u32(&dist[48]);
+    cc0h = vsub_u32(vget_low_u32(x0), wh.val[2]);
+    cc1h = vsub_u32(vget_low_u32(x1), wh.val[1]);
+    cc2h = vsub_u32(vget_low_u32(x2), wh.val[0]);
+    cc1h = (uint32x2_t)vsra_n_s32((int32x2_t)cc1h, (int32x2_t)cc0h, 31);
+    cc2h = (uint32x2_t)vsra_n_s32((int32x2_t)cc2h, (int32x2_t)cc1h, 31);
+    zzh = vshr_n_u32(cc2h, 31);
+
+    z = vaddvq_u32(zz) + vaddv_u32(zzh);
+    // Get a random bit b to turn the sampling into a bimodal distribution.
+    int32_t b = *z_bimodal & 1;
+    *z_bimodal = b + ((b << 1) - 1) * z;
+    *z_square = z * z;
 }
 
 typedef union {
@@ -372,6 +586,9 @@ void speed_gaussian0()
     // PERF_N(gaussian0_16w_neon(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
     //        gaussian0_16w_neon, sampler_init(&ss0, 9, seed, 32),
     //        WARMUP_N, TESTS_N, 16);
+    PERF(gaussian0_NG23(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
+         gaussian0_NG23, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+         TESTS_N);
     PERF_N(
         gaussian0_16w_bisq_neon(&ss0, &z0_bi.coeffs[0], &z0_sq.coeffs[0]),
         gaussian0_16w_bisq_neon, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
@@ -386,6 +603,9 @@ void speed_gaussian0()
         "calculations\n");
     PERF(gaussian0_ref_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0]),
          gaussian0_ref_core, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
+         TESTS_N);
+    PERF(gaussian0_NG23_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0]),
+         gaussian0_NG23_core, sampler_init(&ss0, 9, seed, 32), WARMUP_N,
          TESTS_N);
     // PERF_N(gaussian0_nw_core(&z0_bi.coeffs[0], &z0_sq.coeffs[0], 16),
     //        gaussian0_16w_neon_core, sampler_init(&ss0, 9, seed, 32),
