@@ -1,7 +1,4 @@
-File: test_gperf_avx2
-Type: cpu
-Showing nodes accounting for 2.42s, 96.41% of 2.51s total
-Dropped 12 nodes (cum <= 0.01s)
+File: test_gperf_avx2; Type: cpu; Showing nodes accounting for 2.42s, 96.41% of 2.51s total; Dropped 12 nodes (cum <= 0.01s)
       flat  flat%   sum%        cum   cum%
      0.44s 17.53% 17.53%      0.51s 20.32%  expm_p63 (inline)
      0.19s  7.57% 25.10%      0.19s  7.57%  _mm_mul_sd (inline)

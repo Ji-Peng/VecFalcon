@@ -27,7 +27,8 @@ CFLAGS_RV64GCVB	 = $(CFLAGS_COMM) -mabi=lp64d -march=rv64gcv_zba_zbb	\
 	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
 
 all: \
-	out/gaussian0_rv64 out/gaussian0_rv64_opt_sha3 \
+	out/gaussian0_rv64imb out/gaussian0_rv64imb_opt_sha3 \
+	out/gaussian0_rvv out/gaussian0_rvv_opt_sha3 \
 	out/batch_gaussian0_rv64imb out/batch_gaussian0_rv64imbv \
 	out/batch_gaussian0_ref_rv64imb out/batch_gaussian0_ref_rv64imbv \
 	out/fft_rvv out/fft_rv64d
@@ -42,10 +43,14 @@ run_speed: all
 	./out/batch_gaussian0_rv64imb speed >> speed_batch_gaussian0_x60.txt
 	echo "\nbatch_gaussian0_rv64imbv with SHAKE256-ASM and optimized gaussian0 on RVV; -march=rv64gcv_zba_zbb:" >> speed_batch_gaussian0_x60.txt
 	./out/batch_gaussian0_rv64imbv speed >> speed_batch_gaussian0_x60.txt
-	echo "We work on the SHAKE256X4 variant.\nWith SHAKE256-ref; -march=rv64gcv_zba_zbb:" > speed_gaussian0_x60.txt
-	./out/gaussian0_rv64 >> speed_gaussian0_x60.txt
-	echo "\nWith SHAKE256-ASM; -march=rv64gcv_zba_zbb:" >> speed_gaussian0_x60.txt
-	./out/gaussian0_rv64_opt_sha3 >> speed_gaussian0_x60.txt
+	echo "We work on the SHAKE256X4 variant. With SHAKE256-ref.\n-march=rv64gc_zba_zbb:" > speed_gaussian0_x60.txt
+	./out/gaussian0_rv64imb >> speed_gaussian0_x60.txt
+	echo "\n-march=rv64gcv_zba_zbb:" >> speed_gaussian0_x60.txt
+	./out/gaussian0_rvv >> speed_gaussian0_x60.txt
+	echo "\nWith SHAKE256-ASM.\n-march=rv64gc_zba_zbb:" >> speed_gaussian0_x60.txt
+	./out/gaussian0_rv64imb_opt_sha3 >> speed_gaussian0_x60.txt
+	echo "\n-march=rv64gcv_zba_zbb:" >> speed_gaussian0_x60.txt
+	./out/gaussian0_rvv_opt_sha3 >> speed_gaussian0_x60.txt
 	./out/fft_rvv > speed_fft_rvv_x60.txt
 	./out/fft_rv64d > speed_fft_rv64d_x60.txt
 
@@ -61,15 +66,21 @@ out:
 	@mkdir -p out
 
 out/fft_rvv: cpucycles.c fft_rvv.c fft_rvv.S fft_rvv_consts.h | out
-	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
+	$(CC) $(CFLAGS_RV64GCV) $(DEPFLAGS) $^ $(LIBS) -o $@
 
 out/fft_rv64d: cpucycles.c fft_rv64d.c fft_rv64d.S | out
-	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
+	$(CC) $(CFLAGS_RV64GC) $(DEPFLAGS) $^ $(LIBS) -o $@
 
-out/gaussian0_rv64: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S | out
+out/gaussian0_rv64imb: $(SRC_COMM) gaussian0_rv64imb.c gaussian0_rv64.S | out
+	$(CC) $(CFLAGS_RV64GCB) -DREF_SHA3=1 $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/gaussian0_rvv: $(SRC_COMM) gaussian0_rvv.c gaussian0_rv64.S gaussian0_rv64_tmp.S | out
 	$(CC) $(CFLAGS_RV64GCVB) -DREF_SHA3=1 $(DEPFLAGS) $^ $(LIBS) -o $@
 
-out/gaussian0_rv64_opt_sha3: $(SRC_COMM) gaussian0_rv64.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S fips202_rv64imb.S | out
+out/gaussian0_rv64imb_opt_sha3: $(SRC_COMM) gaussian0_rv64imb.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S fips202_rv64imb.S | out
+	$(CC) $(CFLAGS_RV64GCB) $(DEPFLAGS) $^ $(LIBS) -o $@
+
+out/gaussian0_rvv_opt_sha3: $(SRC_COMM) gaussian0_rvv.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S fips202_rv64imb.S | out
 	$(CC) $(CFLAGS_RV64GCVB) $(DEPFLAGS) $^ $(LIBS) -o $@
 
 out/batch_gaussian0_rv64imb: $(SRC_COMM) test_batch_gaussian0.c gaussian0_rv64.S gaussian0_rv64_tmp.S fips202_rv64imb.S | out

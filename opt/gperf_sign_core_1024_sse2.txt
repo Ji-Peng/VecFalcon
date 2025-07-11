@@ -1,7 +1,4 @@
-File: test_gperf_sse2
-Type: cpu
-Showing nodes accounting for 3.03s, 98.38% of 3.08s total
-Dropped 6 nodes (cum <= 0.02s)
+File: test_gperf_sse2; Type: cpu; Showing nodes accounting for 3.03s, 98.38% of 3.08s total; Dropped 6 nodes (cum <= 0.02s)
       flat  flat%   sum%        cum   cum%
      0.55s 17.86% 17.86%      0.65s 21.10%  expm_p63 (inline)
      0.34s 11.04% 28.90%      0.34s 11.04%  _mm_xor_si128 (inline)

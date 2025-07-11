@@ -1,7 +1,4 @@
-File: test_gperf_avx512f
-Type: cpu
-Showing nodes accounting for 2.24s, 96.14% of 2.33s total
-Dropped 12 nodes (cum <= 0.01s)
+File: test_gperf_avx512f; Type: cpu; Showing nodes accounting for 2.24s, 96.14% of 2.33s total; Dropped 12 nodes (cum <= 0.01s)
       flat  flat%   sum%        cum   cum%
      0.62s 26.61% 26.61%      0.69s 29.61%  expm_p63 (inline)
      0.14s  6.01% 32.62%      0.14s  6.01%  _mm_mul_pd (inline)
