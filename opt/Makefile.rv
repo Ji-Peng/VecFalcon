@@ -15,19 +15,16 @@ LIBS_GPERF = -Wl,-rpath -Wl,/usr/local/lib -lprofiler
 DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 
 CFLAGS_COMMON = -W -Wextra -Wundef -Wshadow -O2 -g $(PG) $(X4) \
+	-DFNDSA_RV64D=1 -DRV64=1 -DKECCAK_OPT=1 \
 	-DWARMUP_N=500 -DTESTS_N=2000
 CFLAGS_RV64GC	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=0
+	-DRVV_VLEN256=0
 CFLAGS_RV64GCV	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
+	-DRVV_VLEN256=1
 CFLAGS_RV64GCB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc_zba_zbb 	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=0
+	-DRVV_VLEN256=0
 CFLAGS_RV64GCVB	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gcv_zba_zbb	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
-
-CFLAGS_RV64GCV_DEBUG	 = -W -Wextra -Wundef -Wshadow -O0 -g $(PG) $(X4) \
-	-DWARMUP_N=500 -DTESTS_N=2000 -mabi=lp64d -march=rv64gcv	\
-	-DFNDSA_RV64D=1 -DRV64=1 -DRVV_VLEN256=1
+	-DRVV_VLEN256=1
 
 SRCS_COMM = codec.c mq.c sha3.c sysrng.c util.c
 SRCS_KGEN = kgen.c kgen_fxp.c kgen_gauss.c kgen_mp31.c kgen_ntru.c kgen_poly.c kgen_zint31.c

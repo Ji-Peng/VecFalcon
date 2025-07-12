@@ -1041,6 +1041,8 @@ const fpr GM[] = {
 #define X4(x) x,x,x,x
 #define X2(x) x,x
 #define X1(x) x
+
+#if RVV_VLEN256
 const fpr GM_4_5_merging_rvv256[] = {
     // layer 1
     X1(FPR(   6369051672525773, -53)), X1(FPR(   6369051672525773, -53)), 
@@ -1931,6 +1933,9 @@ const fpr GM_4_4_merging_rvv256[] = {
     X1(FPR(   6250739225336809, -53)), X1(FPR(   6485206053121402, -53)), 
     X1(FPR(   9005673271218593, -53)), X1(FPR(   5305378684473085, -58)), 
 };
+#endif
+
+#if FNDSA_RV64D
 const fpr GM_3_3_2_merging_rv64d[] = {
     // layer 1
     FPR(   6369051672525773, -53), FPR(   6369051672525773, -53), 
@@ -3011,6 +3016,7 @@ const fpr GM_3_3_3_merging_rv64d[] = {
     FPR(   6310162718700422, -53), FPR(   6427401098276813, -53), 
     FPR(   9006817750781007, -53), FPR(   5305603405682435, -59), 
     };
+#endif
 // clang-format on
 
 #if FNDSA_NEON && FNDSA_NEON_FFT_OPT

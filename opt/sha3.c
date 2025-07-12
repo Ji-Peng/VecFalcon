@@ -15,7 +15,7 @@
    all-zero in that internal representation. */
 #if FNDSA_ASM_CORTEXM4
 void process_block(uint64_t *A, unsigned r);
-#elif RV64
+#elif RV64 && KECCAK_OPT
 extern void KeccakF1600_StatePermute_RV64ASM(uint64_t state[25]);
 void process_block(uint64_t *A, unsigned r)
 {
