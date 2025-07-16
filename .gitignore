@@ -1,6 +1,5 @@
 gmon.out
 ref/out/
-RV/out/
 opt/out/
 profiling/out/
 *.prof
