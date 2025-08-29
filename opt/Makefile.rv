@@ -15,7 +15,7 @@ LIBS_GPERF = -Wl,-rpath -Wl,/usr/local/lib -lprofiler
 DEPFLAGS = -MT $@ -MMD -MP -MF out/$*.d
 
 CFLAGS_COMMON = -W -Wextra -Wundef -Wshadow -O2 -g $(PG) $(X4) \
-	-DFNDSA_RV64D=1 -DRV64=1 -DKECCAK_OPT=1 \
+	-DFNDSA_RV64D=1 -DRV64=1 -DKECCAK_OPT=1 -DFFT_OPT=1 \
 	-DWARMUP_N=500 -DTESTS_N=2000
 CFLAGS_RV64GC	 = $(CFLAGS_COMMON) -mabi=lp64d -march=rv64gc	\
 	-DRVV_VLEN256=0

@@ -1,0 +1,42 @@
+We work on the SHAKE256X4 variant.
+
+FN-DSA on RV64GC
+n = 512:
+FN-DSA sign:                         3053671
+FN-DSA sign_core:                    2481586
+FN-DSA verify:                        347121
+n = 1024:
+FN-DSA sign:                         6486803
+FN-DSA sign_core:                    5168690
+FN-DSA verify:                        735092
+
+FN-DSA on RV64GCV
+n = 512:
+FN-DSA sign:                         3035310
+FN-DSA sign_core:                    2445922
+FN-DSA verify:                        350567
+n = 1024:
+FN-DSA sign:                         6405443
+FN-DSA sign_core:                    5100430
+FN-DSA verify:                        735012
+
+FN-DSA on RV64GCB
+n = 512:
+FN-DSA sign:                         2865822
+FN-DSA sign_core:                    2301279
+FN-DSA verify:                        327796
+n = 1024:
+FN-DSA sign:                         6011026
+FN-DSA sign_core:                    4839411
+FN-DSA verify:                        698170
+
+FN-DSA on RV64GCVB
+n = 512:
+FN-DSA sign:                         2845194
+FN-DSA sign_core:                    2250465
+FN-DSA verify:                        327624
+n = 1024:
+FN-DSA sign:                         5897080
+FN-DSA sign_core:                    4750718
+FN-DSA verify:                        697258
+
