@@ -1,0 +1,10 @@
+We work on the SHAKE256X4 variant.
+
+n = 512:
+FN-DSA sign:                          678722
+FN-DSA sign_core:                     443430
+FN-DSA verify:                         44926
+n = 1024:
+FN-DSA sign:                         1383368
+FN-DSA sign_core:                     911420
+FN-DSA verify:                         90650
